@@ -16,6 +16,7 @@
 import mechanicManager from '@ohos.distributedHardware.mechanicManager';
 import { BusinessError } from '@ohos.base';
 import { common } from '@kit.AbilityKit';
+import { systemParameterEnhance } from '@kit.BasicServicesKit';
 
 import { logger } from '../utils/Logger';
 import { FontSizeScale } from '../common/Constants';
@@ -33,11 +34,21 @@ const PHONE_BOTTOM_MARGIN: number = 28;
 struct MechFirstConnectPage {
     @State isShow: boolean = false;
     @State bottomPadding: number = PHONE_BOTTOM_MARGIN;
+    @State isOversea: boolean = false;
 
     private context = this.getUIContext().getHostContext() as common.UIAbilityContext;
 
     aboutToAppear(): void {
         logger.info(TAG, 'aboutToAppear');
+        try {
+            const oversea = systemParameterEnhance.getSync('const.cust.is_oversea', 'false');
+            this.isOversea = oversea === 'true';
+            logger.info(TAG, `isOversea = ${this.isOversea}`);
+        } catch (error) {
+            let code: number = (error as BusinessError).code;
+            let message: string = (error as BusinessError).message;
+            logger.error(TAG, `getSync const.cust.is_oversea failed. error.code: ${code}, message: ${message}`);
+        }
         try {
             mechanicManager.on('attachStateChange', (result: mechanicManager.AttachStateChangeInfo) => {
                 logger.info(TAG, `result.state = ${result.state}`);
@@ -108,7 +119,9 @@ struct MechFirstConnectPage {
                 .margin({ top: $r('sys.float.padding_level8'), bottom: $r('sys.float.padding_level8') })
                 .flexShrink(0)
 
-            Text($r('app.string.harmony_mech_intelligent_tracking'))
+            Text(this.isOversea ?
+                $r('app.string.mech_intelligent_tracking') :
+                $r('app.string.harmony_mech_intelligent_tracking'))
                 .fontFamily('HarmonyHeiTi')
                 .opacity(0.9)
                 .fontWeight(FontWeight.Bold)
