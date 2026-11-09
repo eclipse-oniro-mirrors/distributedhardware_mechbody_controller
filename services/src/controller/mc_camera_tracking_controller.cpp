@@ -659,8 +659,9 @@ std::shared_ptr<TrackingFrameParams> McCameraTrackingController::BuildTrackingPa
                 SearchTargetStop();
             }, SEARCH_TARGET_TASK_NAME);
     }
+    auto lastFrame = std::atomic_load(&lastTrackingFrame_);
     if ((lastTrackingTargetNum == 0 && currentCameraInfo_->trackingTargetNum.load(std::memory_order_relaxed) > 0) ||
-        (currentTime - lastTrackingFrame_->timeStamp >= TRACKING_PARAM_LOST_DELAY &&
+        (currentTime - lastFrame->timeStamp >= TRACKING_PARAM_LOST_DELAY &&
          currentCameraInfo_->trackingTargetNum.load(std::memory_order_relaxed) > 0)) {
         UpdateActionControl();
     }
@@ -668,8 +669,8 @@ std::shared_ptr<TrackingFrameParams> McCameraTrackingController::BuildTrackingPa
         HILOGE("CinematicVideoMode check failed, ignore frame");
         return nullptr;
     }
-    lastTrackingFrame_ = trackingFrameParams;
-    lastTrackingFrame_->timeStamp = currentTime;
+    trackingFrameParams->timeStamp = currentTime;
+    std::atomic_store(&lastTrackingFrame_, trackingFrameParams);
     lastTrackingRect_ = trackingRect_;
     return trackingFrameParams;
 }
@@ -884,10 +885,11 @@ int32_t McCameraTrackingController::GetTrackingTargetFallback(CameraStandard::Re
     }
     isSalientDetectionLocked_.store(false, std::memory_order_relaxed);
 
-    if (lastTrackingFrame_ != nullptr && lastTrackingFrame_->targetId >= 0) {
+    auto lastFrame = std::atomic_load(&lastTrackingFrame_);
+    if (lastFrame != nullptr && lastFrame->targetId >= 0) {
         for (const auto &item : detectedObjects) {
-            if (item->GetObjectId() == lastTrackingFrame_->targetId) {
-                HILOGI("got detected object for id: %{public}d", lastTrackingFrame_->targetId);
+            if (item->GetObjectId() == lastFrame->targetId) {
+                HILOGI("got detected object for id: %{public}d", lastFrame->targetId);
                 selectedObject = item;
                 ProcessTargetByType(selectedObject, detectedObjects, targetObject);
                 return ERR_OK;
@@ -952,13 +954,14 @@ int32_t McCameraTrackingController::CinematicVideoModeTrackingTargetFilter(
         !isSalientDetectionLocked_.load(std::memory_order_relaxed)) {
         return ERR_OK;
     }
-    if (lastTrackingFrame_ == nullptr) {
+    auto lastFrame = std::atomic_load(&lastTrackingFrame_);
+    if (lastFrame == nullptr) {
         HILOGE("lastTrackingFrame_ is null");
         return INVALID_TRACKING_TARGET;
     }
     HILOGI("current is CINEMATIC_VIDEO mode; last target id: %{public}d; original target id: %{public}d;"
            "tracking target id:%{public}d",
-        lastTrackingFrame_->targetId,
+        lastFrame->targetId,
         info.GetTrackingObjectId(),
         trackingParams->targetId);
     if (info.GetTrackingMode() == CameraStandard::FocusTrackingMode::FOCUS_TRACKING_MODE_LOCKED &&
@@ -968,19 +971,19 @@ int32_t McCameraTrackingController::CinematicVideoModeTrackingTargetFilter(
         return INVALID_TRACKING_TARGET;
     }
 
-    if (lastTrackingFrame_->targetId != trackingParams->targetId &&
+    if (lastFrame->targetId != trackingParams->targetId &&
         currentCameraInfo_->pauseFrameCount < MAX_PAUSED_FRAME) {
         bool isAllowedConversion = false;
         HILOGI("lastTrackingFrame type: %{public}d; trackingParams type:%{public}d",
-            lastTrackingFrame_->objectType,
+            lastFrame->objectType,
             trackingParams->objectType);
-        if (lastTrackingFrame_->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY) &&
+        if (lastFrame->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY) &&
             (trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE) ||
                 trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_HEAD))) {
             isAllowedConversion = IsAllowedConversion(lastTrackingRect_, trackingRect_);
-        } else if ((lastTrackingFrame_->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE) &&
+        } else if ((lastFrame->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE) &&
                        trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_HEAD)) ||
-                   (lastTrackingFrame_->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_HEAD) &&
+                   (lastFrame->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_HEAD) &&
                        trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE))) {
             isAllowedConversion = IsAllowedConversion(lastTrackingRect_, trackingRect_);
         }
@@ -1215,9 +1218,10 @@ int32_t McCameraTrackingController::UpdateActionControl()
     uint64_t currentTime = static_cast<uint64_t>
         (std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now())
             .time_since_epoch().count());
+    auto lastFrame = std::atomic_load(&lastTrackingFrame_);
     if (currentCameraInfo_ != nullptr && currentCameraInfo_->trackingTargetNum.load(std::memory_order_relaxed) > 0 &&
-        lastTrackingFrame_->timeStamp <= currentTime &&
-        currentTime - lastTrackingFrame_->timeStamp < TRACKING_PARAM_LOST_DELAY &&
+        lastFrame->timeStamp <= currentTime &&
+        currentTime - lastFrame->timeStamp < TRACKING_PARAM_LOST_DELAY &&
         currentCameraInfo_->currentTrackingEnable.load(std::memory_order_relaxed)) {
         actionControlParam.controlReq = 1;
         actionControlParam.yawControl = 1;
