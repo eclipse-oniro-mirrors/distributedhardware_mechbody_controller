@@ -103,11 +103,16 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
         HILOGE("OnServicesDiscovered state is not sucess");
         return;
     }
-    if (bleSendManager.gattClient_ == nullptr) {
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client;
+    {
+        std::lock_guard<std::mutex> lock(bleSendManager.gattClientMutex_);
+        client = bleSendManager.gattClient_;
+    }
+    if (client == nullptr) {
         HILOGE("gattClient_ is null");
         return;
     }
-    auto mService = bleSendManager.gattClient_->GetService(SERVICE_UUID);
+    auto mService = client->GetService(SERVICE_UUID);
     if (!mService.has_value()) {
         HILOGE("Failed to get service.");
         return;
@@ -128,7 +133,7 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
     uint16_t handle = notifyCharacteristic->GetHandle();
     GattCharacteristic characteristic = GattCharacteristic(MECHBODY_CHARACTERISTIC_NOTIFY_UUID, handle, permissions,
         properties);
-    bleSendManager.gattClient_->SetNotifyCharacteristic(characteristic, true);
+    client->SetNotifyCharacteristic(characteristic, true);
     int wPermissions = writeCharacteristic->GetPermissions();
     int wProperties = writeCharacteristic->GetProperties();
     uint16_t wHandle = writeCharacteristic->GetHandle();
@@ -300,12 +305,15 @@ void BleSendManager::CleanAllLocalInfo()
 void BleSendManager::UnInit()
 {
     HILOGI("UnInit start");
-    if (gattClient_ != nullptr) {
-        if (gattClient_->Close() != 0) {
-            HILOGE("Close gattclient error");
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        if (gattClient_ != nullptr) {
+            if (gattClient_->Close() != 0) {
+                HILOGE("Close gattclient error");
+            }
+            gattClient_.reset();
+            gattClient_ = nullptr;
         }
-        gattClient_.reset();
-        gattClient_ = nullptr;
     }
 }
 
@@ -352,10 +360,15 @@ void BleSendManager::OnConnectionStateChanged(int connectionState, int ret, Mech
     if (connectionState == (int)BTConnectState::CONNECTED) {
         HILOGI("MECHBODY_EXEC_CONNECT connectionState is CONNECTED");
         CancelDelayedUnload();
-        CHECK_POINTER_RETURN(gattClient_, "gattClient_");
-        gattClient_->DiscoverServices();
+        std::shared_ptr<OHOS::Bluetooth::GattClient> client;
+        {
+            std::lock_guard<std::mutex> lock(gattClientMutex_);
+            client = gattClient_;
+        }
+        CHECK_POINTER_RETURN(client, "gattClient_");
+        client->DiscoverServices();
         HILOGI("MECHBODY_EXEC_CONNECT called to discover service");
-        gattClient_->RequestConnectionPriority(MECH_GATT_PRIORITY_HIGH);
+        client->RequestConnectionPriority(MECH_GATT_PRIORITY_HIGH);
         return;
     } else if (connectionState == (int)BTConnectState::DISCONNECTED) {
         HILOGI("MECHBODY_EXEC_CONNECT connectionState is DISCONNECTED");
@@ -537,7 +550,12 @@ int32_t BleSendManager::OnGattReady(MechInfo &mechInfo)
         std::unique_lock<std::mutex> lock(mtuMutex_);
         isMtuUpdated_ = false;
     }
-    gattClient_->RequestBleMtuSize(MTU_UPDATE_SIZE);
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        if (gattClient_ != nullptr) {
+            gattClient_->RequestBleMtuSize(MTU_UPDATE_SIZE);
+        }
+    }
     {
         std::unique_lock<std::mutex> lock(mtuMutex_);
         if (!mtuUpdateCv_.wait_for(lock, std::chrono::seconds(MTU_UPDATE_TIMEOUT_SECOND),
@@ -774,11 +792,25 @@ int32_t BleSendManager::MechbodyGattcConnect(std::string mac, std::string device
     address_ = mac;
     deviceName_ = deviceName;
     BluetoothRemoteDevice device(mac, 1);
-    gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
+    }
     bleGattClientCallBack_ = std::make_shared<BleGattClientCallback>();
     bleGattClientCallBack_->setMac(mac);
-    gattClient_->Init();
-    int result = gattClient_->Connect(bleGattClientCallBack_, false, BT_TRANSPORT_BLE);
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        if (gattClient_ != nullptr) {
+            gattClient_->Init();
+        }
+    }
+    int result = -1;
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        if (gattClient_ != nullptr) {
+            result = gattClient_->Connect(bleGattClientCallBack_, false, BT_TRANSPORT_BLE);
+        }
+    }
     if (result != 0) {
         HILOGE("MECHBODY_EXEC_CONNECT Failed to connect, result: %{public}d", result);
         return MECHBODY_GATT_CONNECT_FAIL;
@@ -923,12 +955,15 @@ void BleSendManager::OnGattDisconnect(MechInfo &mechInfo)
     MechConnectManager::GetInstance().NotifyMechDisconnect(mechInfo);
     DelayedUnloadSystemAbility();
     HILOGI("destruct bleGattClientCallBack_ start");
-    if (gattClient_ != nullptr) {
-        if (gattClient_->Close() != 0) {
-            HILOGE("Close gattclient error");
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        if (gattClient_ != nullptr) {
+            if (gattClient_->Close() != 0) {
+                HILOGE("Close gattclient error");
+            }
+            gattClient_.reset();
+            gattClient_ = nullptr;
         }
-        gattClient_.reset();
-        gattClient_ = nullptr;
     }
 
     if (bleGattClientCallBack_ != nullptr) {
@@ -941,11 +976,16 @@ void BleSendManager::OnGattDisconnect(MechInfo &mechInfo)
 int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo)
 {
     HILOGI("MECHBODY_EXEC_DISCONNECT begin");
-    if (gattClient_ == nullptr) {
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client;
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        client = gattClient_;
+    }
+    if (client == nullptr) {
         HILOGE("gattClient_ is nullptr");
         return MECHBODY_GATT_INVALID_PARAM;
     }
-    int status = gattClient_->Disconnect();
+    int status = client->Disconnect();
     HILOGI("MECHBODY_EXEC_DISCONNECT BleGattcDisconnect info, status: %{public}d", status);
     if (status != OHOS_BT_STATUS_SUCCESS) {
         HILOGE("MECHBODY_EXEC_DISCONNECT BleGattcDisconnect error, status: %{public}d", status);
@@ -1038,11 +1078,16 @@ int32_t BleSendManager::MechbodyGattcDisconnectForMechbotyStart(MechInfo mechInf
                GetAnonymStr(mechInfo.mac).c_str(), GetAnonymStr(mechInfo.mechName).c_str());
         return MECH_INFO_NOT_FOUND;
     }
-    if (gattClient_ == nullptr) {
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client;
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        client = gattClient_;
+    }
+    if (client == nullptr) {
         HILOGE("MECH_CLEAN_CONN_GATT gattClient is nullptr for mech info: %{public}s;", mechInfo.ToString().c_str());
         return MECH_HAS_DISCONNECTED;
     }
-    int result = gattClient_->Disconnect();
+    int result = client->Disconnect();
     HILOGI("MECH_CLEAN_CONN_GATT Gatt Disconnect exec result: %{public}d; mech info: %{public}s",
            result, mechInfo.ToString().c_str());
     if (result != OHOS_BT_STATUS_SUCCESS) {
@@ -1122,7 +1167,12 @@ int32_t BleSendManager::MechbodyGattcWriteCharacteristic(uint8_t *data, uint32_t
         HILOGE("data is nullptr or len is not enough");
         return MECHBODY_GATT_INVALID_PARAM;
     }
-    if (gattClient_ == nullptr) {
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client;
+    {
+        std::lock_guard<std::mutex> lock(gattClientMutex_);
+        client = gattClient_;
+    }
+    if (client == nullptr) {
         HILOGE("gattClient_ is nullptr");
         return MECHBODY_GATT_INVALID_PARAM;
     }
@@ -1141,7 +1191,7 @@ int32_t BleSendManager::MechbodyGattcWriteCharacteristic(uint8_t *data, uint32_t
     wrCharacteristic.SetWriteType(GattCharacteristic::WriteType::NO_RESPONSE);
     HILOGI("Mech writeC");
     uint64_t beginTime = GetTimeStampMs();
-    result = gattClient_->WriteCharacteristic(wrCharacteristic);
+    result = client->WriteCharacteristic(wrCharacteristic);
     uint64_t endTime = GetTimeStampMs();
     HILOGI("Mech writeC, result = %{public}d handle: %{public}d dataLen: %{public}d, castTime:%{public}s \n", \
         result, handle, dataLen, std::to_string(endTime - beginTime).c_str());
