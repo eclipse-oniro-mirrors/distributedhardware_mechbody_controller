@@ -201,6 +201,7 @@ public:
     bool isGattReady_ = false;
     std::mutex isGattReadyMtx_;
 
+    std::mutex gattClientMutex_;
     std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient_ {nullptr};
     std::shared_ptr<BleGattClientCallback> bleGattClientCallBack_ {nullptr};
     /* write Character record */
