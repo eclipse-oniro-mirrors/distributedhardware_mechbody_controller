@@ -57,6 +57,10 @@ void WheelGetMechMovementCapabilityCmd::SetCapability(uint32_t cap)
 {
     HILOGI("start");
     uint32_t index = cap / 32;
+    if (index >= MAX_CAPABILITY_BIT_NUM) {
+        HILOGE("Invalid cap: %{public}u", cap);
+        return;
+    }
     uint32_t bit_index = cap % 32;
     g_capabilityInfo[index] = g_capabilityInfo[index] | (1 << bit_index);
 }
