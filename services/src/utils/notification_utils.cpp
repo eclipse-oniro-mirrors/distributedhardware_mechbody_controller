@@ -615,19 +615,18 @@ Notification::NotificationLocalLiveViewButton NotificationUtils::ParseLiveViewBu
 
 void NotificationUtils::SubscribeLocalLiveViewNotification()
 {
-    HILOGI("start isLocalLiveViewSubscriber: %{public}d", isLocalLiveViewSubscriber_);
-    if (!isLocalLiveViewSubscriber_) {
-        isLocalLiveViewSubscriber_ = true;
+    std::call_once(localLiveViewSubscriberOnceFlag_, []() {
         localLiveViewSubscriber_ = std::make_shared<LocalLiveViewSubscriber>();
         int32_t result = Notification::NotificationHelper::SubscribeLocalLiveViewNotification(
             *localLiveViewSubscriber_, true);
         HILOGI("SubscribeLocalLiveViewNotification result : %{public}d", result);
-    }
+    });
 }
 
 void NotificationUtils::RegisterConfigurationObserver()
 {
     HILOGI("Enter.");
+    std::lock_guard<std::mutex> lock(configChangeObserverMutex_);
     if (configChangeObserver_ != nullptr) {
         return;
     }
