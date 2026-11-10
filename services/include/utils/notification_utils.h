@@ -19,6 +19,7 @@
 #include <nlohmann/json.hpp>
 #include <functional>
 #include <atomic>
+#include <mutex>
 #include "notification_helper.h"
 #include "notification_content.h"
 #include "notification_request.h"
@@ -82,9 +83,11 @@ private:
 private:
     inline static bool isSendConnectedCapsule_ = false;
 
-    inline static bool isLocalLiveViewSubscriber_ = false;
+    inline static std::once_flag localLiveViewSubscriberOnceFlag_;
 
     inline static sptr<AppExecFwk::IConfigurationObserver> configChangeObserver_ = nullptr;
+
+    inline static std::mutex configChangeObserverMutex_;
 
     inline static std::shared_ptr<Notification::NotificationLocalLiveViewSubscriber> localLiveViewSubscriber_ = nullptr;
 
