@@ -66,7 +66,7 @@ public:
     int32_t RemoveMechInfoByMac(std::string &mac);
     int32_t CleanMechInfo();
     int32_t GetMechInfo(std::string &mac, MechInfo &mechInfo);
-    const std::set<MechInfo> &GetMechInfos() const;
+    std::set<MechInfo> GetMechInfos();
     int32_t SetMechanicGattState(std::string &mac, bool state);
     int32_t GetMechanicGattState(std::string &mac, bool &state);
     int32_t SetMechanicPairState(std::string &mac, bool state);

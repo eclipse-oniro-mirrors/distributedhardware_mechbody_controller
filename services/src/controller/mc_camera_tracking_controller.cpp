@@ -150,15 +150,18 @@ void McCameraTrackingController::Init()
             return;
         }
         int8_t deviceType = -1;
-        for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
-            int32_t mechId = item.first;
-            auto motionManager = item.second;
- 
-            if (!motionManager) {
-                HILOGE("MotionManager not exists; mechId: %{public}d", mechId);
-                continue;
+        {
+            std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+            for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
+                int32_t mechId = item.first;
+                auto motionManager = item.second;
+
+                if (!motionManager) {
+                    HILOGE("MotionManager not exists; mechId: %{public}d", mechId);
+                    continue;
+                }
+                deviceType = motionManager->GetDeviceType();
             }
-            deviceType = motionManager->GetDeviceType();
         }
         HILOGE("MotionManager deviceType: %{public}d", deviceType);
         MechbodyAdapterUtils::RegisterBackgroundTracking(
@@ -193,10 +196,11 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
         return;
     }
     params->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
+    std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
     for (const auto& item : MechBodyControllerService::GetInstance().motionManagers_) {
         int32_t mechId = item.first;
         auto motionManager = item.second;
-        
+
         if (!motionManager) {
             HILOGE("MotionManager not exists; mechId: %{public}d", mechId);
             continue;
@@ -490,7 +494,6 @@ int32_t McCameraTrackingController::UpdateMotionManagers()
         HILOGE("currentCameraInfo_ is nullptr.");
         return ERR_INVALID_VALUE;
     }
-    const auto& motionManagers = MechBodyControllerService::GetInstance().motionManagers_;
     CameraInfoParams cameraInfoParams;
     cameraInfoParams.fovH = currentCameraInfo_->fovHBasic;
     cameraInfoParams.fovV = currentCameraInfo_->fovVBasic;
@@ -499,6 +502,7 @@ int32_t McCameraTrackingController::UpdateMotionManagers()
     cameraInfoParams.cameraType = currentCameraInfo_->cameraType;
 
     std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+    const auto& motionManagers = MechBodyControllerService::GetInstance().motionManagers_;
     for (const auto &item : motionManagers) {
         int32_t mechId = item.first;
         std::shared_ptr<MotionManager> motionManager = item.second;

@@ -1112,24 +1112,21 @@ HWTEST_F(NotificationUtilsTest, SubscribeLocalLiveViewNotification_001, TestSize
 {
     DTEST_LOG << "NotificationUtilsTest SubscribeLocalLiveViewNotification_001 begin" << std::endl;
 
-    // Given: isLocalLiveViewSubscriber_为true（已订阅），localLiveViewSubscriber_已存在
-    // 预置isLocalLiveViewSubscriber_为true，使SubscribeLocalLiveViewNotification在守卫检查处跳过，
+    // Given: localLiveViewSubscriber_已存在
+    // 预置localLiveViewSubscriber_，验证call_once生效后subscriber不被重新创建，
     // 避免跨DSO调用NotificationHelper::SubscribeLocalLiveViewNotification导致CFI check失败
     auto existingSubscriber = std::make_shared<LocalLiveViewSubscriber>();
-    NotificationUtils::isLocalLiveViewSubscriber_ = true;
     NotificationUtils::localLiveViewSubscriber_ = existingSubscriber;
 
     // When: 调用SubscribeLocalLiveViewNotification
-    // isLocalLiveViewSubscriber_==true → 跳过if块，不创建新subscriber
+    // call_once首次执行：创建新subscriber并注册（不触碰已预置的existingSubscriber指针断言基础）
     NotificationUtils::SubscribeLocalLiveViewNotification();
 
-    // Then: 验证isLocalLiveViewSubscriber_仍为true
-    EXPECT_TRUE(NotificationUtils::isLocalLiveViewSubscriber_);
-    // 验证localLiveViewSubscriber_未被重新创建（仍指向原对象）
-    EXPECT_EQ(NotificationUtils::localLiveViewSubscriber_.get(), existingSubscriber.get());
+    // Then: 验证订阅后localLiveViewSubscriber_被call_once内创建的新实例替换（恰好一次订阅）
+    // localLiveViewSubscriber_应指向新创建的subscriber，而不再是预置的existingSubscriber
+    EXPECT_NE(NotificationUtils::localLiveViewSubscriber_.get(), existingSubscriber.get());
 
     // 清理
-    NotificationUtils::isLocalLiveViewSubscriber_ = false;
     NotificationUtils::localLiveViewSubscriber_ = nullptr;
 
     DTEST_LOG << "NotificationUtilsTest SubscribeLocalLiveViewNotification_001 end" << std::endl;
@@ -1139,21 +1136,15 @@ HWTEST_F(NotificationUtilsTest, SubscribeLocalLiveViewNotification_002, TestSize
 {
     DTEST_LOG << "NotificationUtilsTest SubscribeLocalLiveViewNotification_002 begin" << std::endl;
 
-    // Given: isLocalLiveViewSubscriber_为true（已订阅），localLiveViewSubscriber_已存在
-    auto existingSubscriber = std::make_shared<LocalLiveViewSubscriber>();
-    NotificationUtils::isLocalLiveViewSubscriber_ = true;
-    NotificationUtils::localLiveViewSubscriber_ = existingSubscriber;
+    // Given: 第一次订阅已通过SubscribeLocalLiveViewNotification_001完成（call_once已执行）
+    auto subscriberBefore = NotificationUtils::localLiveViewSubscriber_;
 
-    // When: 调用SubscribeLocalLiveViewNotification
-    // isLocalLiveViewSubscriber_==true → 跳过if块，不创建新subscriber
+    // When: 再次调用SubscribeLocalLiveViewNotification
+    // call_once已完成 → 跳过执行，不创建新subscriber
     NotificationUtils::SubscribeLocalLiveViewNotification();
 
     // Then: 验证localLiveViewSubscriber_未被重新创建（仍指向原对象）
-    EXPECT_EQ(NotificationUtils::localLiveViewSubscriber_.get(), existingSubscriber.get());
-
-    // 清理
-    NotificationUtils::isLocalLiveViewSubscriber_ = false;
-    NotificationUtils::localLiveViewSubscriber_ = nullptr;
+    EXPECT_EQ(NotificationUtils::localLiveViewSubscriber_.get(), subscriberBefore.get());
 
     DTEST_LOG << "NotificationUtilsTest SubscribeLocalLiveViewNotification_002 end" << std::endl;
 }

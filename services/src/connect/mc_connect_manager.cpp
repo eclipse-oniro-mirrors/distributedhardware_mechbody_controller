@@ -300,8 +300,10 @@ int32_t MechConnectManager::CleanMechInfo()
     return ERR_OK;
 }
 
-const std::set<MechInfo> &MechConnectManager::GetMechInfos() const
+std::set<MechInfo> MechConnectManager::GetMechInfos()
 {
+    HILOGI("called");
+    std::lock_guard<std::mutex> autoLock(mechInfosMutex_);
     return mechInfos_;
 }
 
