@@ -300,9 +300,11 @@ int32_t MechConnectManager::CleanMechInfo()
     return ERR_OK;
 }
 
-std::set<MechInfo> MechConnectManager::GetMechInfos() const {
+std::set<MechInfo> MechConnectManager::GetMechInfos()
+{
+    HILOGI("called");
     std::lock_guard<std::mutex> autoLock(mechInfosMutex_);
-    return mechInfos_;   // 锁内拷贝副本，出锁后副本与容器无关，安全
+    return mechInfos_;
 }
 
 int32_t MechConnectManager::GetMechInfo(std::string &mac, MechInfo &mechInfo)
