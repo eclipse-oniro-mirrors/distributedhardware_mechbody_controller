@@ -2752,6 +2752,7 @@ int32_t MotionManager::SetMechCameraTrackingFrame(const std::shared_ptr<Tracking
         HILOGE("deviceStatus_ is nullptr");
         return INVALID_PARAMETERS_ERR;
     }
+    bool isEnabled = false;
     if (!deviceStatus_->isEnabled || deviceStatus_->trackingStatus == MechTrackingStatus::MECH_TK_DISABLE ||
         !needSendTrackingData_) {
         HILOGE("device tracking is not enabled, isEnabled: %{public}d, trackingStatus: %{public}d, "
