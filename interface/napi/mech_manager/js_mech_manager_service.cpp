@@ -135,11 +135,49 @@ int32_t JsMechManagerService::TrackingEventCallback(const int32_t &mechId,
     return ERR_OK;
 }
 
+napi_value JsMechManagerService::CreateRotationAxesStatusEvent(napi_env env, int32_t mechId,
+    const std::shared_ptr<RotationAxesStatus> &rotationAxesStatus)
+{
+    napi_value jsEvent;
+    napi_create_object(env, &jsEvent);
+    napi_value jsMechId;
+    napi_create_int32(env, mechId, &jsMechId);
+    napi_set_named_property(env, jsEvent, "mechId", jsMechId);
+
+    napi_value jsStatus;
+    napi_create_object(env, &jsStatus);
+    napi_value jsYawEnabled;
+    napi_value jsRollEnabled;
+    napi_value jsPitchEnabled;
+    napi_value jsYawLimited;
+    napi_value jsRollLimited;
+    napi_value jsPitchLimited;
+    napi_get_boolean(env, rotationAxesStatus->yawEnabled, &jsYawEnabled);
+    napi_get_boolean(env, rotationAxesStatus->rollEnabled, &jsRollEnabled);
+    napi_get_boolean(env, rotationAxesStatus->pitchEnabled, &jsPitchEnabled);
+    napi_create_int32(env, static_cast<int32_t>(rotationAxesStatus->yawLimited), &jsYawLimited);
+    napi_create_int32(env, static_cast<int32_t>(rotationAxesStatus->rollLimited), &jsRollLimited);
+    napi_create_int32(env, static_cast<int32_t>(rotationAxesStatus->pitchLimited), &jsPitchLimited);
+    napi_set_named_property(env, jsStatus, "yawEnabled", jsYawEnabled);
+    napi_set_named_property(env, jsStatus, "rollEnabled", jsRollEnabled);
+    napi_set_named_property(env, jsStatus, "pitchEnabled", jsPitchEnabled);
+    napi_set_named_property(env, jsStatus, "yawLimited", jsYawLimited);
+    napi_set_named_property(env, jsStatus, "rollLimited", jsRollLimited);
+    napi_set_named_property(env, jsStatus, "pitchLimited", jsPitchLimited);
+    napi_set_named_property(env, jsEvent, "status", jsStatus);
+    return jsEvent;
+}
+
 int32_t JsMechManagerService::RotationAxesStatusChangeCallback(const int32_t &mechId,
     const std::shared_ptr<RotationAxesStatus> &rotationAxesStatus)
 {
     CHECK_POINTER_RETURN_VALUE(rotationAxesStatus, INVALID_PARAMETERS_ERR, "rotationAxesStatus");
-    for (const auto &item: rotateAxisStatusChangeCallback) {
+    std::vector<CallbackFunctionInfo> callbacksCopy;
+    {
+        std::lock_guard<std::mutex> lock(rotateAxisStatusChangeCallbackMutex_);
+        callbacksCopy.assign(rotateAxisStatusChangeCallback.begin(), rotateAxisStatusChangeCallback.end());
+    }
+    for (const auto &item: callbacksCopy) {
         auto task = [item, mechId, rotationAxesStatus]() {
             napi_handle_scope scope;
             napi_status res = napi_open_handle_scope(item.env, &scope);
@@ -147,50 +185,17 @@ int32_t JsMechManagerService::RotationAxesStatusChangeCallback(const int32_t &me
                 HILOGE("open handle scope failed!");
                 return;
             }
-
-            napi_value jsEvent;
-            napi_create_object(item.env, &jsEvent);
-            napi_value jsMechId;
-            napi_create_int32(item.env, mechId, &jsMechId);
-            napi_set_named_property(item.env, jsEvent, "mechId", jsMechId);
-
-            napi_value jsStatus;
-            napi_create_object(item.env, &jsStatus);
-            napi_value jsYawEnabled;
-            napi_value jsRollEnabled;
-            napi_value jsPitchEnabled;
-            napi_value jsYawLimited;
-            napi_value jsRollLimited;
-            napi_value jsPitchLimited;
-            napi_get_boolean(item.env, rotationAxesStatus->yawEnabled, &jsYawEnabled);
-            napi_get_boolean(item.env, rotationAxesStatus->rollEnabled, &jsRollEnabled);
-            napi_get_boolean(item.env, rotationAxesStatus->pitchEnabled, &jsPitchEnabled);
-            napi_create_int32(item.env, static_cast<int32_t>(rotationAxesStatus->yawLimited), &jsYawLimited);
-            napi_create_int32(item.env, static_cast<int32_t>(rotationAxesStatus->rollLimited), &jsRollLimited);
-            napi_create_int32(item.env, static_cast<int32_t>(rotationAxesStatus->pitchLimited),
-                              &jsPitchLimited);
-            napi_set_named_property(item.env, jsStatus, "yawEnabled", jsYawEnabled);
-            napi_set_named_property(item.env, jsStatus, "rollEnabled", jsRollEnabled);
-            napi_set_named_property(item.env, jsStatus, "pitchEnabled", jsPitchEnabled);
-            napi_set_named_property(item.env, jsStatus, "yawLimited", jsYawLimited);
-            napi_set_named_property(item.env, jsStatus, "rollLimited", jsRollLimited);
-            napi_set_named_property(item.env, jsStatus, "pitchLimited", jsPitchLimited);
-            napi_set_named_property(item.env, jsEvent, "status", jsStatus);
-
+            napi_value jsEvent = CreateRotationAxesStatusEvent(item.env, mechId, rotationAxesStatus);
             napi_value callback;
             napi_get_reference_value(item.env, item.callbackRef, &callback);
-
             napi_value global;
             napi_get_global(item.env, &global);
-
             napi_value result;
             napi_call_function(item.env, global, callback, 1, &jsEvent, &result);
-
             napi_close_handle_scope(item.env, scope);
         };
         napi_send_event(item.env, task, napi_eprio_high, "MechbodyTask");
     }
-
     HILOGI("end");
     return ERR_OK;
 }
@@ -318,17 +323,21 @@ int32_t JsMechManagerService::SubscribeCallbackInvoke(const int32_t &mechId, con
 {
     HILOGI("start. mechId: %{public}d, mechEventType: %{public}d", mechId, static_cast<int32_t>(mechEventType));
 
-    auto it = subscribeCallback_.find(mechEventType);
-    if (it != subscribeCallback_.end()) {
-        std::set<CallbackFunctionInfo> callbackSet = it->second;
-        for (const auto &item : callbackSet) {
-            auto task = [item, mechId, mechEventType]() {
-                InvokeCallbackTask(item, mechId, mechEventType);
-            };
-            napi_send_event(item.env, task, napi_eprio_high, "MechbodyTask");
+    std::set<CallbackFunctionInfo> callbackSet;
+    {
+        std::lock_guard<std::mutex> lock(subscribeCallbackMutex_);
+        auto it = subscribeCallback_.find(mechEventType);
+        if (it != subscribeCallback_.end()) {
+            callbackSet = it->second;
+        } else {
+            HILOGW("No callback found for mechEventType: %{public}d", static_cast<int32_t>(mechEventType));
         }
-    } else {
-        HILOGW("No callback found for mechEventType: %{public}d", static_cast<int32_t>(mechEventType));
+    }
+    for (const auto &item : callbackSet) {
+        auto task = [item, mechId, mechEventType]() {
+            InvokeCallbackTask(item, mechId, mechEventType);
+        };
+        napi_send_event(item.env, task, napi_eprio_high, "MechbodyTask");
     }
     HILOGI("end");
     return ERR_OK;

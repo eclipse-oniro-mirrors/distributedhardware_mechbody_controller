@@ -989,7 +989,16 @@ int32_t AniMechManager::ExecuteOnForAttachStateChange(const AttachStateCBTaihe &
             HILOGE("Init AttachStateChangeStub failed.");
             return SYSTEM_WORK_ABNORMALLY;
         }
-        registerResult = mechClient_->AttachStateChangeListenOn(attachStateChangeStub_);
+        sptr<AniMechManagerStub> stubCopy;
+        {
+            std::lock_guard<std::mutex> stubLock(attachStateChangeStubMutex_);
+            stubCopy = attachStateChangeStub_;
+        }
+        if (stubCopy == nullptr) {
+            HILOGE("AttachStateChangeStub is null after init.");
+            return SYSTEM_WORK_ABNORMALLY;
+        }
+        registerResult = mechClient_->AttachStateChangeListenOn(stubCopy);
     }
     if (registerResult != ERR_OK) {
         return registerResult;
@@ -1052,7 +1061,16 @@ int32_t AniMechManager::ExecuteOnForRotationAxesStatusChange(const RotationAxesC
             HILOGE("Init RotationAxesStatusChangeStub failed.");
             return MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY;
         }
-        registerResult = mechClient_->RotationAxesStatusChangeListenOn(rotationAxesStatusChangeStub_);
+        sptr<AniMechManagerStub> stubCopy;
+        {
+            std::lock_guard<std::mutex> stubLock(rotationAxesStatusChangeMutex_);
+            stubCopy = rotationAxesStatusChangeStub_;
+        }
+        if (stubCopy == nullptr) {
+            HILOGE("RotationAxesStatusChangeStub is null after init.");
+            return MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY;
+        }
+        registerResult = mechClient_->RotationAxesStatusChangeListenOn(stubCopy);
     }
     if (registerResult != ERR_OK) {
         return registerResult;
@@ -1068,9 +1086,6 @@ int32_t AniMechManager::ExecuteOnForRotationAxesStatusChange(const RotationAxesC
 
 bool AniMechManager::InitAttachStateChangeStub()
 {
-    if (attachStateChangeStub_ != nullptr) {
-        return true;
-    }
     {
         std::lock_guard<std::mutex> lock(attachStateChangeStubMutex_);
         if (attachStateChangeStub_ != nullptr) {
@@ -1110,9 +1125,6 @@ bool AniMechManager::InitTrackingEventStub()
 
 bool AniMechManager::InitRotationAxesStatusChangeStub()
 {
-    if (rotationAxesStatusChangeStub_ != nullptr) {
-        return true;
-    }
     {
         std::lock_guard<std::mutex> lock(rotationAxesStatusChangeMutex_);
         if (rotationAxesStatusChangeStub_ != nullptr) {
@@ -1133,9 +1145,6 @@ bool AniMechManager::InitRotationAxesStatusChangeStub()
 
 bool AniMechManager::InitBaseChannel()
 {
-    if (baseChannel_ != nullptr) {
-        return true;
-    }
     {
         std::lock_guard<std::mutex> lock(baseChannelMutex_);
         if (baseChannel_ != nullptr) {
@@ -1268,7 +1277,16 @@ int32_t AniMechManager::ExecuteSubscribe(
             if (!InitBaseChannel()) {
                 return SYSTEM_WORK_ABNORMALLY;
             }
-            registerResult = mechClient_->RegisterSubscribeChannel(baseChannel_, mechEventType);
+            sptr<AniMechManagerStub> channelCopy;
+            {
+                std::lock_guard<std::mutex> channelLock(baseChannelMutex_);
+                channelCopy = baseChannel_;
+            }
+            if (channelCopy == nullptr) {
+                HILOGE("BaseChannel is null after init.");
+                return SYSTEM_WORK_ABNORMALLY;
+            }
+            registerResult = mechClient_->RegisterSubscribeChannel(channelCopy, mechEventType);
         }
         if (registerResult != ERR_OK) {
             HILOGE("RegisterSubscribeChannel failed.");

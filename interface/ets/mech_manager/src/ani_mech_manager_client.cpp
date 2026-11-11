@@ -913,23 +913,35 @@ void AniSystemAbilityStatusChangeListener::OnAddSystemAbility(int32_t systemAbil
         return;
     }
     HILOGI("MechService SA:%{public}d added", systemAbilityId);
-    if (attachStateCallback_ != nullptr) {
-        int32_t result = SendAttachStateChangeListenOn(attachStateCallback_);
+    sptr<AniMechManagerStub> attachStateCallback;
+    sptr<AniMechManagerStub> trackingEventCallback;
+    sptr<AniMechManagerStub> cmdChannel;
+    sptr<AniMechManagerStub> rotationAxesStatusCallback;
+    {
+        std::lock_guard<std::mutex> lock(callbackMutex_);
+        attachStateCallback = attachStateCallback_;
+        trackingEventCallback = trackingEventCallback_;
+        cmdChannel = cmdChannel_;
+        rotationAxesStatusCallback = rotationAxesStatusCallback_;
+    }
+
+    if (attachStateCallback != nullptr) {
+        int32_t result = SendAttachStateChangeListenOn(attachStateCallback);
         HILOGI("SendAttachStateChangeListenOn result: %{public}d", result);
     }
 
-    if (trackingEventCallback_ != nullptr) {
-        int32_t result = SendTrackingEventListenOn(trackingEventCallback_);
+    if (trackingEventCallback != nullptr) {
+        int32_t result = SendTrackingEventListenOn(trackingEventCallback);
         HILOGI("SendTrackingEventListenOn result: %{public}d", result);
     }
 
-    if (cmdChannel_ != nullptr) {
-        int32_t result = SendRegisterCmdChannel(cmdChannel_);
+    if (cmdChannel != nullptr) {
+        int32_t result = SendRegisterCmdChannel(cmdChannel);
         HILOGI("SendRegisterCmdChannel result: %{public}d", result);
     }
 
-    if (rotationAxesStatusCallback_ != nullptr) {
-        int32_t result = SendRotationAxesStatusChangeListenOn(rotationAxesStatusCallback_);
+    if (rotationAxesStatusCallback != nullptr) {
+        int32_t result = SendRotationAxesStatusChangeListenOn(rotationAxesStatusCallback);
         HILOGI("SendRotationAxesStatusChangeListenOn result: %{public}d", result);
     }
 
@@ -958,17 +970,20 @@ void AniSystemAbilityStatusChangeListener::OnRemoveSystemAbility(int32_t systemA
 
 void AniSystemAbilityStatusChangeListener::SetAttachStateCallback(const sptr<AniMechManagerStub> &attachStateCallback)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     attachStateCallback_ = attachStateCallback;
 }
 
 void AniSystemAbilityStatusChangeListener::SetTrackingEventCallback(
     const sptr<OHOS::MechBodyController::AniMechManagerStub> &trackingEventCallback)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     trackingEventCallback_ = trackingEventCallback;
 }
 
 void AniSystemAbilityStatusChangeListener::SetCmdChannel(const sptr<AniMechManagerStub> &cmdChannel)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     cmdChannel_ = cmdChannel;
 }
 
@@ -982,6 +997,7 @@ void AniSystemAbilityStatusChangeListener::SetSubscribeCallback(
 void AniSystemAbilityStatusChangeListener::SetRotationAxesStatusCallback(
     const sptr<AniMechManagerStub> &rotationAxesStatusCallback)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     rotationAxesStatusCallback_ = rotationAxesStatusCallback;
 }
 

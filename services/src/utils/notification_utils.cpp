@@ -275,22 +275,7 @@ void NotificationUtils::ParseAdvancedFields(Notification::NotificationRequest& r
         HILOGW("liveViewContent is not exist!");
     }
 
-    if (configJson.contains("littleIcon")) {
-        std::string iconName = configJson["littleIcon"];
-        std::shared_ptr<Media::PixelMap> iconPixelMap;
-        if (iconPixelMaps_.find(iconName) != iconPixelMaps_.end()) {
-            iconPixelMap = iconPixelMaps_[iconName];
-        } else {
-            iconPixelMap = ResourceManagerUtils::GetPixelMapByName(iconName);
-        }
-        if (iconPixelMap != nullptr) {
-            HILOGI("littleIcon is exist!");
-            request.SetLittleIcon(iconPixelMap);
-            iconPixelMaps_[iconName] = iconPixelMap;
-        }
-    } else {
-        HILOGW("littleIcon is not exist!");
-    }
+    ParseLittleIcon(request, configJson);
 
     if (configJson.contains("badgeIconStyle")) {
         NotificationRequest::BadgeStyle badgeIconStyle = configJson["badgeIconStyle"];
@@ -304,6 +289,32 @@ void NotificationUtils::ParseAdvancedFields(Notification::NotificationRequest& r
         ParseWantAgentJson(request, wantAgent);
     } else {
         HILOGW("wantAgent is not exist!");
+    }
+}
+
+void NotificationUtils::ParseLittleIcon(Notification::NotificationRequest& request, const json& configJson)
+{
+    if (!configJson.contains("littleIcon")) {
+        HILOGW("littleIcon is not exist!");
+        return;
+    }
+    std::string iconName = configJson["littleIcon"];
+    std::shared_ptr<Media::PixelMap> iconPixelMap;
+    {
+        std::lock_guard<std::mutex> lock(iconPixelMapsMutex_);
+        auto it = iconPixelMaps_.find(iconName);
+        if (it != iconPixelMaps_.end()) {
+            iconPixelMap = it->second;
+        }
+    }
+    if (iconPixelMap == nullptr) {
+        iconPixelMap = ResourceManagerUtils::GetPixelMapByName(iconName);
+    }
+    if (iconPixelMap != nullptr) {
+        HILOGI("littleIcon is exist!");
+        request.SetLittleIcon(iconPixelMap);
+        std::lock_guard<std::mutex> lock(iconPixelMapsMutex_);
+        iconPixelMaps_[iconName] = iconPixelMap;
     }
 }
 
@@ -552,14 +563,20 @@ Notification::NotificationCapsule NotificationUtils::ParseCapsuleJson(json capsu
     if (capsuleJson.contains("icon")) {
         std::string iconName = capsuleJson["icon"];
         std::shared_ptr<Media::PixelMap> iconPixelMap;
-        if (iconPixelMaps_.find(iconName) != iconPixelMaps_.end()) {
-            iconPixelMap = iconPixelMaps_[iconName];
-        } else {
+        {
+            std::lock_guard<std::mutex> lock(iconPixelMapsMutex_);
+            auto it = iconPixelMaps_.find(iconName);
+            if (it != iconPixelMaps_.end()) {
+                iconPixelMap = it->second;
+            }
+        }
+        if (iconPixelMap == nullptr) {
             iconPixelMap = ResourceManagerUtils::GetPixelMapByName(iconName);
         }
         if (iconPixelMap != nullptr) {
             HILOGI("icon is exist!");
             capsule.SetIcon(iconPixelMap);
+            std::lock_guard<std::mutex> lock(iconPixelMapsMutex_);
             iconPixelMaps_[iconName] = iconPixelMap;
         }
     } else {
@@ -596,14 +613,20 @@ Notification::NotificationLocalLiveViewButton NotificationUtils::ParseLiveViewBu
         if (buttonJson.contains("singleButtonIcon")) {
             std::string iconName = buttonJson["singleButtonIcon"];
             std::shared_ptr<Media::PixelMap> iconPixelMap;
-            if (iconPixelMaps_.find(iconName) != iconPixelMaps_.end()) {
-                iconPixelMap = iconPixelMaps_[iconName];
-            } else {
+            {
+                std::lock_guard<std::mutex> lock(iconPixelMapsMutex_);
+                auto it = iconPixelMaps_.find(iconName);
+                if (it != iconPixelMaps_.end()) {
+                    iconPixelMap = it->second;
+                }
+            }
+            if (iconPixelMap == nullptr) {
                 iconPixelMap = ResourceManagerUtils::GetPixelMapByName(iconName);
             }
             if (iconPixelMap != nullptr) {
                 HILOGI("singleButtonIcon is exist!");
                 button.addSingleButtonIcon(iconPixelMap);
+                std::lock_guard<std::mutex> lock(iconPixelMapsMutex_);
                 iconPixelMaps_[iconName] = iconPixelMap;
             }
         } else {
@@ -626,9 +649,11 @@ void NotificationUtils::SubscribeLocalLiveViewNotification()
 void NotificationUtils::RegisterConfigurationObserver()
 {
     HILOGI("Enter.");
-    std::lock_guard<std::mutex> lock(configChangeObserverMutex_);
-    if (configChangeObserver_ != nullptr) {
-        return;
+    {
+        std::lock_guard<std::mutex> lock(notificationMutex_);
+        if (configChangeObserver_ != nullptr) {
+            return;
+        }
     }
 
     auto appMgrClient = std::make_shared<AppExecFwk::AppMgrClient>();
@@ -637,9 +662,21 @@ void NotificationUtils::RegisterConfigurationObserver()
         return;
     }
 
-    configChangeObserver_ = sptr<AppExecFwk::IConfigurationObserver>(
-        new (std::nothrow) ReminderConfigChangeObserver());
-    if (appMgrClient->RegisterConfigurationObserver(configChangeObserver_) != ERR_OK) {
+    sptr<AppExecFwk::IConfigurationObserver> observer =
+        sptr<AppExecFwk::IConfigurationObserver>(new (std::nothrow) ReminderConfigChangeObserver());
+    if (observer == nullptr) {
+        HILOGE("Create config change observer failed.");
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(notificationMutex_);
+        if (configChangeObserver_ != nullptr) {
+            HILOGI("Config change observer already registered by another thread.");
+            return;
+        }
+        configChangeObserver_ = observer;
+    }
+    if (appMgrClient->RegisterConfigurationObserver(observer) != ERR_OK) {
         HILOGE("Register configuration observer failed.");
     }
 }

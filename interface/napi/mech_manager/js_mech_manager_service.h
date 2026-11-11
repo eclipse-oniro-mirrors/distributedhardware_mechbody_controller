@@ -103,6 +103,8 @@ public:
 
 private:
     static void InvokeCallbackTask(const CallbackFunctionInfo &item, int32_t mechId, MechEventType mechEventType);
+    static napi_value CreateRotationAxesStatusEvent(napi_env env, int32_t mechId,
+        const std::shared_ptr<RotationAxesStatus> &rotationAxesStatus);
 
 public:
     std::mutex attachStateChangeCallbackMutex_;

@@ -960,23 +960,35 @@ void SystemAbilityStatusChangeListener::OnAddSystemAbility(int32_t systemAbility
         return;
     }
     HILOGI("MechService SA:%{public}d added", systemAbilityId);
-    if (attachStateCallback_ != nullptr) {
-        int32_t result = SendAttachStateChangeListenOn(attachStateCallback_);
+    sptr<JsMechManagerStub> attachStateCallback;
+    sptr<JsMechManagerStub> trackingEventCallback;
+    sptr<JsMechManagerStub> cmdChannel;
+    sptr<JsMechManagerStub> rotationAxesStatusCallback;
+    {
+        std::lock_guard<std::mutex> lock(callbackMutex_);
+        attachStateCallback = attachStateCallback_;
+        trackingEventCallback = trackingEventCallback_;
+        cmdChannel = cmdChannel_;
+        rotationAxesStatusCallback = rotationAxesStatusCallback_;
+    }
+
+    if (attachStateCallback != nullptr) {
+        int32_t result = SendAttachStateChangeListenOn(attachStateCallback);
         HILOGI("SendAttachStateChangeListenOn result: %{public}d", result);
     }
 
-    if (trackingEventCallback_ != nullptr) {
-        int32_t result = SendTrackingEventListenOn(trackingEventCallback_);
+    if (trackingEventCallback != nullptr) {
+        int32_t result = SendTrackingEventListenOn(trackingEventCallback);
         HILOGI("SendTrackingEventListenOn result: %{public}d", result);
     }
 
-    if (cmdChannel_ != nullptr) {
-        int32_t result = SendRegisterCmdChannel(cmdChannel_);
+    if (cmdChannel != nullptr) {
+        int32_t result = SendRegisterCmdChannel(cmdChannel);
         HILOGI("SendRegisterCmdChannel result: %{public}d", result);
     }
 
-    if (rotationAxesStatusCallback_ != nullptr) {
-        int32_t result = SendRotationAxesStatusChangeListenOn(rotationAxesStatusCallback_);
+    if (rotationAxesStatusCallback != nullptr) {
+        int32_t result = SendRotationAxesStatusChangeListenOn(rotationAxesStatusCallback);
         HILOGI("SendRotationAxesStatusChangeListenOn result: %{public}d", result);
     }
 
@@ -1005,23 +1017,27 @@ void SystemAbilityStatusChangeListener::OnRemoveSystemAbility(int32_t systemAbil
 
 void SystemAbilityStatusChangeListener::SetAttachStateCallback(const sptr<JsMechManagerStub> &attachStateCallback)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     attachStateCallback_ = attachStateCallback;
 }
 
 void SystemAbilityStatusChangeListener::SetTrackingEventCallback(
     const sptr<OHOS::MechBodyController::JsMechManagerStub> &trackingEventCallback)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     trackingEventCallback_ = trackingEventCallback;
 }
 
 void SystemAbilityStatusChangeListener::SetCmdChannel(const sptr<JsMechManagerStub> &cmdChannel)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     cmdChannel_ = cmdChannel;
 }
 
 void SystemAbilityStatusChangeListener::SetRotationAxesStatusCallback(
     const sptr<JsMechManagerStub> &rotationAxesStatusCallback)
 {
+    std::lock_guard<std::mutex> lock(callbackMutex_);
     rotationAxesStatusCallback_ = rotationAxesStatusCallback;
 }
 
