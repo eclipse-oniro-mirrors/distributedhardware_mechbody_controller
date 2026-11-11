@@ -1536,7 +1536,10 @@ napi_value MechManager::SearchTarget(napi_env env, napi_callback_info info)
 
     if (!InitMechClient() || !RegisterCmdChannel()) {
         HILOGE("InitMechClient or RegisterCmdChannel failed;");
-        JsMechManagerService::GetInstance().searchTargetCallback_.erase(searchTargetPromiseParam->cmdId);
+        {
+            std::lock_guard<std::mutex> eraseLock(JsMechManagerService::GetInstance().searchTargetCallbackMutex_);
+            JsMechManagerService::GetInstance().searchTargetCallback_.erase(searchTargetPromiseParam->cmdId);
+        }
         napi_throw_error(env, std::to_string(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY).c_str(), "System exception");
         return nullptr;
     }
@@ -1544,7 +1547,10 @@ napi_value MechManager::SearchTarget(napi_env env, napi_callback_info info)
     int32_t result = mechClient_->SearchTarget(searchTargetPromiseParam->cmdId, targetInfo, searchParams);
     HILOGI("result: %{public}d;", result);
     if (result != ERR_OK) {
-        JsMechManagerService::GetInstance().searchTargetCallback_.erase(searchTargetPromiseParam->cmdId);
+        {
+            std::lock_guard<std::mutex> eraseLock(JsMechManagerService::GetInstance().searchTargetCallbackMutex_);
+            JsMechManagerService::GetInstance().searchTargetCallback_.erase(searchTargetPromiseParam->cmdId);
+        }
         napi_throw_error(env, std::to_string(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY).c_str(), "System exception");
         return nullptr;
     }

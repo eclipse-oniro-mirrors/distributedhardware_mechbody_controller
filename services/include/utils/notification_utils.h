@@ -19,6 +19,7 @@
 #include <nlohmann/json.hpp>
 #include <functional>
 #include <atomic>
+#include <map>
 #include <mutex>
 #include "notification_helper.h"
 #include "notification_content.h"
@@ -58,6 +59,7 @@ private:
     static void ParseBasicIntegerFields(Notification::NotificationRequest& request, const json& configJson);
     static void ParseBasicBooleanFields(Notification::NotificationRequest& request, const json& configJson);
     static void ParseAdvancedFields(Notification::NotificationRequest& request, const json& configJson);
+    static void ParseLittleIcon(Notification::NotificationRequest& request, const json& configJson);
     static void ParseExtraInfoFields(Notification::NotificationRequest& request, const json& configJson);
     static void ParseIntegerField(Notification::NotificationRequest& request,
         const json& configJson, const std::string& fieldName, std::function<void(int32_t)> setter);
@@ -90,6 +92,10 @@ private:
     inline static std::mutex configChangeObserverMutex_;
 
     inline static std::shared_ptr<Notification::NotificationLocalLiveViewSubscriber> localLiveViewSubscriber_ = nullptr;
+
+    inline static std::mutex iconPixelMapsMutex_;
+
+    inline static std::mutex notificationMutex_;
 
     inline static std::map<std::string, std::shared_ptr<Media::PixelMap>> iconPixelMaps_;
 };

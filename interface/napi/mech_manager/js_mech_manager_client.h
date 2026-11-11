@@ -62,6 +62,7 @@ private:
     sptr <IRemoteObject> GetDmsProxy();
 
 public:
+    std::mutex callbackMutex_;
     sptr<JsMechManagerStub> attachStateCallback_;
     sptr<JsMechManagerStub> trackingEventCallback_;
     sptr<JsMechManagerStub> cmdChannel_;
