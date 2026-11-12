@@ -15,6 +15,9 @@
 
 #include <unistd.h>
 
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -2151,12 +2154,15 @@ bool MechManager::InitMechClient()
 
 std::string MechManager::GenerateUniqueID()
 {
-    // 获取当前时间戳
-    auto now = std::chrono::system_clock::now();
-    auto now_c = std::chrono::system_clock::to_time_t(now);
+    // 使用真随机源 + 高精度时钟 + 进程内原子计数器混合作为种子，避免同一秒内生成相同 ID
+    static std::atomic<uint64_t> counter{0};
+    std::random_device rd;
+    uint64_t seed = (static_cast<uint64_t>(rd()) << 32) ^ static_cast<uint64_t>(rd());
+    seed ^= static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
+    seed ^= counter.fetch_add(1, std::memory_order_relaxed);
 
     // 初始化随机数生成器
-    std::mt19937 generator(now_c);
+    std::mt19937_64 generator(seed);
 
     // 生成随机数
     std::uniform_int_distribution<int> distribution(0, FIFTEEN);
