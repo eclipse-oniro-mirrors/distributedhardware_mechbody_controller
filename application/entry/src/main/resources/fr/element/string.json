@@ -127,13 +127,6 @@
       }
     },
     {
-      "name": "mech_first_connect_text2",
-      "value": "Ce service ne recueille ni ne stocke vos informations faciales. Vous pouvez le désactiver depuis le panneau de contrôle ou la fenêtre de vue en direct.",
-      "attr": {
-        "priority": "translate"
-      }
-    },
-    {
       "name": "open_soon",
       "value": "Ultérieurement",
       "attr": {
