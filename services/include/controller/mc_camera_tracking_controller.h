@@ -17,6 +17,7 @@
 #define MC_CAMERA_TRACKING_CONTROLLER_H
 
 #include <atomic>
+#include <chrono>
 #include <map>
 #include "mechbody_controller_ipc_interface_code.h"
 #include "mechbody_controller_log.h"

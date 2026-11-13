@@ -2521,7 +2521,8 @@ static napi_value DefineEnums(napi_env env, napi_value exports)
         CreateEnumObject(env, {{"LANDSCAPE_PORTRAIT_SWITCH", 0}, {"PATROL_MODE", 1}, {"GREET_MODE", 2},
                                {"HEAD_UP", 3}, {"HEAD_UP_SLIGHTLY", 4}, {"EYE_LEVEL", 5},
                                {"HEAD_DOWN_SLIGHTLY", 6}, {"HEAD_DOWN", 7}, {"HEAD_WIGGLE", 8},
-                               {"NOD", 9}, {"HEAD_SHAKE", 10}, {"HAPPY", 1000}, {"ANGRY", 1001},
+                               {"NOD", 9}, {"HEAD_SHAKE", 10}, {"HEAD_TURN_TO_BASE", 11}, 
+                               {"BASE_TURN_TO_HEAD", 12}, {"HAPPY", 1000}, {"ANGRY", 1001},
                                {"SAD", 1002}, {"SCARED", 1003}, {"DANCE", 2000}, {"ACTING_CUTE", 2001},
                                {"CELEBRATE", 2002}, {"WAKEUP", 2003}, {"SLEEP", 2004}, {"LOW_POWER", 2005},
                                {"THINKING", 2006}});
