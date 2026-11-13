@@ -19,6 +19,8 @@
 #include <atomic>
 #include <chrono>
 #include <map>
+#include <memory>
+#include <thread>
 #include "mechbody_controller_ipc_interface_code.h"
 #include "mechbody_controller_log.h"
 #include "mechbody_controller_types.h"
@@ -146,6 +148,7 @@ public:
     int32_t OnZoomInfoChange(int32_t sessionid, const CameraStandard::ZoomInfo& zoomInfo);
     int32_t OnSessionStatusChange(int32_t sessionid, bool status);
     int32_t OnFocusTracking(CameraStandard::FocusTrackingMetaInfo &info);
+    void LogDetectedObjects(CameraStandard::FocusTrackingMetaInfo &info);
     int32_t SetTrackingEnabled(const uint32_t &tokenId, bool isEnabled);
     int32_t GetTrackingEnabled(const uint32_t &tokenId, bool &isEnabled);
     int32_t RegisterTrackingEventCallback(const uint32_t &tokenId, sptr<IRemoteObject> callback);
@@ -229,6 +232,8 @@ private:
     void AdjustXOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
     bool IsCurrentTrackingEnabled();
     void MechkitForecastDfxCurTime(int32_t ignoredFrameNum);
+    void PerformAutoCenter();
+    void AutoCenterChecker();
 
 public:
     std::mutex trackingEventCallbackMutex_;
@@ -264,6 +269,10 @@ private:
     std::atomic<bool> fovFromMetadata_{false};
     std::atomic<uint8_t> cameraMode_{0};
     uint64_t trackingTimeCur_ = 0;
+    std::atomic<bool> isAutoCentering_{false};
+    std::atomic<bool> startAutoCenterChecker_{false};
+    std::unique_ptr<std::thread> autoCenterThread_;
+    std::chrono::steady_clock::time_point lastTrackingFrameTime_;
 };
 } // namespace MechBodyController
 } // namespace OHOS

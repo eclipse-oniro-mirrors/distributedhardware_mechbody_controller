@@ -100,6 +100,7 @@ public:
     int32_t GetCurrentPosition(std::shared_ptr<EulerAngles> &eulerAngles);
     int32_t GetRotationLimit(RotateDegreeLimit &rotationLimit);
     int32_t SetMechCameraTrackingFrame(const std::shared_ptr<TrackingFrameParams> trackingFrameParams);
+    void SetAutoCentering(bool isAutoCentering);
     int32_t GetMechCameraTrackingEnabled(bool &isEnabled);
     int32_t SetMechCameraTrackingEnabled(bool &isEnabled);
     int32_t SetMechCameraTrackingLayout(const std::shared_ptr<LayoutParams> layoutParams);
@@ -284,6 +285,7 @@ private:
     std::atomic<bool> SetMechCameraInfo_ = false;
     std::atomic<bool> setMechScreenInfo_ = false;
     std::atomic<bool> needSendTrackingData_ = true;
+    std::atomic<bool> isAutoCentering_ = false;
 
     std::mutex deviceBaseInfoMutex_;
     std::condition_variable deviceBaseInfoCon_;

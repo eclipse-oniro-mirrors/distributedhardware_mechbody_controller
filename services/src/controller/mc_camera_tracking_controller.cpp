@@ -169,6 +169,8 @@ void McCameraTrackingController::Init()
                 HandleTrackingFrame(std::move(trackingFrameParams));
             }, deviceType);
     #endif
+    startAutoCenterChecker_.store(true);
+    autoCenterThread_ = std::make_unique<std::thread>(&McCameraTrackingController::AutoCenterChecker, this);
     HILOGI("end");
 }
 
@@ -195,6 +197,26 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
         HILOGW("currentCameraInfo_ is nullptr in HandleTrackingFrame");
         return;
     }
+
+    if (params->roi.width <= TRACKING_LOST_CHECK || params->roi.height <= TRACKING_LOST_CHECK) {
+        HILOGW("Background tracking rect lost, width or height is zero.");
+        return;
+    }
+    lastTrackingFrameTime_ = std::chrono::steady_clock::now();
+    if (isAutoCentering_.load()) {
+
+
+        HILOGI("Target detected during background auto center, reset auto centering flag.");
+        isAutoCentering_.store(false);
+        std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+        for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
+            std::shared_ptr<MotionManager> motionManager = item.second;
+            if (motionManager != nullptr) {
+                motionManager->SetAutoCentering(false);
+            }
+        }
+    }
+
     params->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
     std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
     for (const auto& item : MechBodyControllerService::GetInstance().motionManagers_) {
@@ -248,6 +270,11 @@ void McCameraTrackingController::UnInit()
         #ifdef MECHBODY_CONTROLLER_EXTENDED
             eventHandler_->RemoveTask(PREDICTION_TASK_NAME);
         #endif
+    }
+    startAutoCenterChecker_.store(false);
+    if (autoCenterThread_ != nullptr && autoCenterThread_->joinable()) {
+        autoCenterThread_->join();
+        autoCenterThread_ = nullptr;
     }
     horizontal_ = 0.0f;
     vertical_ = 0.0f;
@@ -466,6 +493,15 @@ int32_t McCameraTrackingController::OnSessionStatusChange(int32_t sessionid, boo
     currentCameraInfo_->isCameraOn.store(status, std::memory_order_relaxed);
     if (!status) {
         currentCameraInfo_->trackingTargetNum.store(0, std::memory_order_relaxed);
+        isAutoCentering_.store(false);
+        std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+        for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
+            std::shared_ptr<MotionManager> motionManager = item.second;
+            if (motionManager != nullptr) {
+
+                motionManager->SetAutoCentering(false);
+            }
+        }
 #ifdef MECHBODY_CONTROLLER_EXTENDED
         MechbodyAdapterUtils::ResetTrackingCore();
 #endif
