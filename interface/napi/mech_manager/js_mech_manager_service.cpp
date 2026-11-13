@@ -323,6 +323,7 @@ int32_t JsMechManagerService::SubscribeCallbackInvoke(const int32_t &mechId, con
 {
     HILOGI("start. mechId: %{public}d, mechEventType: %{public}d", mechId, static_cast<int32_t>(mechEventType));
 
+    //此处不能加subscribeCallbackMutex_，会出现死锁。
     auto it = subscribeCallback_.find(mechEventType);
     if (it != subscribeCallback_.end()) {
         std::set<CallbackFunctionInfo> callbackSet = it->second;
