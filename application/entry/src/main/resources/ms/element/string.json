@@ -1,0 +1,151 @@
+{
+  "string": [
+    {
+      "name": "pause",
+      "value": "Jeda",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_intelligent_tracking",
+      "value": "Penjejakan pintar",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_tracking_layout",
+      "value": "Mod bingkai",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_enable",
+      "value": "Dihidupkan",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_left",
+      "value": "Kiri",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_center",
+      "value": "Tengah",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_right",
+      "value": "Kanan",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_on",
+      "value": "Penjejakan pintar dihidupkan, dwiketik untuk mematikan",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_off",
+      "value": "Penjejakan pintar dimatikan, dwiketik untuk menghidupkan",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_back",
+      "value": "Kembali",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_tracking",
+      "value": "Penjejakan pintar dihidupkan",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_paused",
+      "value": "Penjejakan pintar dijeda",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_tracking",
+      "value": "Menjejak",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_paused",
+      "value": "Penjejakan dijeda",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "gimbal_connected",
+      "value": "Gimbal disambungkan.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "wheel_base_connected",
+      "value": "Wheelbot disambungkan.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "harmony_mech_intelligent_tracking",
+      "value": "Penjejakan fokus pintar",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text1",
+      "value": "Kekalkan diri anda di depan dan tengah.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text2",
+      "value": "Perkhidmatan ini tidak mengumpulkan atau menyimpan maklumat wajah anda. Anda boleh menyahdayakannya daripada Panel Kawalan atau tetingkap paparan langsung.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_soon",
+      "value": "Bukan sekarang",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_now",
+      "value": "Dayakan",
+      "attr": {
+        "priority": "translate"
+      }
+    }
+  ]
+}

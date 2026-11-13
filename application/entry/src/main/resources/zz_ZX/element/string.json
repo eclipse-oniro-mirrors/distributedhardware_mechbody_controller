@@ -1,0 +1,108 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "[TS_1274182]_module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "[TS_1274176]_description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "[TS_1274188]_label"
+    },
+    {
+      "name": "MechExtAbility_desc",
+      "value": "[TS_1274199]_description"
+    },
+    {
+      "name": "MechExtAbility_label",
+      "value": "[TS_1274179]_label"
+    },
+    {
+      "name": "pause",
+      "value": "[TS_1274195]_Pause"
+    },
+    {
+      "name": "mech_intelligent_tracking",
+      "value": "[TS_1274189]_Smart tracking"
+    },
+    {
+      "name": "mech_tracking_layout",
+      "value": "[TS_1274196]_Framing mode"
+    },
+    {
+      "name": "mech_enable",
+      "value": "[TS_1274193]_On"
+    },
+    {
+      "name": "mech_left",
+      "value": "[TS_1274180]_Left"
+    },
+    {
+      "name": "mech_center",
+      "value": "[TS_1274186]_Center"
+    },
+    {
+      "name": "mech_right",
+      "value": "[TS_1274201]_Right"
+    },
+    {
+      "name": "audio_tracking_switch_on",
+      "value": "[TS_1274200]_Smart tracking is turned on, double-tap to turn it off"
+    },
+    {
+      "name": "audio_tracking_switch_off",
+      "value": "[TS_1274181]_Smart tracking is turned off, double-tap to turn it on"
+    },
+    {
+      "name": "audio_back",
+      "value": "[TS_1274183]_Go back"
+    },
+    {
+      "name": "smart_focus_tracking",
+      "value": "[TS_1274194]_Smart tracking on"
+    },
+    {
+      "name": "smart_focus_paused",
+      "value": "[TS_1274191]_Smart tracking paused"
+    },
+    {
+      "name": "focus_tracking",
+      "value": "[TS_1274198]_Tracking"
+    },
+    {
+      "name": "focus_paused",
+      "value": "[TS_1274190]_Tracking paused"
+    },
+    {
+      "name": "gimbal_connected",
+      "value": "[TS_1274187]_Gimbal connected."
+    },
+    {
+      "name": "wheel_base_connected",
+      "value": "[TS_1274197]_Wheelbot connected."
+    },
+    {
+      "name": "harmony_mech_intelligent_tracking",
+      "value": "[TS_1274185]_Smart focus tracking"
+    },
+    {
+      "name": "mech_first_connect_text1",
+      "value": "[TS_1274184]_Keep yourself front and center."
+    },
+    {
+      "name": "mech_first_connect_text2",
+      "value": "[TS_1274177]_This service does not collect or store your facial information. You can disable it from the Control Panel or live view window."
+    },
+    {
+      "name": "open_soon",
+      "value": "[TS_1274178]_Not now"
+    },
+    {
+      "name": "open_now",
+      "value": "[TS_1274192]_Enable"
+    }
+  ]
+}

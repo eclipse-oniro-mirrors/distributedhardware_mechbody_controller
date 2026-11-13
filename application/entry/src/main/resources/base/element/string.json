@@ -22,87 +22,150 @@
     },
     {
       "name": "pause",
-      "value": "Pause"
+      "value": "Pause",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_intelligent_tracking",
-      "value": "Smart tracking"
+      "value": "Smart tracking",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_tracking_layout",
-      "value": "Framing mode"
+      "value": "Framing mode",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_enable",
-      "value": "On"
+      "value": "On",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_left",
-      "value": "Left"
+      "value": "Left",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_center",
-      "value": "Center"
+      "value": "Center",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_right",
-      "value": "Right"
+      "value": "Right",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "audio_tracking_switch_on",
-      "value": "Smart tracking is turned on, double-tap to turn it off"
+      "value": "Smart tracking is turned on, double-tap to turn it off",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "audio_tracking_switch_off",
-      "value": "Smart tracking is turned off, double-tap to turn it on"
+      "value": "Smart tracking is turned off, double-tap to turn it on",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "audio_back",
-      "value": "Back"
+      "value": "Go back",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "smart_focus_tracking",
-      "value": "Smart tracking on"
+      "value": "Smart tracking on",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "smart_focus_paused",
-      "value": "Smart tracking paused"
+      "value": "Smart tracking paused",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "focus_tracking",
-      "value": "Tracking"
+      "value": "Tracking",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "focus_paused",
-      "value": "Tracking paused"
+      "value": "Tracking paused",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "gimbal_connected",
-      "value": "Gimbal connected."
+      "value": "Gimbal connected.",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "wheel_base_connected",
-      "value": "Wheel base connected."
+      "value": "Wheelbot connected.",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "harmony_mech_intelligent_tracking",
-      "value": "Smart focus tracking"
+      "value": "Smart focus tracking",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_first_connect_text1",
-      "value": "Keep yourself front and center."
+      "value": "Keep yourself front and center.",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "mech_first_connect_text2",
-      "value": "This service does not collect or store your facial information. You can disable it from the Control Panel or live view window."
+      "value": "This service does not collect or store your facial information. You can disable it from the Control Panel or live view window.",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "open_soon",
-      "value": "Not now"
+      "value": "Not now",
+      "attr": {
+        "priority": "translate"
+      }
     },
     {
       "name": "open_now",
-      "value": "Enable"
+      "value": "Enable",
+      "attr": {
+        "priority": "translate"
+      }
     }
   ]
 }

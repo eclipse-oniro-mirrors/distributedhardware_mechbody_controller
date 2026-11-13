@@ -1,0 +1,151 @@
+{
+  "string": [
+    {
+      "name": "pause",
+      "value": "Pausa",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_intelligent_tracking",
+      "value": "Rastreamento inteligente",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_tracking_layout",
+      "value": "Modo de enquadramento",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_enable",
+      "value": "Ativado",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_left",
+      "value": "Esquerda",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_center",
+      "value": "Centro",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_right",
+      "value": "Direita",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_on",
+      "value": "Rastreamento inteligente ativado, toque duas vezes para desativar",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_off",
+      "value": "Rastreamento inteligente desativado, toque duas vezes para ativar",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_back",
+      "value": "Retroceder",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_tracking",
+      "value": "Rastreamento inteligente ativado",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_paused",
+      "value": "Rastreamento inteligente pausado",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_tracking",
+      "value": "Rastreamento",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_paused",
+      "value": "Rastreamento pausado",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "gimbal_connected",
+      "value": "Gimbal ligado.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "wheel_base_connected",
+      "value": "Wheelbot ligado.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "harmony_mech_intelligent_tracking",
+      "value": "Seguimento inteligente",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text1",
+      "value": "Mantenha-se no centro da imagem.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text2",
+      "value": "Este serviço não recolhe nem armazena informações faciais. Pode desativá-lo a partir do Painel de controlo ou do visor.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_soon",
+      "value": "Mais tarde",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_now",
+      "value": "Ativar",
+      "attr": {
+        "priority": "translate"
+      }
+    }
+  ]
+}

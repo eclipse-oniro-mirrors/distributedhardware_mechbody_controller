@@ -1,0 +1,151 @@
+{
+  "string": [
+    {
+      "name": "pause",
+      "value": "ခေတ္တရပ်ရန်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_intelligent_tracking",
+      "value": "စမတ်ခြေရာခံ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_tracking_layout",
+      "value": "ဖရိန်ညှိစနစ်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_enable",
+      "value": "ဖွင့်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_left",
+      "value": "ဘယ်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_center",
+      "value": "အလယ်ဗဟို",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_right",
+      "value": "ညာ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_on",
+      "value": "စမတ်ခြေရာခံကို ဖွင့်ထားသည်၊ ပိတ်ရန် နှစ်ချက်နှိပ်ပါ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_off",
+      "value": "စမတ်ခြေရာခံကို ပိတ်ထားသည်၊ ဖွင့်ရန် နှစ်ချက်နှိပ်ပါ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_back",
+      "value": "နောက်သို့ပြန်သွားရန်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_tracking",
+      "value": "စမတ်ခြေရာခံမှုကို ဖွင့်ထားသည်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_paused",
+      "value": "စမတ်ခြေရာခံမှုကို ခေတ္တရပ်ထားသည်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_tracking",
+      "value": "ခြေရာခံမှု",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_paused",
+      "value": "ခြေရာခံမှုကို ခေတ္တရပ်ထားသည်",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "gimbal_connected",
+      "value": "Gimbal ချိတ်ဆက်ပြီး။",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "wheel_base_connected",
+      "value": "Wheelbot ချိတ်ဆက်ပြီးပါပြီ။",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "harmony_mech_intelligent_tracking",
+      "value": "စမတ် ဆုံချက်ခြေရာခံခြင်း",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text1",
+      "value": "အလယ်တည့်တည့်တွင် သင့်ကို ထားရှိပေးမည်။",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text2",
+      "value": "ဤဝန်ဆောင်မှုသည် သင့်မျက်နှာသွင်ပြင် အချက်အလက်ကို စုဆောင်းခြင်း သို့မဟုတ် သိမ်းဆည်းခြင်း မရှိပါ။ ကွန်ထရိုးလ် ပန်နယ် သို့မဟုတ် တိုက်ရိုက်ပြသမှု ဝင်းဒိုးမှနေ၍ ၎င်းကို ပိတ်နိုင်ပါသည်။",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_soon",
+      "value": "ယခု မလုပ်ပါ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_now",
+      "value": "ဖွင့်ရန်",
+      "attr": {
+        "priority": "translate"
+      }
+    }
+  ]
+}

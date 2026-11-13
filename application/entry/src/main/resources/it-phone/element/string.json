@@ -1,0 +1,25 @@
+{
+  "string": [
+    {
+      "name": "mech_left",
+      "value": "Sini\u200bstra",
+      "attr": {
+        "priority": "translator"
+      }
+    },
+    {
+      "name": "mech_intelligent_tracking",
+      "value": "Tracciamen\u200bto intelligente",
+      "attr": {
+        "priority": "translator"
+      }
+    },
+    {
+      "name": "mech_tracking_layout",
+      "value": "Modalità inquadratura",
+      "attr": {
+        "priority": "translator"
+      }
+    }
+  ]
+}

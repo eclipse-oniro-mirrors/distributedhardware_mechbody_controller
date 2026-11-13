@@ -53,7 +53,7 @@ struct TrackingLayout {
       Button() {
         SymbolGlyph($r('sys.symbol.chevron_backward'))
           .fontSize('20vp')
-          .fontColor([this.isShowAsDarkMode ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
+          .fontColor([$r('sys.color.icon_primary')])
       }
       .width('40vp')
       .height('40vp')
@@ -80,7 +80,7 @@ struct TrackingLayout {
       Button() {
         SymbolGlyph($r('sys.symbol.rectangle_line_2_right_viewfinder'))
           .fontSize('20vp')
-          .fontColor([(this.currentLayout == mechanicManager.CameraTrackingLayout.LEFT || this.isShowAsDarkMode) ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
+          .fontColor([this.currentLayout == mechanicManager.CameraTrackingLayout.LEFT ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
       }
       .width('40vp')
       .height('40vp')
@@ -89,7 +89,7 @@ struct TrackingLayout {
       .buttonStyle(ButtonStyleMode.TEXTUAL)
       .accessibilityText($r('app.string.mech_left'))
       .backgroundColor(this.currentLayout == mechanicManager.CameraTrackingLayout.LEFT ?
-        $r('sys.color.ohos_id_color_emphasize') : $r('sys.color.ohos_id_color_component_normal'))
+        $r('sys.color.icon_emphasize') : $r('sys.color.ohos_id_color_component_normal'))
       .onClick(() => {
         logger.info(TAG, 'onClick TrackingLayoutLeft in');
         this.setCameraTrackingLayout(mechanicManager.CameraTrackingLayout.LEFT);
@@ -99,7 +99,7 @@ struct TrackingLayout {
         .fontSize($r('sys.float.Body_S'))
         .lineHeight(16)
         .fontWeight(FontWeight.Regular)
-        .fontColor(this.isShowAsDarkMode ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
+        .fontColor($r('sys.color.font_primary'))
         .margin({ top: $r('sys.float.padding_level2') })
         .textAlign(TextAlign.Center)
         .maxFontScale(FontSizeScale.MD)
@@ -116,8 +116,8 @@ struct TrackingLayout {
         SymbolGlyph($r('sys.symbol.line_1_left_rectangle_line_1_right_viewfinder'))
           .fontSize('20vp')
           .fontColor([(this.currentLayout == mechanicManager.CameraTrackingLayout.MIDDLE ||
-            this.currentLayout == mechanicManager.CameraTrackingLayout.DEFAULT ||
-            this.isShowAsDarkMode) ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
+            this.currentLayout == mechanicManager.CameraTrackingLayout.DEFAULT)
+            ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
       }
       .width('40vp')
       .height('40vp')
@@ -126,7 +126,7 @@ struct TrackingLayout {
       .buttonStyle(ButtonStyleMode.TEXTUAL)
       .accessibilityText($r('app.string.mech_center'))
       .backgroundColor((this.currentLayout == mechanicManager.CameraTrackingLayout.MIDDLE ||
-        this.currentLayout == mechanicManager.CameraTrackingLayout.DEFAULT) ? $r('sys.color.ohos_id_color_emphasize') :
+        this.currentLayout == mechanicManager.CameraTrackingLayout.DEFAULT) ? $r('sys.color.icon_emphasize') :
         $r('sys.color.ohos_id_color_component_normal'))
       .onClick(() => {
         logger.info(TAG, 'onClick TrackingLayoutCenter in');
@@ -137,7 +137,7 @@ struct TrackingLayout {
         .fontSize($r('sys.float.Body_S'))
         .lineHeight(16)
         .fontWeight(FontWeight.Regular)
-        .fontColor(this.isShowAsDarkMode ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
+        .fontColor($r('sys.color.font_primary'))
         .margin({ top: $r('sys.float.padding_level2') })
         .textAlign(TextAlign.Center)
         .maxFontScale(FontSizeScale.MD)
@@ -153,8 +153,8 @@ struct TrackingLayout {
       Button() {
         SymbolGlyph($r('sys.symbol.line_2_left_rectangle_viewfinder'))
           .fontSize('20vp')
-          .fontColor([(this.currentLayout == mechanicManager.CameraTrackingLayout.RIGHT ||
-            this.isShowAsDarkMode) ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
+          .fontColor([this.currentLayout == mechanicManager.CameraTrackingLayout.RIGHT
+            ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
       }
       .width('40vp')
       .height('40vp')
@@ -163,7 +163,7 @@ struct TrackingLayout {
       .buttonStyle(ButtonStyleMode.TEXTUAL)
       .accessibilityText($r('app.string.mech_right'))
       .backgroundColor(this.currentLayout == mechanicManager.CameraTrackingLayout.RIGHT ?
-        $r('sys.color.ohos_id_color_emphasize') : $r('sys.color.ohos_id_color_component_normal'))
+        $r('sys.color.icon_emphasize') : $r('sys.color.ohos_id_color_component_normal'))
       .onClick(() => {
         logger.info(TAG, 'onClick TrackingLayoutRight in');
         this.setCameraTrackingLayout(mechanicManager.CameraTrackingLayout.RIGHT);
@@ -173,7 +173,7 @@ struct TrackingLayout {
         .fontSize($r('sys.float.Body_S'))
         .lineHeight(16)
         .fontWeight(FontWeight.Regular)
-        .fontColor(this.isShowAsDarkMode ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
+        .fontColor($r('sys.color.font_primary'))
         .margin({ top: $r('sys.float.padding_level2') })
         .textAlign(TextAlign.Center)
         .maxFontScale(FontSizeScale.MD)
@@ -184,23 +184,26 @@ struct TrackingLayout {
   }
 
   build() {
-    Row() {
-      this.BackButton();
-      this.TrackingLayoutLeft();
-      this.TrackingLayoutCenter();
-      this.TrackingLayoutRight();
+    // TRIAL-WithTheme: force dark resolution in subpage force-dark scenario
+    WithTheme({ colorMode: this.isShowAsDarkMode ? ThemeColorMode.DARK : ThemeColorMode.SYSTEM }) {
+      Row() {
+        this.BackButton();
+        this.TrackingLayoutLeft();
+        this.TrackingLayoutCenter();
+        this.TrackingLayoutRight();
+      }
+      .width('100%')
+      .height('100%')
+      .alignItems(VerticalAlign.Top)
+      .padding({
+        top: $r('sys.float.padding_level16'),
+        left: `calc((100% - 40vp * 4) / 10)`,
+        right: `calc((100% - 40vp * 4) / 10)`
+      })
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+      .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+      .visibility(this.visibilityState)
     }
-    .width('100%')
-    .height('100%')
-    .alignItems(VerticalAlign.Top)
-    .padding({
-      top: $r('sys.float.padding_level16'),
-      left: `calc((100% - 40vp * 4) / 10)`,
-      right: `calc((100% - 40vp * 4) / 10)`
-    })
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-    .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-    .visibility(this.visibilityState)
   }
 
   setCameraTrackingLayout(layout: mechanicManager.CameraTrackingLayout) {
