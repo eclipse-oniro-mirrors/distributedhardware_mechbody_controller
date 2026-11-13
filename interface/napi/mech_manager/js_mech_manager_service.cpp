@@ -323,22 +323,20 @@ int32_t JsMechManagerService::SubscribeCallbackInvoke(const int32_t &mechId, con
 {
     HILOGI("start. mechId: %{public}d, mechEventType: %{public}d", mechId, static_cast<int32_t>(mechEventType));
 
-    std::set<CallbackFunctionInfo> callbackSet;
-    {
-        std::lock_guard<std::mutex> lock(subscribeCallbackMutex_);
-        auto it = subscribeCallback_.find(mechEventType);
-        if (it != subscribeCallback_.end()) {
-            callbackSet = it->second;
-        } else {
-            HILOGW("No callback found for mechEventType: %{public}d", static_cast<int32_t>(mechEventType));
+    //此处不能加subscribeCallbackMutex_，会出现死锁。
+    auto it = subscribeCallback_.find(mechEventType);
+    if (it != subscribeCallback_.end()) {
+        std::set<CallbackFunctionInfo> callbackSet = it->second;
+        for (const auto &item : callbackSet) {
+            auto task = [item, mechId, mechEventType]() {
+                InvokeCallbackTask(item, mechId, mechEventType);
+            };
+            napi_send_event(item.env, task, napi_eprio_high, "MechbodyTask");
         }
+    } else {
+        HILOGW("No callback found for mechEventType: %{public}d", static_cast<int32_t>(mechEventType));
     }
-    for (const auto &item : callbackSet) {
-        auto task = [item, mechId, mechEventType]() {
-            InvokeCallbackTask(item, mechId, mechEventType);
-        };
-        napi_send_event(item.env, task, napi_eprio_high, "MechbodyTask");
-    }
+    
     HILOGI("end");
     return ERR_OK;
 }
