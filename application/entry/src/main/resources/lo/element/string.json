@@ -1,0 +1,151 @@
+{
+  "string": [
+    {
+      "name": "pause",
+      "value": "ຢຸດຊົ່ວ​ຄາວ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_intelligent_tracking",
+      "value": "ການ​ຕິດ​ຕາມ​ອັດ​ສະ​ລິ​ຍະ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_tracking_layout",
+      "value": "ໂໝດການຈັດກອບ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_enable",
+      "value": "ເປີດ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_left",
+      "value": "ຊ້າຍ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_center",
+      "value": "ໃຈກາງ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_right",
+      "value": "ຂວາ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_on",
+      "value": "ການຕິດຕາມອັດສະລິຍະເປີດຢູ່, ແຕະສອງຄັ້ງເພື່ອປິດມັນ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_tracking_switch_off",
+      "value": "ການຕິດຕາມອັດສະລິຍະປິດຢູ່, ແຕະສອງຄັ້ງເພື່ອເປີດມັນ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "audio_back",
+      "value": "ກັບຄືນໄປ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_tracking",
+      "value": "ການຕິດຕາມອັດສະລິຍະເປີດຢູ່",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "smart_focus_paused",
+      "value": "ຢຸດການຕິດຕາມອັດສະລິຍະຊົ່ວຄາວແລ້ວ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_tracking",
+      "value": "ກຳລັງຕິດຕາມ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "focus_paused",
+      "value": "ຢຸດການຕິດຕາມຊົ່ວຄາວແລ້ວ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "gimbal_connected",
+      "value": "ເຊື່ອມຕໍ່ໄມ້ກັນສັ່ນແລ້ວ.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "wheel_base_connected",
+      "value": "ເຊື່ອມຕໍ່ວີລບອດແລ້ວ.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "harmony_mech_intelligent_tracking",
+      "value": "ການຕິດຕາມໂຟກັສອັດສະລິຍະ",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text1",
+      "value": "ຮັກສາຕົວທ່ານເອງໄວ້ຢູ່ທາງໜ້າ ແລະ ເຄິ່ງກາງ.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "mech_first_connect_text2",
+      "value": "ການບໍລິການນີ້ບໍ່ໄດ້ເກັບເອົາ ຫຼື ຈັດເກັບຂໍ້ມູນໃບໜ້າຂອງທ່ານ. ທ່ານສາມາດປິດໃຊ້ງານມັນຈາກແຜງຄວບຄຸມ ຫຼື ໜ້າຕ່າງເບິ່ງສົດ.",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_soon",
+      "value": "ບໍ່ແມ່ນຕອນນີ້",
+      "attr": {
+        "priority": "translate"
+      }
+    },
+    {
+      "name": "open_now",
+      "value": "ເປີດໃຊ້ງານ",
+      "attr": {
+        "priority": "translate"
+      }
+    }
+  ]
+}

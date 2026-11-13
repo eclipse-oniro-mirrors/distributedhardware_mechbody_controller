@@ -16,6 +16,7 @@
 import mechanicManager from '@ohos.distributedHardware.mechanicManager';
 import { BusinessError } from '@ohos.base';
 import curves from '@ohos.curves';
+import accessibility from '@ohos.accessibility';
 import common from '@ohos.app.ability.common';
 
 import { logger } from '../utils/Logger';
@@ -145,12 +146,11 @@ struct MechControl {
       Button() {
         SymbolGlyph($r('sys.symbol.dot_viewfinder'))
           .fontSize('20vp')
-          .fontColor([(this.isTrackingEnabled || this.isShowAsDarkMode)
-            ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
+          .fontColor([this.isTrackingEnabled ? $r('sys.color.icon_on_primary') : $r('sys.color.icon_primary')])
       }
       .buttonStyle(ButtonStyleMode.TEXTUAL)
       .backgroundColor(this.isTrackingEnabled
-        ? $r('sys.color.ohos_id_color_emphasize') : $r('sys.color.ohos_id_color_component_normal'))
+        ? $r('sys.color.icon_emphasize') : $r('sys.color.ohos_id_color_component_normal'))
       .width('40vp')
       .height('40vp')
       .accessibilityText($r('app.string.mech_intelligent_tracking'))
@@ -158,6 +158,23 @@ struct MechControl {
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
       .onClick(() => {
         this.toggleEffectChange();
+        try {
+          let eventInfo: accessibility.EventInfo = ({
+            type: 'announceForAccessibility',
+            bundleName: BUNDLE_NAME,
+            triggerAction: 'click',
+            textAnnouncedForAccessibility: this.getSwitchStateInfo(this.isTrackingEnabled)
+          });
+          accessibility.sendAccessibilityEvent(eventInfo).then(() => {
+            logger.info(TAG, `Succeeded in send event, eventInfo is ${JSON.stringify(eventInfo)}`);
+          }).catch((err: Error) => {
+            logger.error(TAG, 'Failed to send accessibility event');
+          });
+        } catch (error) {
+          let code: number = (error as BusinessError).code;
+          let message: string = (error as BusinessError).message;
+          logger.error(TAG, `sendAccessibilityEvent failed,error code: ${code},message: ${message}.`);
+        }
         logger.info(TAG, `onClick end, isTrackingEnabled = ${this.isTrackingEnabled}`);
       })
 
@@ -165,7 +182,7 @@ struct MechControl {
         .fontSize($r('sys.float.ohos_id_text_size_body3'))
         .lineHeight(16)
         .fontWeight(FontWeight.Medium)
-        .fontColor(this.isShowAsDarkMode ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
+        .fontColor($r('sys.color.font_primary'))
         .margin({ top: $r('sys.float.padding_level2') })
         .textAlign(TextAlign.Center)
         .maxFontScale(FontSizeScale.MD)
@@ -176,7 +193,7 @@ struct MechControl {
         .fontSize($r('sys.float.Caption_M'))
         .lineHeight(13)
         .fontWeight(FontWeight.Regular)
-        .fontColor(this.isShowAsDarkMode ? $r('sys.color.font_on_secondary') : $r('sys.color.font_secondary'))
+        .fontColor($r('sys.color.font_secondary'))
         .margin({ top: $r('sys.float.padding_level1') })
         .textAlign(TextAlign.Center)
         .maxFontScale(FontSizeScale.MD)
@@ -195,7 +212,7 @@ struct MechControl {
           .fontColor([$r('sys.color.icon_on_primary')])
       }
       .buttonStyle(ButtonStyleMode.TEXTUAL)
-      .backgroundColor($r('sys.color.ohos_id_color_emphasize'))
+      .backgroundColor($r('sys.color.icon_emphasize'))
       .width('40vp')
       .height('40vp')
       .accessibilityText($r('app.string.mech_tracking_layout'))
@@ -220,7 +237,7 @@ struct MechControl {
         .fontSize($r('sys.float.ohos_id_text_size_body3'))
         .lineHeight(16)
         .fontWeight(FontWeight.Medium)
-        .fontColor(this.isShowAsDarkMode ? $r('sys.color.font_on_primary') : $r('sys.color.font_primary'))
+        .fontColor($r('sys.color.font_primary'))
         .margin({ top: $r('sys.float.padding_level2') })
         .textAlign(TextAlign.Center)
         .maxFontScale(FontSizeScale.MD)
@@ -231,7 +248,7 @@ struct MechControl {
         .fontSize($r('sys.float.Caption_M'))
         .lineHeight(13)
         .fontWeight(FontWeight.Regular)
-        .fontColor(this.isShowAsDarkMode ? $r('sys.color.font_on_secondary') : $r('sys.color.font_secondary'))
+        .fontColor($r('sys.color.font_secondary'))
         .margin({ top: $r('sys.float.padding_level1') })
         .textAlign(TextAlign.Center)
         .maxFontScale(FontSizeScale.MD)
@@ -242,23 +259,26 @@ struct MechControl {
   }
 
   build() {
-    Row() {
-      this.IntelligentTracking();
+    // TRIAL-WithTheme: force dark resolution in subpage force-dark scenario
+    WithTheme({ colorMode: this.isShowAsDarkMode ? ThemeColorMode.DARK : ThemeColorMode.SYSTEM }) {
+      Row() {
+        this.IntelligentTracking();
 
-      if (!this.isOneButton) {
-        this.TrackingLayout();
+        if (!this.isOneButton) {
+          this.TrackingLayout();
+        }
       }
+      .width('100%')
+      .height('100%')
+      .alignItems(VerticalAlign.Top)
+      .padding({
+        top: $r('sys.float.padding_level12'),
+        left: `calc((100% - 40vp * 2) / 6)`,
+        right: `calc((100% - 40vp * 2) / 6)`
+      })
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+      .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
+      .visibility(this.visibilityState)
     }
-    .width('100%')
-    .height('100%')
-    .alignItems(VerticalAlign.Top)
-    .padding({
-      top: $r('sys.float.padding_level12'),
-      left: `calc((100% - 40vp * 2) / 6)`,
-      right: `calc((100% - 40vp * 2) / 6)`
-    })
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-    .transition(TransitionEffect.OPACITY.animation({ duration: 150, curve: Curve.Sharp }))
-    .visibility(this.visibilityState)
   }
 }

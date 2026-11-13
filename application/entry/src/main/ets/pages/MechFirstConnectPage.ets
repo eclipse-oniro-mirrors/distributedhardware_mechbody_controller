@@ -150,12 +150,12 @@ struct MechFirstConnectPage {
                 .maxFontScale(FontSizeScale.MD)
                 .margin({ top: $r('sys.float.padding_level8') })
 
-            Flex({ direction: FlexDirection.Row }) {
+            Row({ space: 12 }) {
                 Button($r('app.string.open_soon'))
                     .buttonStyle(ButtonStyleMode.NORMAL)
                     .height(40)
-                    .width('50%')
-                    .margin({ right: $r('sys.float.padding_level3') })
+                    .flexGrow(1)
+                    .flexShrink(1)
                     .maxFontScale(FontSizeScale.MD)
                     .onClick(() => {
                         logger.info(TAG, 'open soon onclick');
@@ -165,8 +165,8 @@ struct MechFirstConnectPage {
                 Button($r('app.string.open_now'))
                     .buttonStyle(ButtonStyleMode.EMPHASIZED)
                     .height(40)
-                    .width('50%')
-                    .margin({ left: $r('sys.float.padding_level3') })
+                    .flexGrow(1)
+                    .flexShrink(1)
                     .maxFontScale(FontSizeScale.MD)
                     .onClick(() => {
                         logger.info(TAG, 'open now onclick');
