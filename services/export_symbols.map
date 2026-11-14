@@ -1,0 +1,259 @@
+{
+    global:
+ 
+        # === MechBodyControllerService (SA class + IPC interface) ===
+ 
+        # Service vtable, typeinfo, and construction vtables
+        _ZTVN4OHOS18MechBodyController25MechBodyControllerServiceE;
+        _ZTTN4OHOS18MechBodyController25MechBodyControllerServiceE;
+        _ZTCN4OHOS18MechBodyController25MechBodyControllerServiceE224_NS_11IRemoteStubINS0_19IMechBodyControllerEEE;
+        _ZTCN4OHOS18MechBodyController25MechBodyControllerServiceE224_NS0_22MechBodyControllerStubE;
+        _ZTCN4OHOS18MechBodyController25MechBodyControllerServiceE224_NS_13IPCObjectStubE;
+        _ZTCN4OHOS18MechBodyController25MechBodyControllerServiceE224_NS_13IRemoteObjectE;
+        _ZTCN4OHOS18MechBodyController25MechBodyControllerServiceE344_NS0_19IMechBodyControllerE;
+        _ZTCN4OHOS18MechBodyController25MechBodyControllerServiceE344_NS_13IRemoteBrokerE;
+        _ZTCN4OHOS18MechBodyController25MechBodyControllerServiceE856_NS_10ParcelableE;
+ 
+        # Service virtual function thunks (IPC cross-SO calls from NAPI/ANI)
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService10StopMovingERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService11MoveBySpeedERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEEtRKNS4_10shared_ptrINS0_11SpeedParamsEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService11TurnBySpeedERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEEft;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService12SearchTargetERNSt3__h12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEERKNS2_10shared_ptrINS0_10TargetInfoEEERKNSA_INS0_12SearchParamsEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService13ConnectDeviceERNSt3__h12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEERKNS2_10shared_ptrINS0_11AddressInfoEEERKNSA_INS0_11ConnectParamEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService13RotateBySpeedERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEERKNS4_10shared_ptrINS0_18RotateBySpeedParamEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService14RotateByDegreeERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEERKNS4_10shared_ptrINS0_19RotateByDegreeParamEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService15IsSupportActionERKiNS0_10ActionTypeERb;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService16DisconnectDeviceERNSt3__h12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEEi;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService16SetUserOperationERKNSt3__h10shared_ptrINS0_9OperationEEERKNS2_12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEESF_;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService17GetRotationAnglesERKiRNSt3__h10shared_ptrINS0_11EulerAnglesEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService17GetTrackingLayoutERNS0_20CameraTrackingLayoutE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService17OnDeviceConnectedEibRKj;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService17SetTrackingLayoutERNS0_20CameraTrackingLayoutE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService17SubscribeCallbackERNS_4sptrINS_13IRemoteObjectEEENS0_13MechEventTypeE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService18GetAttachedDevicesERNSt3__h3setINS0_8MechInfoENS2_4lessIS4_EENS2_9allocatorIS4_EEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService18GetMaxRotationTimeERKiRNSt3__h10shared_ptrINS0_9TimeLimitEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService18GetTrackingEnabledERb;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService18RegisterCmdChannelENS_4sptrINS_13IRemoteObjectEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService18SetTrackingEnabledERbb;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService19GetMaxRotationSpeedERKiRNS0_16RotateSpeedLimitE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService19RotateToEulerAnglesERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEERKNS4_10shared_ptrINS0_24RotateToEulerAnglesParamEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService19UnSubscribeCallbackENS0_13MechEventTypeE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService20OnDeviceDisconnectedEi;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService21GetRotationAxesStatusERKiRNS0_18RotationAxesStatusE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService23GetRotationDegreeLimitsERKiRNS0_17RotateDegreeLimitE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService29RegisterTrackingEventCallbackENS_4sptrINS_13IRemoteObjectEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService31UnRegisterTrackingEventCallbackEv;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService33RegisterAttachStateChangeCallbackENS_4sptrINS_13IRemoteObjectEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService35UnRegisterAttachStateChangeCallbackEv;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService40RegisterRotationAxesStatusChangeCallbackENS_4sptrINS_13IRemoteObjectEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService42UnRegisterRotationAxesStatusChangeCallbackEv;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService4MoveERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEERKNS4_10shared_ptrINS0_10MoveParamsEEE;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerService8DoActionERKiRNSt3__h12basic_stringIcNS4_11char_traitsIcEENS4_9allocatorIcEEEENS0_10ActionTypeE;
+ 
+        # Service destructor thunks
+        _ZThn224_N4OHOS18MechBodyController25MechBodyControllerServiceD0Ev;
+        _ZThn224_N4OHOS18MechBodyController25MechBodyControllerServiceD1Ev;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerServiceD0Ev;
+        _ZThn344_N4OHOS18MechBodyController25MechBodyControllerServiceD1Ev;
+ 
+        # Service virtual thunk variants
+        _ZTv0_n24_N4OHOS18MechBodyController25MechBodyControllerServiceD0Ev;
+        _ZTv0_n24_N4OHOS18MechBodyController25MechBodyControllerServiceD1Ev;
+        _ZTv0_n32_N4OHOS18MechBodyController25MechBodyControllerServiceD0Ev;
+        _ZTv0_n32_N4OHOS18MechBodyController25MechBodyControllerServiceD1Ev;
+ 
+        # === MechBodyControllerStub (IPC Stub) ===
+ 
+        _ZTVN4OHOS18MechBodyController22MechBodyControllerStubE;
+        _ZTTN4OHOS18MechBodyController22MechBodyControllerStubE;
+        _ZTCN4OHOS18MechBodyController22MechBodyControllerStubE0_NS_11IRemoteStubINS0_19IMechBodyControllerEEE;
+        _ZTCN4OHOS18MechBodyController22MechBodyControllerStubE0_NS_13IPCObjectStubE;
+        _ZTCN4OHOS18MechBodyController22MechBodyControllerStubE0_NS_13IRemoteObjectE;
+        _ZTCN4OHOS18MechBodyController22MechBodyControllerStubE120_NS0_19IMechBodyControllerE;
+        _ZTCN4OHOS18MechBodyController22MechBodyControllerStubE120_NS_13IRemoteBrokerE;
+        _ZTCN4OHOS18MechBodyController22MechBodyControllerStubE152_NS_10ParcelableE;
+ 
+        # Stub thunks
+        _ZThn120_N4OHOS18MechBodyController22MechBodyControllerStubD0Ev;
+        _ZThn120_N4OHOS18MechBodyController22MechBodyControllerStubD1Ev;
+        _ZTv0_n24_N4OHOS18MechBodyController22MechBodyControllerStubD0Ev;
+        _ZTv0_n24_N4OHOS18MechBodyController22MechBodyControllerStubD1Ev;
+        _ZTv0_n32_N4OHOS18MechBodyController22MechBodyControllerStubD0Ev;
+        _ZTv0_n32_N4OHOS18MechBodyController22MechBodyControllerStubD1Ev;
+ 
+        # === BluetoothServiceStatusChangeListener (SA status change) ===
+ 
+        _ZTVN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE;
+        _ZTTN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE;
+        _ZTCN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE0_NS_29SystemAbilityStatusChangeStubE;
+        _ZTCN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE0_NS_11IRemoteStubINS_26ISystemAbilityStatusChangeEEE;
+        _ZTCN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE0_NS_13IPCObjectStubE;
+        _ZTCN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE0_NS_13IRemoteObjectE;
+        _ZTCN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE120_NS_26ISystemAbilityStatusChangeE;
+        _ZTCN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE120_NS_13IRemoteBrokerE;
+        _ZTCN4OHOS18MechBodyController36BluetoothServiceStatusChangeListenerE152_NS_10ParcelableE;
+ 
+        # BluetoothServiceStatusChangeListener thunks
+        _ZThn120_N4OHOS18MechBodyController36BluetoothServiceStatusChangeListener18OnAddSystemAbilityEiRKNSt3__h12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE;
+        _ZThn120_N4OHOS18MechBodyController36BluetoothServiceStatusChangeListener21OnRemoveSystemAbilityEiRKNSt3__h12basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE;
+ 
+        # === AbilityStateListener (AppMgr framework callback) ===
+ 
+        _ZTVN4OHOS18MechBodyController20AbilityStateListenerE;
+        _ZTTN4OHOS18MechBodyController20AbilityStateListenerE;
+        _ZTCN4OHOS18MechBodyController20AbilityStateListenerE0_NS_10AppExecFwk28ApplicationStateObserverStubE;
+        _ZTCN4OHOS18MechBodyController20AbilityStateListenerE0_NS_11IRemoteStubINS_10AppExecFwk25IApplicationStateObserverEEE;
+        _ZTCN4OHOS18MechBodyController20AbilityStateListenerE0_NS_13IPCObjectStubE;
+        _ZTCN4OHOS18MechBodyController20AbilityStateListenerE0_NS_13IRemoteObjectE;
+        _ZTCN4OHOS18MechBodyController20AbilityStateListenerE120_NS_10AppExecFwk25IApplicationStateObserverE;
+        _ZTCN4OHOS18MechBodyController20AbilityStateListenerE120_NS_13IRemoteBrokerE;
+        _ZTCN4OHOS18MechBodyController20AbilityStateListenerE144_NS_10ParcelableE;
+ 
+        # AbilityStateListener thunks
+        _ZThn120_N4OHOS18MechBodyController20AbilityStateListener17OnAppStateChangedERKNS_10AppExecFwk12AppStateDataE;
+        _ZThn120_N4OHOS18MechBodyController20AbilityStateListener21OnAbilityStateChangedERKNS_10AppExecFwk16AbilityStateDataE;
+        _ZThn120_N4OHOS18MechBodyController20AbilityStateListenerD0Ev;
+        _ZThn120_N4OHOS18MechBodyController20AbilityStateListenerD1Ev;
+        _ZTv0_n24_N4OHOS18MechBodyController20AbilityStateListenerD0Ev;
+        _ZTv0_n24_N4OHOS18MechBodyController20AbilityStateListenerD1Ev;
+        _ZTv0_n32_N4OHOS18MechBodyController20AbilityStateListenerD0Ev;
+        _ZTv0_n32_N4OHOS18MechBodyController20AbilityStateListenerD1Ev;
+ 
+        # === ReminderConfigChangeObserver (Notification subscriber) ===
+ 
+        _ZTVN4OHOS18MechBodyController28ReminderConfigChangeObserverE;
+        _ZTTN4OHOS18MechBodyController28ReminderConfigChangeObserverE;
+        _ZTCN4OHOS18MechBodyController28ReminderConfigChangeObserverE0_NS_10AppExecFwk25ConfigurationObserverStubE;
+        _ZTCN4OHOS18MechBodyController28ReminderConfigChangeObserverE0_NS_11IRemoteStubINS_10AppExecFwk22IConfigurationObserverEEE;
+        _ZTCN4OHOS18MechBodyController28ReminderConfigChangeObserverE0_NS_13IPCObjectStubE;
+        _ZTCN4OHOS18MechBodyController28ReminderConfigChangeObserverE0_NS_13IRemoteObjectE;
+        _ZTCN4OHOS18MechBodyController28ReminderConfigChangeObserverE120_NS_10AppExecFwk22IConfigurationObserverE;
+        _ZTCN4OHOS18MechBodyController28ReminderConfigChangeObserverE120_NS_13IRemoteBrokerE;
+        _ZTCN4OHOS18MechBodyController28ReminderConfigChangeObserverE152_NS_10ParcelableE;
+ 
+        # ReminderConfigChangeObserver thunk
+        _ZThn120_N4OHOS18MechBodyController28ReminderConfigChangeObserver22OnConfigurationUpdatedERKNS_10AppExecFwk13ConfigurationE;
+ 
+        # === MechControllerIpcDeathListener (IPC death callback) ===
+ 
+        _ZTVN4OHOS18MechBodyController30MechControllerIpcDeathListenerE;
+        _ZTCN4OHOS18MechBodyController30MechControllerIpcDeathListenerE0_NS_13IRemoteObject14DeathRecipientE;
+ 
+        # === Bluetooth observers (BT framework callbacks via vtable) ===
+ 
+        _ZTVN4OHOS18MechBodyController11HidObserverE;
+        _ZTVN4OHOS18MechBodyController12HostObserverE;
+        _ZTVN4OHOS18MechBodyController20RemoteDeviceObserverE;
+        _ZTVN4OHOS18MechBodyController21BleGattClientCallbackE;
+        _ZTVN4OHOS18MechBodyController29BleCentralManagerCallbackImplE;
+        _ZTVN4OHOS18MechBodyController22BluetoothStateListenerE;
+ 
+        # === Internal cross-TU listeners (vtable only) ===
+ 
+        _ZTVN4OHOS18MechBodyController23MechSessionCallbackImplE;
+        _ZTVN4OHOS18MechBodyController21MechEventListenerImplE;
+        _ZTVN4OHOS18MechBodyController23BleReceviceListenerImplE;
+        _ZTVN4OHOS18MechBodyController23MechConnectListenerImplE;
+        _ZTVN4OHOS18MechBodyController23LocalLiveViewSubscriberE;
+        _ZTVN4OHOS18MechBodyController24ExtCommonEventSubscriberE;
+ 
+        # === Internal classes with vtable (cross-TU virtual dispatch) ===
+ 
+        _ZTVN4OHOS18MechBodyController24MechBodyEventBaseServiceE;
+        _ZTVN4OHOS18MechBodyController13MotionManagerE;
+        _ZTVN4OHOS18MechBodyController20TransportSendAdapterE;
+        _ZTVN4OHOS18MechBodyController17ProtocolConverterE;
+ 
+        # Command class vtables
+        _ZTVN4OHOS18MechBodyController14SetMechStopCmdE;
+        _ZTVN4OHOS18MechBodyController16SetMechConfigCmdE;
+        _ZTVN4OHOS18MechBodyController18SetMechRotationCmdE;
+        _ZTVN4OHOS18MechBodyController18GetMechRealNameCmdE;
+        _ZTVN4OHOS18MechBodyController19GetMechLimitInfoCmdE;
+        _ZTVN4OHOS18MechBodyController20SetMechCameraInfoCmdE;
+        _ZTVN4OHOS18MechBodyController20SetMechDisconnectCmdE;
+        _ZTVN4OHOS18MechBodyController21GetMechProtocolVerCmdE;
+        _ZTVN4OHOS18MechBodyController23SetMechHidPreemptiveCmdE;
+        _ZTVN4OHOS18MechBodyController23SetMechMotionControlCmdE;
+        _ZN4OHOS18MechBodyController23SetMechMotionControlCmdC1ENS0_14ControlCommandE;
+        _ZN4OHOS18MechBodyController23SetMechMotionControlCmdC2ENS0_14ControlCommandE;
+        _ZNK4OHOS18MechBodyController23SetMechMotionControlCmd8GetResultEv;
+        _ZTVN4OHOS18MechBodyController23SetMechRotationTraceCmdE;
+        _ZTVN4OHOS18MechBodyController24NormalGetMechBaseInfoCmdE;
+        _ZTVN4OHOS18MechBodyController24NormalGetMechPoseInfoCmdE;
+        _ZTVN4OHOS18MechBodyController24RegisterMechCliffInfoCmdE;
+        _ZTVN4OHOS18MechBodyController24RegisterMechStateInfoCmdE;
+        _ZTVN4OHOS18MechBodyController24RegisterMechWheelDataCmdE;
+        _ZTVN4OHOS18MechBodyController25NormalGetMechLimitInfoCmdE;
+        _ZTVN4OHOS18MechBodyController25NormalGetMechStateInfoCmdE;
+        _ZTVN4OHOS18MechBodyController25SetMechRotationBySpeedCmdE;
+        _ZTVN4OHOS18MechBodyController26NormalSetMechCameraInfoCmdE;
+        _ZTVN4OHOS18MechBodyController27NormalSetMechPhoneStatusCmdE;
+        _ZTVN4OHOS18MechBodyController27NormalSetMechProtocolVerCmdE;
+        _ZTVN4OHOS18MechBodyController27RegisterMechObstacleInfoCmdE;
+        _ZTVN4OHOS18MechBodyController27RegisterMechPositionInfoCmdE;
+        _ZTVN4OHOS18MechBodyController27SetMechDevicePairingInfoCmdE;
+        _ZN4OHOS18MechBodyController27SetMechDevicePairingInfoCmdC1Ej;
+        _ZN4OHOS18MechBodyController27SetMechDevicePairingInfoCmdC2Ej;
+        _ZNK4OHOS18MechBodyController27SetMechDevicePairingInfoCmd8GetResultEv;
+        _ZTVN4OHOS18MechBodyController27WheelSetMechSceneControlCmdE;
+        _ZTVN4OHOS18MechBodyController28RegisterMechControlResultCmdE;
+        _ZTVN4OHOS18MechBodyController28WheelSetMechMotionControlCmdE;
+        _ZTVN4OHOS18MechBodyController28WheelSetMechRotationTraceCmdE;
+        _ZTVN4OHOS18MechBodyController29ActionGimbalFeatureControlCmdE;
+        _ZTVN4OHOS18MechBodyController29NormalRegisterMechKeyEventCmdE;
+        _ZTVN4OHOS18MechBodyController29NormalSetMechMotionControlCmdE;
+        _ZTVN4OHOS18MechBodyController29NormalSetMechRotationTraceCmdE;
+        _ZTVN4OHOS18MechBodyController29RegisterMechCameraKeyEventCmdE;
+        _ZTVN4OHOS18MechBodyController29RegisterMechTrackingEnableCmdE;
+        _ZTVN4OHOS18MechBodyController29SetMechCameraTrackingFrameCmdE;
+        _ZTVN4OHOS18MechBodyController29WheelGetMechCapabilityInfoCmdE;
+        _ZTVN4OHOS18MechBodyController29WheelSetMechRotationToBaseCmdE;
+        _ZTVN4OHOS18MechBodyController30GetMechCameraTrackingLayoutCmdE;
+        _ZTVN4OHOS18MechBodyController30NormalGetMechCapabilityInfoCmdE;
+        _ZTVN4OHOS18MechBodyController30NormalGetMechCoordinateInfoCmdE;
+        _ZTVN4OHOS18MechBodyController30NormalRegisterMechStateInfoCmdE;
+        _ZTVN4OHOS18MechBodyController30NormalSetMechLocationReportCmdE;
+        _ZTVN4OHOS18MechBodyController30SetMechCameraTrackingEnableCmdE;
+        _ZTVN4OHOS18MechBodyController30SetMechCameraTrackingLayoutCmdE;
+        _ZTVN4OHOS18MechBodyController31NormalSetMechRotationBySpeedCmdE;
+        _ZTVN4OHOS18MechBodyController31WheelSetMechRelativePositionCmdE;
+        _ZTVN4OHOS18MechBodyController33NormalRegisterMechGenericEventCmdE;
+        _ZTVN4OHOS18MechBodyController33NormalRegisterMechPositionInfoCmdE;
+        _ZTVN4OHOS18MechBodyController33WheelGetMechMovementCapabilityCmdE;
+        _ZN4OHOS18MechBodyController33WheelGetMechMovementCapabilityCmdC1Ev;
+        _ZN4OHOS18MechBodyController33WheelGetMechMovementCapabilityCmdC2Ev;
+        _ZTVN4OHOS18MechBodyController34NormalSetMechRotationToLocationCmdE;
+        _ZTVN4OHOS18MechBodyController35NormalRegisterMechTrackingEnableCmdE;
+        _ZTVN4OHOS18MechBodyController35NormalSetMechCameraTrackingFrameCmdE;
+        _ZTVN4OHOS18MechBodyController36NormalSetMechCameraTrackingEnableCmdE;
+ 
+        # === stdlib / nlohmann json (cross-SO referenced) ===
+ 
+        _ZTVNSt3__h15basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEE;
+        _ZTVNSt3__h19basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE;
+        _ZTVNSt3__h20__shared_ptr_pointerIPN4OHOS5Media8PixelMapENS_14default_deleteIS3_EENS_9allocatorIS3_EEEE;
+        _ZTCNSt3__h19basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE0_NS_13basic_ostreamIcS2_EE;
+        _ZTTNSt3__h19basic_ostringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE;
+        _ZN8nlohmann16json_abi_v3_12_06detail12static_constINS1_10to_json_fnEE5valueE;
+        _ZN8nlohmann16json_abi_v3_12_06detail12static_constINS1_12from_json_fnEE5valueE;
+ 
+        # === NotificationUtils (cross-SO utility) ===
+ 
+        _ZN4OHOS18MechBodyController16NotificationUtils16SendNotificationENS0_16NotificationTypeE;
+        _ZN4OHOS18MechBodyController16NotificationUtils18CancelNotificationENS0_16NotificationTypeE;
+ 
+        # === Notification singleton (cross-SO) ===
+ 
+        _ZN4OHOS12Notification19AnsDialogHostClient9instance_E;
+        _ZGVN4OHOS12Notification19AnsDialogHostClient9instance_E;
+ 
+        # === System entry points ===
+ 
+        _init;
+        _fini;
+        __cfi_check;
+ 
+    local:
+        *;
+};

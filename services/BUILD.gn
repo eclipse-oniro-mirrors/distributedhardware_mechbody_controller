@@ -14,6 +14,27 @@
 import("//build/ohos.gni")
 import("//foundation/distributedhardware/mechbody_controller/mechbody.gni")
 
+config("mechbody_service_config") {
+  include_dirs = [
+    "include",
+    "include/dotReport",
+    "include/connect",
+    "include/controller",
+    "include/motion",
+    "include/transport",
+    "include/transport/command",
+    "include/transport/command/0x01",
+    "include/transport/command/0x02",
+    "include/transport/command/0x03",
+    "include/utils",
+    "//foundation/distributedhardware/mechbody_controller/interface/inner_api",
+  ]
+ 
+  if (mechbody_controller_extended) {
+    defines = [ "MECHBODY_CONTROLLER_EXTENDED" ]
+  }
+}
+
 ohos_shared_library("mechbody_service") {
   branch_protector_ret = "pac_ret"
   sanitize = {
@@ -33,6 +54,59 @@ ohos_shared_library("mechbody_service") {
     "-fpie",
   ]
 
+  public_configs = [ ":mechbody_service_config" ]
+
+  deps = [ ":mechbody_service_sources" ]
+ 
+  ldflags = [
+    "-Wl,-z,relro",
+    "-Wl,-z,now",
+    "-Wl,--gc-sections",
+    "-Wl,--strip-all",
+    "-Wl,--icf=all",
+    "-Wl,--as-needed",
+    "-Wl,--version-script=" + rebase_path("export_symbols.map"),
+  ]
+ 
+  external_deps = [
+    "ability_base:base",
+    "access_token:libaccesstoken_sdk",
+    "access_token:libtokenid_sdk",
+    "access_token:libtokensetproc_shared",
+    "bluetooth:btframework",
+    "bluetooth:btcommon",
+    "camera_framework:camera_framework",
+    "cJSON:cjson",
+    "c_utils:utils",
+    "eventhandler:libeventhandler",
+    "graphic_surface:surface",
+    "hilog:libhilog",
+    "init:libbegetutil",
+    "input:libmmi-client",
+    "input:oh_input_manager",
+    "ipc:ipc_core",
+    "os_account:libaccountkits",
+    "os_account:os_account_innerkits",
+    "safwk:system_ability_fwk",
+    "samgr:samgr_proxy",
+    "sensor:sensor_interface_native",
+    "window_manager:libdm_lite",
+    "hisysevent:libhisysevent",
+    "drivers_interface_camera:metadata",
+    "distributed_notification_service:ans_innerkits",
+    "ability_runtime:ability_manager",
+    "ability_runtime:app_manager",
+    "i18n:intl_util",
+    "icu:shared_icuuc",
+    "ability_runtime:wantagent_innerkits",
+  ]
+ 
+  install_images = [ system_base_dir ]
+  part_name = "mechbody_controller"
+  subsystem_name = "distributedhardware"
+}
+ 
+ohos_source_set("mechbody_service_sources") {
   public_configs = [ ":mechbody_service_config" ]
   
  if (!mechbody_controller_feature_L1) {
@@ -115,26 +189,7 @@ ohos_shared_library("mechbody_service") {
       "src/utils/notification_utils.cpp",
     ]
  }
-  include_dirs = [
-    "include",
-    "include/dotReport",
-    "include/connect",
-    "include/controller",
-    "include/motion",
-    "include/transport",
-    "include/transport/command",
-    "include/transport/command/0x01",
-    "include/transport/command/0x02",
-    "include/transport/command/0x03",
-    "include/utils",
-    "//foundation/distributedhardware/mechbody_controller/interface/inner_api",
-  ]
 
-  if (mechbody_controller_extended) {
-    cflags += [
-      "-DMECHBODY_CONTROLLER_EXTENDED",
-    ]
-  }
   cflags_cc = [
       "-fstack-protector-strong",
       "-Os",
@@ -142,14 +197,6 @@ ohos_shared_library("mechbody_service") {
       "-fno-exceptions",
       "-ffunction-sections",
       "-fdata-sections",
-  ]
-  ldflags = [
-    "-Wl,-z,relro",
-    "-Wl,-z,now",
-    "-Wl,--gc-sections",
-    "-Wl,--strip-all",
-    "-Wl,--icf=all",
-    "-Wl,--as-needed",
   ]
 
   external_deps = [
@@ -178,14 +225,13 @@ ohos_shared_library("mechbody_service") {
     "hisysevent:libhisysevent",
     "drivers_interface_camera:metadata",
     "distributed_notification_service:ans_innerkits",
-    "ability_runtime:ability_manager",  
+    "ability_runtime:ability_manager",
     "ability_runtime:app_manager",
     "i18n:intl_util",
     "icu:shared_icuuc",
     "ability_runtime:wantagent_innerkits",
   ]
 
-  install_images = [ system_base_dir ]
   part_name = "mechbody_controller"
   subsystem_name = "distributedhardware"
 }

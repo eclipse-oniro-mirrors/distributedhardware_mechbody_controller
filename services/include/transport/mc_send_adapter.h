@@ -34,6 +34,12 @@ class TransportSendAdapter : public std::enable_shared_from_this<TransportSendAd
 public:
     explicit TransportSendAdapter();
     virtual ~TransportSendAdapter();
+
+protected:
+    // Empty constructor for test subclasses to skip EventRunner thread creation
+    explicit TransportSendAdapter(bool /*skipInit*/) {}
+ 
+public:
     virtual int32_t SendCommand(const std::shared_ptr<CommandBase> &cmd, int32_t delayMs = 0);
     bool DiscardExpiredData(const std::shared_ptr<CommandBase> &cmd);
     int32_t RegisterBluetoothListener();
