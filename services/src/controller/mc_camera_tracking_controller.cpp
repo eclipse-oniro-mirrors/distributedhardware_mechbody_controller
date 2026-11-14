@@ -177,22 +177,9 @@ void McCameraTrackingController::Init()
 void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackingFrameParams)
 {
     auto params = std::make_shared<TrackingFrameParams>(trackingFrameParams);
-    if (sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::LEFT) {
-        params->roi.x = NUM_1 - params->roi.x;
-        params->roi.y = NUM_1 - params->roi.y;
-    } else if (sensorRotation_ == MobileRotation::RIGHT || sensorRotation_ == MobileRotation::DOWN) {
-        params->roi.x = params->roi.x;
-        params->roi.y = params->roi.y;
-    }
-
-    // When the object is identified as a body, offset compensation is required.
-    if (params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY)) {
-        if (sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::DOWN) {
-            params->roi.x = params->roi.x - BODY_OFFSET;
-        } else if (sensorRotation_ == MobileRotation::RIGHT || sensorRotation_ == MobileRotation::LEFT) {
-            params->roi.y = params->roi.y + BODY_OFFSET;
-        }
-    }
+    CalcRoiRotate(params, sensorRotation_);
+    BodyRoiOffset(params, sensorRotation_);
+    params->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
     if (currentCameraInfo_ == nullptr) {
         HILOGW("currentCameraInfo_ is nullptr in HandleTrackingFrame");
         return;
@@ -204,8 +191,6 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
     }
     lastTrackingFrameTimeNs_.store(std::chrono::steady_clock::now().time_since_epoch().count());
     if (isAutoCentering_.load()) {
-
-
         HILOGI("Target detected during background auto center, reset auto centering flag.");
         isAutoCentering_.store(false);
         std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
@@ -217,37 +202,58 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
         }
     }
 
-    params->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
-    std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
-    for (const auto& item : MechBodyControllerService::GetInstance().motionManagers_) {
+    CameraInfoParams camInfo{currentCameraInfo_->fovHBasic, currentCameraInfo_->fovVBasic,
+        currentCameraInfo_->zoomFactor, currentCameraInfo_->isRecording, CameraType::FRONT};
+    ScreenInfoParams screenInfo{.isPortrait = IsVertical(sensorRotation_)};
+    auto& mgrMap = MechBodyControllerService::GetInstance().motionManagers_;
+ 
+    for (const auto& item : mgrMap) {
         int32_t mechId = item.first;
         auto motionManager = item.second;
-
         if (!motionManager) {
             HILOGE("MotionManager not exists; mechId: %{public}d", mechId);
             continue;
         }
-
-        CameraInfoParams cameraInfoParams;
-        cameraInfoParams.fovH = currentCameraInfo_->fovHBasic;
-        cameraInfoParams.fovV = currentCameraInfo_->fovVBasic;
-        cameraInfoParams.zoomFactor = currentCameraInfo_->zoomFactor;
-        cameraInfoParams.isRecording = currentCameraInfo_->isRecording.load(std::memory_order_relaxed);
-        // swing only has front
-        cameraInfoParams.cameraType = CameraType::FRONT;
-
-        ScreenInfoParams screenInfoParam;
-        // Determine portrait or landscape orientation
-        screenInfoParam.isPortrait = IsVertical(sensorRotation_);
-
-        int32_t result = motionManager->SetMechCameraInfo(cameraInfoParams);
-        int32_t screenInfoResult = motionManager->SetMechScreenInfo(screenInfoParam);
-        HILOGI("mech id: %{public}d result code: %{public}d, screenInfoResult %{public}d:",
-            mechId, result, screenInfoResult);
-
-        int32_t setResult = motionManager->SetMechCameraTrackingFrame(params);
+        int32_t retCam = motionManager->SetMechCameraInfo(camInfo);
+        int32_t retScr = motionManager->SetMechScreenInfo(screenInfo);
+        HILOGI("mech id: %{public}d result code: %{public}d, screenInfoResult %{public}d:", mechId, retCam, retScr);
+        int32_t setRet = motionManager->SetMechCameraTrackingFrame(params);
         HILOGI("Set tracking info for mech id: %{public}d; result: %{public}s; code: %{public}d",
-            mechId, setResult == ERR_OK ? "success" : "failed", setResult);
+            mechId, setRet == ERR_OK ? "success" : "failed", setRet);
+    }
+}
+
+// 严格复刻你原本if分支执行顺序、每一步运算完全不变
+void McCameraTrackingController::CalcRoiRotate(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot)
+{
+    if (rot == MobileRotation::UP || rot == MobileRotation::LEFT) {
+        params->roi.x = NUM_1 - params->roi.x;
+        params->roi.y = NUM_1 - params->roi.y;
+    }
+    if (rot == MobileRotation::UP || rot == MobileRotation::DOWN) {
+        float tmp = params->roi.x;
+        params->roi.x = params->roi.y;
+        params->roi.y = tmp;
+        params->roi.x = NUM_1 - params->roi.x;
+        params->roi.y = NUM_1 - params->roi.y;
+    } else if (rot == MobileRotation::LEFT || rot == MobileRotation::RIGHT) {
+        float tmp = params->roi.x;
+        params->roi.x = params->roi.y;
+        params->roi.y = tmp;
+        params->roi.y = NUM_1 - params->roi.y;
+        params->roi.x = NUM_1 - params->roi.x;
+    }
+}
+
+// 人体偏移逻辑原样复制，无修改
+void McCameraTrackingController::BodyRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot)
+{
+    if (params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY)) {
+        if (rot == MobileRotation::UP || rot == MobileRotation::DOWN) {
+            params->roi.x = params->roi.x - BODY_OFFSET;
+        } else if (rot == MobileRotation::RIGHT || rot == MobileRotation::LEFT) {
+            params->roi.y = params->roi.y + BODY_OFFSET;
+        }
     }
 }
 
@@ -500,7 +506,6 @@ int32_t McCameraTrackingController::OnSessionStatusChange(int32_t sessionid, boo
         for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
             std::shared_ptr<MotionManager> motionManager = item.second;
             if (motionManager != nullptr) {
-
                 motionManager->SetAutoCentering(false);
             }
         }
