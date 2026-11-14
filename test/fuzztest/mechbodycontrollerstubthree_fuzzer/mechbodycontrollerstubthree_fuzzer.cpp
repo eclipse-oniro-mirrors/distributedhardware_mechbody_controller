@@ -37,6 +37,18 @@
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
+
+namespace {
+enum InnerFuzzTestIndex : uint8_t {
+    INNER_FUZZ_REGISTER_CMD_CHANNEL = 0,
+    INNER_FUZZ_ROTATE_BY_DEGREE,
+    INNER_FUZZ_GET_MAX_ROTATION_TIME,
+    INNER_FUZZ_GET_MAX_ROTATION_SPEED,
+    INNER_FUZZ_ROTATE_BY_SPEED,
+    INNER_FUZZ_UNSUBSCRIBE_CALLBACK,
+    INNER_FUZZ_TEST_COUNT
+};
+}  // namespace
 MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
@@ -380,24 +392,24 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
     FuzzedDataProvider fdp(data, size);
     auto mechBodyControllerStubPtr = std::make_shared<OHOS::MechBodyControllerService>();
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 6;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % INNER_FUZZ_TEST_COUNT;
     switch (funcIndex) {
-        case 0:
+        case INNER_FUZZ_REGISTER_CMD_CHANNEL:
             OHOS::RegisterCmdChannelInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 1:
+        case INNER_FUZZ_ROTATE_BY_DEGREE:
             OHOS::RotateByDegreeInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 2:
+        case INNER_FUZZ_GET_MAX_ROTATION_TIME:
             OHOS::GetMaxRotationTimeInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 3:
+        case INNER_FUZZ_GET_MAX_ROTATION_SPEED:
             OHOS::GetMaxRotationSpeedInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 4:
+        case INNER_FUZZ_ROTATE_BY_SPEED:
             OHOS::RotateBySpeedInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 5:
+        case INNER_FUZZ_UNSUBSCRIBE_CALLBACK:
             OHOS::UnSubscribeCallbackInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
         default:

@@ -37,6 +37,21 @@
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
+
+namespace {
+enum InnerFuzzTestIndex : uint8_t {
+    INNER_FUZZ_ATTACH_STATE_CHANGE_LISTEN_ON = 0,
+    INNER_FUZZ_ATTACH_STATE_CHANGE_LISTEN_OFF,
+    INNER_FUZZ_GET_ATTACHED_DEVICES,
+    INNER_FUZZ_SET_USER_OPERATION,
+    INNER_FUZZ_SET_CAMERA_TRACKING_ENABLED,
+    INNER_FUZZ_ROTATE_TO_EULER_ANGLES,
+    INNER_FUZZ_SEARCH_TARGET,
+    INNER_FUZZ_MOVE,
+    INNER_FUZZ_MOVE_BY_SPEED,
+    INNER_FUZZ_TEST_COUNT
+};
+}  // namespace
 MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
@@ -420,33 +435,33 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
     FuzzedDataProvider fdp(data, size);
     auto mechBodyControllerStubPtr = std::make_shared<OHOS::MechBodyControllerService>();
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 9;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % INNER_FUZZ_TEST_COUNT;
     switch (funcIndex) {
-        case 0:
+        case INNER_FUZZ_ATTACH_STATE_CHANGE_LISTEN_ON:
             OHOS::AttachStateChangeListenOnInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 1:
+        case INNER_FUZZ_ATTACH_STATE_CHANGE_LISTEN_OFF:
             OHOS::AttachStateChangeListenOffInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 2:
+        case INNER_FUZZ_GET_ATTACHED_DEVICES:
             OHOS::GetAttachedDevicesInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 3:
+        case INNER_FUZZ_SET_USER_OPERATION:
             OHOS::SetUserOperationInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 4:
+        case INNER_FUZZ_SET_CAMERA_TRACKING_ENABLED:
             OHOS::SetCameraTrackingEnabledInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 5:
+        case INNER_FUZZ_ROTATE_TO_EULER_ANGLES:
             OHOS::RotateToEulerAnglesInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 6:
+        case INNER_FUZZ_SEARCH_TARGET:
             OHOS::SearchTargetInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 7:
+        case INNER_FUZZ_MOVE:
             OHOS::MoveInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 8:
+        case INNER_FUZZ_MOVE_BY_SPEED:
             OHOS::MoveBySpeedInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
         default:

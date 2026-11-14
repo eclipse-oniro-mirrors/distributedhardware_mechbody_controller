@@ -36,6 +36,21 @@
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
+
+namespace {
+enum InnerFuzzTestIndex : uint8_t {
+    INNER_FUZZ_GET_CAMERA_TRACKING_ENABLED = 0,
+    INNER_FUZZ_TRACKING_EVENT_LISTEN_ON,
+    INNER_FUZZ_TRACKING_EVENT_LISTEN_OFF,
+    INNER_FUZZ_SET_CAMERA_TRACKING_LAYOUT,
+    INNER_FUZZ_GET_CAMERA_TRACKING_LAYOUT,
+    INNER_FUZZ_TURN_BY_SPEED,
+    INNER_FUZZ_IS_SUPPORT_ACTION,
+    INNER_FUZZ_DO_ACTION,
+    INNER_FUZZ_SUBSCRIBE_CALLBACK,
+    INNER_FUZZ_TEST_COUNT
+};
+}  // namespace
 MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
@@ -419,33 +434,33 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
     FuzzedDataProvider fdp(data, size);
     auto mechBodyControllerStubPtr = std::make_shared<OHOS::MechBodyControllerService>();
-    uint8_t choice = fdp.ConsumeIntegral<uint8_t>() % 9;
+    uint8_t choice = fdp.ConsumeIntegral<uint8_t>() % INNER_FUZZ_TEST_COUNT;
     switch (choice) {
-        case 0:
+        case INNER_FUZZ_GET_CAMERA_TRACKING_ENABLED:
             OHOS::GetCameraTrackingEnabledInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 1:
+        case INNER_FUZZ_TRACKING_EVENT_LISTEN_ON:
             OHOS::TrackingEventListenOnInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 2:
+        case INNER_FUZZ_TRACKING_EVENT_LISTEN_OFF:
             OHOS::TrackingEventListenOffInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 3:
+        case INNER_FUZZ_SET_CAMERA_TRACKING_LAYOUT:
             OHOS::SetCameraTrackingLayoutInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 4:
+        case INNER_FUZZ_GET_CAMERA_TRACKING_LAYOUT:
             OHOS::GetCameraTrackingLayoutInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 5:
+        case INNER_FUZZ_TURN_BY_SPEED:
             OHOS::TurnBySpeedInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 6:
+        case INNER_FUZZ_IS_SUPPORT_ACTION:
             OHOS::IsSupportActionInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 7:
+        case INNER_FUZZ_DO_ACTION:
             OHOS::DoActionInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
-        case 8:
+        case INNER_FUZZ_SUBSCRIBE_CALLBACK:
             OHOS::SubscribeCallbackInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
         default:
