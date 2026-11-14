@@ -35,18 +35,17 @@
 #include "token_setproc.h"
 #include "system_ability.h"
 
-namespace OHOS {
-using namespace OHOS::MechBodyController;
-
 namespace {
 enum InnerFuzzTestIndex : uint8_t {
     INNER_FUZZ_ROTATION_AXES_STATUS_CHANGE_LISTEN_OFF = 0,
     INNER_FUZZ_ROTATE_TO_EULER_ANGLES,
-    INNER_FUZZ_CONNECT_DEVICE,
-    INNER_FUZZ_DISCONNECT_DEVICE,
     INNER_FUZZ_TEST_COUNT
 };
 }  // namespace
+
+namespace OHOS {
+using namespace OHOS::MechBodyController;
+
 MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
@@ -244,17 +243,6 @@ int32_t MechBodyControllerService::UnSubscribeCallback(MechEventType mechEventTy
     return 0;
 }
 
-int32_t MechBodyControllerService::ConnectDevice(std::string &cmdId,
-    const std::shared_ptr<AddressInfo> &addrInfo, const std::shared_ptr<ConnectParam> &params)
-{
-    return 0;
-}
-
-int32_t MechBodyControllerService::DisconnectDevice(std::string &cmdId, int32_t mechId)
-{
-    return 0;
-}
-
 void RotationAxesStatusChangeListenOffInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
                                                     FuzzedDataProvider &fdp)
 {
@@ -292,45 +280,6 @@ void RotateToEulerAnglesInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> me
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
-
-void ConnectDeviceInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                FuzzedDataProvider &fdp)
-{
-    uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::CONNECT_DEVICE);
-    MessageParcel datas;
-    datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    std::string cmdId = fdp.ConsumeRandomLengthString();
-    datas.WriteString(cmdId);
-    AddressInfo addrInfo;
-    addrInfo.address = fdp.ConsumeRandomLengthString();
-    addrInfo.addressType = static_cast<AddressType>(fdp.ConsumeIntegral<uint8_t>());
-    datas.WriteParcelable(&addrInfo);
-    ConnectParam connectParam;
-    connectParam.deviceName = fdp.ConsumeRandomLengthString();
-    connectParam.identifier = fdp.ConsumeIntegral<uint32_t>();
-    connectParam.custdata = fdp.ConsumeRandomLengthString();
-    datas.WriteParcelable(&connectParam);
-    MessageParcel reply;
-    MessageOption option;
-
-    mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
-}
-
-void DisconnectDeviceInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                   FuzzedDataProvider &fdp)
-{
-    uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::DISCONNECT_DEVICE);
-    MessageParcel datas;
-    datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    std::string cmdId = fdp.ConsumeRandomLengthString();
-    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
-    datas.WriteString(cmdId);
-    datas.WriteInt32(mechId);
-    MessageParcel reply;
-    MessageOption option;
-
-    mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
-}
 }
 
 /* Fuzzer entry point */
@@ -348,12 +297,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             break;
         case INNER_FUZZ_ROTATE_TO_EULER_ANGLES:
             OHOS::RotateToEulerAnglesInnerFuzzTest(mechBodyControllerStubPtr, fdp);
-            break;
-        case INNER_FUZZ_CONNECT_DEVICE:
-            OHOS::ConnectDeviceInnerFuzzTest(mechBodyControllerStubPtr, fdp);
-            break;
-        case INNER_FUZZ_DISCONNECT_DEVICE:
-            OHOS::DisconnectDeviceInnerFuzzTest(mechBodyControllerStubPtr, fdp);
             break;
         default:
             break;

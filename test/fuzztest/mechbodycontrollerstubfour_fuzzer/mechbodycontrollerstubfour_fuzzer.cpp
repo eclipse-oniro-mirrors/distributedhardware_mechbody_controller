@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fuzzer/FuzzedDataProvider.h>
 #include <string>
 
 #include "mechbody_controller_stub.h"
@@ -34,9 +35,6 @@
 #include "token_setproc.h"
 #include "system_ability.h"
 
-namespace OHOS {
-using namespace OHOS::MechBodyController;
-
 namespace {
 enum InnerFuzzTestIndex : uint8_t {
     INNER_FUZZ_STOP_MOVING = 0,
@@ -47,6 +45,10 @@ enum InnerFuzzTestIndex : uint8_t {
     INNER_FUZZ_TEST_COUNT
 };
 }  // namespace
+
+namespace OHOS {
+using namespace OHOS::MechBodyController;
+
 MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
@@ -247,23 +249,13 @@ int32_t MechBodyControllerService::UnSubscribeCallback(MechEventType mechEventTy
     return 0;
 }
 
-int32_t MechBodyControllerService::ConnectDevice(std::string &cmdId,
-    const std::shared_ptr<AddressInfo> &addrInfo, const std::shared_ptr<ConnectParam> &params)
-{
-    return 0;
-}
-
-int32_t MechBodyControllerService::DisconnectDevice(std::string &cmdId, int32_t mechId)
-{
-    return 0;
-}
-
 void StopMovingInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
                              FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::STOP_MOVING);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
+    std::string cmdId = fdp.ConsumeRandomLengthString();
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
     datas.WriteString(cmdId);
     datas.WriteInt32(mechId);

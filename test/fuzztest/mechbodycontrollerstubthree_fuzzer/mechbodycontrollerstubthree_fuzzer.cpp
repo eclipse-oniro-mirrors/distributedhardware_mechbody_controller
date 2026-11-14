@@ -35,9 +35,6 @@
 #include "token_setproc.h"
 #include "system_ability.h"
 
-namespace OHOS {
-using namespace OHOS::MechBodyController;
-
 namespace {
 enum InnerFuzzTestIndex : uint8_t {
     INNER_FUZZ_REGISTER_CMD_CHANNEL = 0,
@@ -49,6 +46,10 @@ enum InnerFuzzTestIndex : uint8_t {
     INNER_FUZZ_TEST_COUNT
 };
 }  // namespace
+
+namespace OHOS {
+using namespace OHOS::MechBodyController;
+
 MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
@@ -242,17 +243,6 @@ int32_t MechBodyControllerService::SubscribeCallback(sptr<IRemoteObject> &callba
 }
 
 int32_t MechBodyControllerService::UnSubscribeCallback(MechEventType mechEventType)
-{
-    return 0;
-}
-
-int32_t MechBodyControllerService::ConnectDevice(std::string &cmdId,
-    const std::shared_ptr<AddressInfo> &addrInfo, const std::shared_ptr<ConnectParam> &params)
-{
-    return 0;
-}
-
-int32_t MechBodyControllerService::DisconnectDevice(std::string &cmdId, int32_t mechId)
 {
     return 0;
 }
