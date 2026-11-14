@@ -32,6 +32,9 @@ ohos_shared_library("mechbody_service") {
     "-frtti",
     "-fpie",
   ]
+
+  public_configs = [ ":mechbody_service_config" ]
+  
  if (!mechbody_controller_feature_L1) {
     sources = [
       "src/connect/bluetooth_state_adapter.cpp",
