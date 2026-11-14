@@ -1329,6 +1329,15 @@ void MotionManager::GetWheelMovementCapabilityInfo()
     CHECK_POINTER_RETURN(WheelGetMechMoveCapabilityCmd, "WheelGetMechMovementCapabilityCmd is empty.");
     auto wheelMoveCapabilityCallback = [this, WheelGetMechMoveCapabilityCmd]() {
         HILOGI("device callback wheelMoveCapabilityInfo_ ok");
+        if (deviceCapabilityInfo_.centerAble) {
+            uint32_t index = static_cast<uint32_t>(ActionType::HEAD_TURN_TO_BASE) / 32;
+            uint32_t bitIndex = static_cast<uint32_t>(ActionType::HEAD_TURN_TO_BASE) % 32;
+            if (index < MAX_CAPABILITY_BIT_NUM) {
+                g_capabilityInfo[index] |= (1U << bitIndex);
+                HILOGI("Set HEAD_TURN_TO_BASE capability bit, centerAble: %{public}u",
+                    deviceCapabilityInfo_.centerAble);
+            }
+        }
     };
 
     WheelGetMechMoveCapabilityCmd->SetResponseCallback(wheelMoveCapabilityCallback);
@@ -2070,6 +2079,12 @@ int32_t MotionManager::DoAction(uint32_t tokenId, std::string &napiCmdId, Action
         HILOGE("Access is not allowed if the phone is not placed on mech.");
         return DEVICE_NOT_PLACED_ON_MECH;
     }
+    bool isSupport = false;
+    int32_t supportResult = IsSupportAction(tokenId, actionType, isSupport);
+    if (supportResult != ERR_OK || !isSupport) {
+        HILOGE("DoAction not supported, actionType: %{public}d, isSupport: %{public}d", actionType, isSupport);
+        return DEVICE_NOT_SUPPORTED;
+    }
 
     auto command = CreateDoActionCommand(actionType);
     CHECK_POINTER_RETURN_VALUE(command, INVALID_PARAMETERS_ERR, "command is empty.");
@@ -2116,6 +2131,16 @@ std::shared_ptr<CommandBase> MotionManager::CreateDoActionCommand(ActionType act
                 break;
             case ActionType::HEAD_SHAKE:
                 command = CreateHeadShakeCmd();
+                break;
+            case ActionType::HEAD_TURN_TO_BASE:
+                if (protocolVer_ == 0x01) {
+                    command = factory.CreateSetMechMotionControlCmd01(ControlCommand::HEAD_TURN_TO_BASE);
+                } else {
+                    command = factory.CreateSetMechMotionControlCmd(ControlCommand::GO_CENTER);
+                }
+                break;
+            case ActionType::BASE_TURN_TO_HEAD:
+                command = factory.CreateWheelSetMechMotionControlCmd(ControlCommand::GO_CENTER);
                 break;
             default:
                 command = factory.CreateWheelSetMechSceneControlCmd(actionType);
@@ -2237,6 +2262,11 @@ void MotionManager::HandleDoActionResponse(uint8_t taskId, ActionType actionType
         result = ExtractRotationTraceResult(command);
     } else if (actionType == ActionType::HEAD_UP || actionType == ActionType::HEAD_DOWN) {
         result = ExtractRotationBySpeedResult(command);
+    } else if (actionType == ActionType::HEAD_TURN_TO_BASE) {
+        result = ExtractMotionControlResult(command);
+    } else if (actionType == ActionType::BASE_TURN_TO_HEAD) {
+        auto cmd = static_cast<WheelSetMechMotionControlCmd *>(command.get());
+        result = MapDeviceErrorCodeToExecResult(cmd->GetCmdType(), cmd->GetResult());
     } else {
         result = MapDeviceErrorCodeToExecResult(command->GetCmdType(),
             static_cast<WheelSetMechSceneControlCmd *>(command.get())->GetResult());
@@ -2736,6 +2766,12 @@ void MotionManager::UpdateTrackingTime()
     }
 }
 
+void MotionManager::SetAutoCentering(bool isAutoCentering)
+{
+    HILOGI("Set auto centering: %{public}d", isAutoCentering);
+    isAutoCentering_.store(isAutoCentering);
+}
+
 int32_t MotionManager::SetMechCameraTrackingFrame(const std::shared_ptr<TrackingFrameParams> trackingFrameParams)
 {
     HILOGD("SetMechCameraTrackingFrame start.");
@@ -2753,12 +2789,13 @@ int32_t MotionManager::SetMechCameraTrackingFrame(const std::shared_ptr<Tracking
         return INVALID_PARAMETERS_ERR;
     }
     if (!deviceStatus_->isEnabled || deviceStatus_->trackingStatus == MechTrackingStatus::MECH_TK_DISABLE ||
-        !needSendTrackingData_) {
+        !needSendTrackingData_ || isAutoCentering_.load()) {
         HILOGE("device tracking is not enabled, isEnabled: %{public}d, trackingStatus: %{public}d, "
-               "needSendTrackingData_: %{public}d",
+               "needSendTrackingData_: %{public}d, isAutoCentering_: %{public}d",
             deviceStatus_->isEnabled,
             static_cast<int32_t>(deviceStatus_->trackingStatus),
-            needSendTrackingData_.load());
+            needSendTrackingData_.load(),
+            isAutoCentering_.load());
         return ERR_OK;
     }
 
@@ -3160,6 +3197,14 @@ int32_t MotionManager::IsSupportAction(uint32_t tokenId, ActionType actionType, 
         } else {
             isSupport = isSupportMoveCapability(actionType);
         }
+    } else if (actionType == ActionType::HEAD_TURN_TO_BASE) {
+        if (protocolVer_ == 0x01) {
+            isSupport = false;
+        } else if (protocolVer_ >= 0x02) {
+            isSupport = deviceCapabilityInfo_.centerAble;
+        }
+    } else if (actionType == ActionType::BASE_TURN_TO_HEAD) {
+        isSupport = wheelCapabilityInfo_.chassisCenteringCap == 1;
     } else {
         isSupport = isSupportMoveCapability(actionType);
     }

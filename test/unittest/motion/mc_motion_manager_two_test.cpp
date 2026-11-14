@@ -278,6 +278,10 @@ HWTEST_F(MotionManagerTwoTest, DoAction_002, TestSize.Level1)
     std::string napiCmdId = "napiCmdId";
     ActionType actionType = ActionType::GREET_MODE;
 
+    // Set g_capabilityInfo bit 2 for GREET_MODE (type=2)
+    memset_s(g_capabilityInfo, MAX_CAPABILITY_BIT_NUM * sizeof(uint32_t), 0, sizeof(g_capabilityInfo));
+    g_capabilityInfo[0] |= (1 << 2);
+
     EXPECT_EQ(motionMgr->DoAction(tokenId, napiCmdId, actionType), ERR_OK);
 }
 
@@ -2699,6 +2703,39 @@ HWTEST_F(MotionManagerTwoTest, Init_004, TestSize.Level1)
 
     motionMgr->Init();
     EXPECT_EQ(motionMgr->deviceBaseInfoReady_, true);
+}
+
+/**
+ * @tc.name  : DoAction_003
+ * @tc.number: DoAction_003
+ * @tc.desc  : Test DoAction with GREET_MODE - verify that needSendTrackingData_ is not modified.
+ */
+HWTEST_F(MotionManagerTwoTest, DoAction_003, TestSize.Level1)
+{
+    auto motionMgr = CreateInitializedMotionManager();
+ 
+    uint32_t tokenId = 100;
+    std::string napiCmdId = "napiCmdId";
+    ActionType actionType = ActionType::GREET_MODE;
+ 
+    // Set needSendTrackingData_ to true before DoAction
+    motionMgr->needSendTrackingData_ = true;
+ 
+    // Set g_capabilityInfo bit 2 for GREET_MODE (type=2)
+    memset_s(g_capabilityInfo, MAX_CAPABILITY_BIT_NUM * sizeof(uint32_t), 0, sizeof(g_capabilityInfo));
+    g_capabilityInfo[0] |= (1 << 2);
+ 
+    // Verify isNeedSendTrackingData returns true for GREET_MODE
+    EXPECT_TRUE(motionMgr->isNeedSendTrackingData(actionType));
+ 
+    EXPECT_EQ(motionMgr->DoAction(tokenId, napiCmdId, actionType), ERR_OK);
+ 
+    // For GREET_MODE, needSendTrackingData_ should remain true (not modified by DoAction)
+    // This is expected behavior because GREET_MODE requires tracking data
+    EXPECT_TRUE(motionMgr->needSendTrackingData_);
+ 
+    // Verify activeDoActionTaskId_ was set
+    EXPECT_GT(motionMgr->activeDoActionTaskId_, 0);
 }
 
 // Declaration for free function defined in mc_motion_manager.cpp

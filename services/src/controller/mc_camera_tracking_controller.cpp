@@ -1097,6 +1097,18 @@ int32_t McCameraTrackingController::UpdateMotionsWithTrackingData(
         HILOGW("current tracking is not enabled");
         return ERR_OK;
     }
+    lastTrackingFrameTime_ = std::chrono::steady_clock::now();
+    if (isAutoCentering_.load()) {
+        HILOGI("Target detected during auto center, reset auto centering flag.");
+        isAutoCentering_.store(false);
+        std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+        for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
+            std::shared_ptr<MotionManager> motionManager = item.second;
+            if (motionManager != nullptr) {
+                motionManager->SetAutoCentering(false);
+            }
+        }
+    }
     HILOGD("tracking frame info: %{public}s", params->ToString().c_str());
 
     std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
@@ -1125,6 +1137,16 @@ int32_t McCameraTrackingController::SetTrackingEnabled(const uint32_t &tokenId, 
     HILOGI("update tracking enable");
     appSettings[tokenId]->isTrackingEnabled = isEnabled;
     currentCameraInfo_->currentTrackingEnable.store(isEnabled, std::memory_order_relaxed);
+    if (!isEnabled) {
+        isAutoCentering_.store(false);
+        std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+        for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
+            std::shared_ptr<MotionManager> motionManager = item.second;
+            if (motionManager != nullptr) {
+                motionManager->SetAutoCentering(false);
+            }
+        }
+    }
     return ERR_OK;
 }
 
