@@ -421,6 +421,9 @@ int32_t MechBodyControllerService::SetTrackingEnabled(bool &isEnabled, bool isCa
             if (motionManagers_.empty()) {
                 return DEVICE_NOT_CONNECTED;
             }
+            if (isEnabled) {
+                McCameraTrackingController::GetInstance().RefreshAutoCenterTimer();
+            }
             for (auto it : motionManagers_) {
                 std::shared_ptr<MotionManager> motionManager = it.second;
                 if (motionManager == nullptr) {

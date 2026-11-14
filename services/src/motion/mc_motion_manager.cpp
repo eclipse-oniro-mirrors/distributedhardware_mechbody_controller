@@ -771,6 +771,9 @@ void MotionManager::MechTrackingStatusNotify(const std::shared_ptr<CommonRegiste
     CHECK_POINTER_RETURN(cmd, "cmd");
     bool isEnabled = cmd->GetIsEnabled();
     HILOGI("Received mech tracking status notify, isEnabled: %{public}d.", isEnabled);
+    if (isEnabled) {
+        McCameraTrackingController::GetInstance().RefreshAutoCenterTimer();
+    }
     TrackingEvent trackingEvent;
     std::shared_ptr<CommonSetMechCameraTrackingEnableCmd> tkCmd = nullptr;
     {

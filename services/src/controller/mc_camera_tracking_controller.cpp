@@ -202,7 +202,7 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
         HILOGW("Background tracking rect lost, width or height is zero.");
         return;
     }
-    lastTrackingFrameTime_ = std::chrono::steady_clock::now();
+    lastTrackingFrameTimeNs_.store(std::chrono::steady_clock::now().time_since_epoch().count());
     if (isAutoCentering_.load()) {
 
 
@@ -325,6 +325,8 @@ void McCameraTrackingController::UpdateCurrentCameraInfoByCaptureSessionInfo(
         vertical_ = 0.0f;
         targetVertical_ = 0.0f;
         targetHorizontal_ = 0.0f;
+    } else {
+        RefreshAutoCenterTimer();
     }
     currentCameraInfo_->sessionMode = captureSessionInfo.sessionMode;
     currentCameraInfo_->isRecording.store(
@@ -1097,7 +1099,7 @@ int32_t McCameraTrackingController::UpdateMotionsWithTrackingData(
         HILOGW("current tracking is not enabled");
         return ERR_OK;
     }
-    lastTrackingFrameTime_ = std::chrono::steady_clock::now();
+    lastTrackingFrameTimeNs_.store(std::chrono::steady_clock::now().time_since_epoch().count());
     if (isAutoCentering_.load()) {
         HILOGI("Target detected during auto center, reset auto centering flag.");
         isAutoCentering_.store(false);
@@ -1136,6 +1138,9 @@ int32_t McCameraTrackingController::SetTrackingEnabled(const uint32_t &tokenId, 
     }
     HILOGI("update tracking enable");
     appSettings[tokenId]->isTrackingEnabled = isEnabled;
+    if (isEnabled) {
+        RefreshAutoCenterTimer();
+    }
     currentCameraInfo_->currentTrackingEnable.store(isEnabled, std::memory_order_relaxed);
     if (!isEnabled) {
         isAutoCentering_.store(false);
@@ -1195,6 +1200,7 @@ int32_t McCameraTrackingController::OnTrackingEvent(const int32_t &mechId, const
            static_cast<int32_t>(event));
     if (event == TrackingEvent::CAMERA_TRACKING_USER_ENABLED) {
         NotificationUtils::isTrackingEnabled_ = true;
+        isAutoCentering_.store(false);
     } else if (event == TrackingEvent::CAMERA_TRACKING_USER_DISABLED) {
         NotificationUtils::isTrackingEnabled_ = false;
     }

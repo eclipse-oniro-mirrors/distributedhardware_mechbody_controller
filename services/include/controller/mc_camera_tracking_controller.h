@@ -151,6 +151,7 @@ public:
     void LogDetectedObjects(CameraStandard::FocusTrackingMetaInfo &info);
     int32_t SetTrackingEnabled(const uint32_t &tokenId, bool isEnabled);
     int32_t GetTrackingEnabled(const uint32_t &tokenId, bool &isEnabled);
+    void RefreshAutoCenterTimer();
     int32_t RegisterTrackingEventCallback(const uint32_t &tokenId, sptr<IRemoteObject> callback);
     int32_t UnRegisterTrackingEventCallback(const uint32_t &tokenId);
     int32_t OnTrackingEvent(const int32_t &mechId, const TrackingEvent &event);
@@ -272,7 +273,7 @@ private:
     std::atomic<bool> isAutoCentering_{false};
     std::atomic<bool> startAutoCenterChecker_{false};
     std::unique_ptr<std::thread> autoCenterThread_;
-    std::chrono::steady_clock::time_point lastTrackingFrameTime_;
+    std::atomic<int64_t> lastTrackingFrameTimeNs_{0};
 };
 } // namespace MechBodyController
 } // namespace OHOS

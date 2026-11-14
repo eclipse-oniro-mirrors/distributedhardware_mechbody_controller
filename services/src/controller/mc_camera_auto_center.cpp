@@ -27,8 +27,6 @@ namespace {
 }
  
 void McCameraTrackingController::AutoCenterChecker()
-
-
 {
     HILOGI("AutoCenterChecker thread started");
     while (startAutoCenterChecker_.load()) {
@@ -45,10 +43,12 @@ void McCameraTrackingController::PerformAutoCenter()
     if (!IsCurrentTrackingEnabled()) {
         return;
     }
-    auto frameTime = lastTrackingFrameTime_;
-    if (frameTime.time_since_epoch().count() <= 0) {
+    int64_t frameTimeNs = lastTrackingFrameTimeNs_.load();
+    if (frameTimeNs <= 0) {
         return;
     }
+    auto frameTime = std::chrono::steady_clock::time_point(
+        std::chrono::steady_clock::duration(frameTimeNs));
     auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - frameTime).count();
     if (timeDiff < AUTO_CENTER_DELAY) {
@@ -68,6 +68,11 @@ void McCameraTrackingController::PerformAutoCenter()
         int32_t result = motionManager->DoAction(SYSTEM_INNER_TOKEN_ID, emptyCmdId, ActionType::HEAD_TURN_TO_BASE);
         HILOGD("Auto center DoAction result: %{public}d, mechId: %{public}d", result, mechId);
     }
+}
+
+void McCameraTrackingController::RefreshAutoCenterTimer()
+{
+    lastTrackingFrameTimeNs_.store(std::chrono::steady_clock::now().time_since_epoch().count());
 }
  
 } // namespace MechBodyController
