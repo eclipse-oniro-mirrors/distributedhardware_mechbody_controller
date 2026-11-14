@@ -18,11 +18,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fuzzer/FuzzedDataProvider.h>
 #include <string>
 
 #include "mechbody_controller_stub.h"
 #include "mechbody_controller_service.h"
 #include "mechbody_controller_ipc_interface_code.h"
+#include "mechbody_controller_types.h"
 #include "mechbody_controller_log.h"
 #include "ipc_skeleton.h"
 #include "message_option.h"
@@ -39,6 +41,11 @@ MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
     return *instance;
+}
+
+std::string MechBodyControllerService::GetAppNameByTokenId(uint32_t tokenId)
+{
+    return "";
 }
 
 MechBodyControllerService::MechBodyControllerService()
@@ -175,14 +182,79 @@ int32_t MechBodyControllerService::UnRegisterRotationAxesStatusChangeCallback()
     return 0;
 }
 
+int32_t MechBodyControllerService::OnDeviceDisconnected(int32_t mechId)
+{
+    return 0;
+}
+
+void MechBodyControllerService::OnStart(const SystemAbilityOnDemandReason &startReason) {}
+void MechBodyControllerService::OnStop() {}
+
+int32_t MechBodyControllerService::SearchTarget(std::string &napiCmdId,
+    const std::shared_ptr<TargetInfo> &targetInfo, const std::shared_ptr<SearchParams> &searchParams)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::Move(const int32_t &mechId, std::string &cmdId,
+    const std::shared_ptr<MoveParams> &moveParams)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::MoveBySpeed(const int32_t &mechId, std::string &cmdId, uint16_t duration,
+    const std::shared_ptr<SpeedParams> &speedParams)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::TurnBySpeed(const int32_t &mechId, std::string &cmdId,
+    float angleSpeed, uint16_t duration)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::IsSupportAction(const int32_t &mechId, ActionType actionType, bool &isSupport)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::DoAction(const int32_t &mechId, std::string &cmdId, ActionType actionType)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::SubscribeCallback(sptr<IRemoteObject> &callback, MechEventType mechEventType)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::UnSubscribeCallback(MechEventType mechEventType)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::ConnectDevice(std::string &cmdId,
+    const std::shared_ptr<AddressInfo> &addrInfo, const std::shared_ptr<ConnectParam> &params)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::DisconnectDevice(std::string &cmdId, int32_t mechId)
+{
+    return 0;
+}
+
 void AttachStateChangeListenOnInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                            const uint8_t *data, size_t size)
+                                            FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::ATTACH_STATE_CHANGE_LISTEN_ON);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    bool useListenCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useListenCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+    datas.WriteRemoteObject(callback);
     MessageParcel reply;
     MessageOption option;
 
@@ -190,13 +262,11 @@ void AttachStateChangeListenOnInnerFuzzTest(std::shared_ptr<MechBodyControllerSt
 }
 
 void AttachStateChangeListenOffInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                             const uint8_t *data, size_t size)
+                                             FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::ATTACH_STATE_CHANGE_LISTEN_OFF);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
     MessageParcel reply;
     MessageOption option;
 
@@ -204,13 +274,11 @@ void AttachStateChangeListenOffInnerFuzzTest(std::shared_ptr<MechBodyControllerS
 }
 
 void GetAttachedDevicesInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                     const uint8_t *data, size_t size)
+                                     FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::GET_ATTACHED_DEVICES);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
     MessageParcel reply;
     MessageOption option;
 
@@ -218,13 +286,17 @@ void GetAttachedDevicesInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mec
 }
 
 void SetUserOperationInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                   const uint8_t *data, size_t size)
+                                   FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::SET_USER_OPERATION);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t operation = fdp.ConsumeIntegral<int32_t>();
+    std::string mac = fdp.ConsumeRandomLengthString();
+    std::string param = fdp.ConsumeRandomLengthString();
+    datas.WriteInt32(operation);
+    datas.WriteString(mac);
+    datas.WriteString(param);
     MessageParcel reply;
     MessageOption option;
 
@@ -232,13 +304,13 @@ void SetUserOperationInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechB
 }
 
 void SetCameraTrackingEnabledInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                           const uint8_t *data, size_t size)
+                                           FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::SET_CAMERA_TRACKING_ENABLED);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    bool isEnable = fdp.ConsumeBool();
+    datas.WriteBool(isEnable);
     MessageParcel reply;
     MessageOption option;
 
@@ -246,55 +318,93 @@ void SetCameraTrackingEnabledInnerFuzzTest(std::shared_ptr<MechBodyControllerStu
 }
 
 void RotateToEulerAnglesInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                      const uint8_t *data, size_t size)
+                                      FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::ROTATE_TO_EULER_ANGLES);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    std::string cmdId = fdp.ConsumeRandomLengthString();
+    datas.WriteInt32(mechId);
+    datas.WriteString(cmdId);
+    RotateToEulerAnglesParam rotateParam;
+    rotateParam.angles.yaw = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.angles.roll = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.angles.pitch = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.duration = fdp.ConsumeIntegral<int32_t>();
+    datas.WriteParcelable(&rotateParam);
+    bool useEulerCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useEulerCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+    datas.WriteRemoteObject(callback);
     MessageParcel reply;
     MessageOption option;
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
 
-void SearchTargetInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr, const uint8_t *data,
-                               size_t size)
+void SearchTargetInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
+                               FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::SEARCH_TARGET);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    std::string napiCmdId = fdp.ConsumeRandomLengthString();
+    datas.WriteString(napiCmdId);
+    TargetInfo targetInfo;
+    targetInfo.targetType = static_cast<TargetType>(fdp.ConsumeIntegral<uint8_t>());
+    datas.WriteParcelable(&targetInfo);
+    SearchParams searchParams;
+    searchParams.direction = static_cast<SearchDirection>(fdp.ConsumeIntegral<uint8_t>());
+    datas.WriteParcelable(&searchParams);
     MessageParcel reply;
     MessageOption option;
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
 
-void MoveInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr, const uint8_t *data,
-                       size_t size)
+void MoveInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
+                       FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::MOVE);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    std::string cmdId = fdp.ConsumeRandomLengthString();
+    datas.WriteInt32(mechId);
+    datas.WriteString(cmdId);
+    MoveParams moveParams;
+    moveParams.distance = fdp.ConsumeIntegral<int32_t>();
+    moveParams.angle = fdp.ConsumeFloatingPoint<float>();
+    moveParams.speedGear = static_cast<SpeedGear>(fdp.ConsumeIntegral<uint8_t>());
+    moveParams.mode = static_cast<MarchingMode>(fdp.ConsumeIntegral<uint8_t>());
+    datas.WriteParcelable(&moveParams);
     MessageParcel reply;
     MessageOption option;
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
 
-void MoveBySpeedInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr, const uint8_t *data,
-                              size_t size)
+void MoveBySpeedInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
+                              FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::MOVE_BY_SPEED);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    std::string cmdId = fdp.ConsumeRandomLengthString();
+    uint16_t duration = fdp.ConsumeIntegral<uint16_t>();
+    datas.WriteInt32(mechId);
+    datas.WriteString(cmdId);
+    datas.WriteUint16(duration);
+    SpeedParams speedParams;
+    speedParams.speed = fdp.ConsumeIntegral<int16_t>();
+    speedParams.angle = fdp.ConsumeFloatingPoint<float>();
+    datas.WriteParcelable(&speedParams);
+    bool useMoveSpeedCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useMoveSpeedCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+    datas.WriteRemoteObject(callback);
     MessageParcel reply;
     MessageOption option;
 
@@ -305,16 +415,42 @@ void MoveBySpeedInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyCo
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    /* Run your code on data */
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+    FuzzedDataProvider fdp(data, size);
     auto mechBodyControllerStubPtr = std::make_shared<OHOS::MechBodyControllerService>();
-    OHOS::AttachStateChangeListenOnInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::AttachStateChangeListenOffInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::GetAttachedDevicesInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::SetUserOperationInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::SetCameraTrackingEnabledInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::RotateToEulerAnglesInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::SearchTargetInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::MoveInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::MoveBySpeedInnerFuzzTest(mechBodyControllerStubPtr, data, size);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 9;
+    switch (funcIndex) {
+        case 0:
+            OHOS::AttachStateChangeListenOnInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 1:
+            OHOS::AttachStateChangeListenOffInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 2:
+            OHOS::GetAttachedDevicesInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 3:
+            OHOS::SetUserOperationInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 4:
+            OHOS::SetCameraTrackingEnabledInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 5:
+            OHOS::RotateToEulerAnglesInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 6:
+            OHOS::SearchTargetInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 7:
+            OHOS::MoveInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 8:
+            OHOS::MoveBySpeedInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        default:
+            break;
+    }
     return 0;
 }

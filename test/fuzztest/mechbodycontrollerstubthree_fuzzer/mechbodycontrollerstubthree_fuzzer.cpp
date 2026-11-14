@@ -18,11 +18,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fuzzer/FuzzedDataProvider.h>
 #include <string>
 
 #include "mechbody_controller_stub.h"
 #include "mechbody_controller_service.h"
 #include "mechbody_controller_ipc_interface_code.h"
+#include "mechbody_controller_types.h"
 #include "mechbody_controller_log.h"
 #include "ipc_skeleton.h"
 #include "message_option.h"
@@ -39,6 +41,11 @@ MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
     static auto instance = new MechBodyControllerService();
     return *instance;
+}
+
+std::string MechBodyControllerService::GetAppNameByTokenId(uint32_t tokenId)
+{
+    return "";
 }
 
 MechBodyControllerService::MechBodyControllerService()
@@ -175,28 +182,113 @@ int32_t MechBodyControllerService::UnRegisterRotationAxesStatusChangeCallback()
     return 0;
 }
 
+int32_t MechBodyControllerService::OnDeviceDisconnected(int32_t mechId)
+{
+    return 0;
+}
+
+void MechBodyControllerService::OnStart(const SystemAbilityOnDemandReason &startReason) {}
+void MechBodyControllerService::OnStop() {}
+
+int32_t MechBodyControllerService::SearchTarget(std::string &napiCmdId,
+    const std::shared_ptr<TargetInfo> &targetInfo, const std::shared_ptr<SearchParams> &searchParams)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::Move(const int32_t &mechId, std::string &cmdId,
+    const std::shared_ptr<MoveParams> &moveParams)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::MoveBySpeed(const int32_t &mechId, std::string &cmdId, uint16_t duration,
+    const std::shared_ptr<SpeedParams> &speedParams)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::TurnBySpeed(const int32_t &mechId, std::string &cmdId,
+    float angleSpeed, uint16_t duration)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::IsSupportAction(const int32_t &mechId, ActionType actionType, bool &isSupport)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::DoAction(const int32_t &mechId, std::string &cmdId, ActionType actionType)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::SubscribeCallback(sptr<IRemoteObject> &callback, MechEventType mechEventType)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::UnSubscribeCallback(MechEventType mechEventType)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::ConnectDevice(std::string &cmdId,
+    const std::shared_ptr<AddressInfo> &addrInfo, const std::shared_ptr<ConnectParam> &params)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::DisconnectDevice(std::string &cmdId, int32_t mechId)
+{
+    return 0;
+}
+
 void RegisterCmdChannelInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                     const uint8_t *data, size_t size)
+                                     FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::REGISTER_CMD_CHANNEL);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+    datas.WriteRemoteObject(callback);
     MessageParcel reply;
     MessageOption option;
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
 
-void RotateByDegreeInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr, const uint8_t *data,
-                                 size_t size)
+void RotateByDegreeInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
+                                 FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::ROTATE_BY_DEGREE);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    std::string cmdId = fdp.ConsumeRandomLengthString();
+    datas.WriteInt32(mechId);
+    datas.WriteString(cmdId);
+    RotateByDegreeParam rotateParam;
+    rotateParam.degree.yaw = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.degree.roll = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.degree.pitch = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.duration = fdp.ConsumeIntegral<int32_t>();
+    bool useRawFields = fdp.ConsumeBool();
+    if (useRawFields) {
+        datas.WriteFloat(rotateParam.degree.yaw);
+        datas.WriteFloat(rotateParam.degree.roll);
+        datas.WriteFloat(rotateParam.degree.pitch);
+        datas.WriteInt32(rotateParam.duration);
+    } else {
+        datas.WriteParcelable(&rotateParam);
+    }
+    bool useRotateCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useRotateCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+    datas.WriteRemoteObject(callback);
     MessageParcel reply;
     MessageOption option;
 
@@ -204,13 +296,13 @@ void RotateByDegreeInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBod
 }
 
 void GetMaxRotationTimeInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                     const uint8_t *data, size_t size)
+                                     FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::GET_MAX_ROTATION_TIME);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    datas.WriteInt32(mechId);
     MessageParcel reply;
     MessageOption option;
 
@@ -218,27 +310,47 @@ void GetMaxRotationTimeInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mec
 }
 
 void GetMaxRotationSpeedInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                      const uint8_t *data, size_t size)
+                                      FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::GET_MAX_ROTATION_SPEED);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    datas.WriteInt32(mechId);
     MessageParcel reply;
     MessageOption option;
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
 
-void RotateBySpeedInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr, const uint8_t *data,
-                                size_t size)
+void RotateBySpeedInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
+                                FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::ROTATE_BY_SPEED);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    std::string cmdId = fdp.ConsumeRandomLengthString();
+    datas.WriteInt32(mechId);
+    datas.WriteString(cmdId);
+    RotateBySpeedParam rotateParam;
+    rotateParam.speed.yawSpeed = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.speed.rollSpeed = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.speed.pitchSpeed = fdp.ConsumeFloatingPoint<float>();
+    rotateParam.duration = fdp.ConsumeFloatingPoint<float>();
+    bool useRawFields = fdp.ConsumeBool();
+    if (useRawFields) {
+        datas.WriteFloat(rotateParam.speed.yawSpeed);
+        datas.WriteFloat(rotateParam.speed.rollSpeed);
+        datas.WriteFloat(rotateParam.speed.pitchSpeed);
+        datas.WriteFloat(rotateParam.duration);
+    } else {
+        datas.WriteParcelable(&rotateParam);
+    }
+    bool useSpeedCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useSpeedCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+    datas.WriteRemoteObject(callback);
     MessageParcel reply;
     MessageOption option;
 
@@ -246,13 +358,13 @@ void RotateBySpeedInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBody
 }
 
 void UnSubscribeCallbackInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                      const uint8_t *data, size_t size)
+                                      FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::UN_SUBSCRIBE_CALLBACK);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    datas.WriteBuffer(data, size);
-    datas.RewindRead(0);
+    int32_t mechEventType = static_cast<int32_t>(fdp.ConsumeIntegral<uint8_t>());
+    datas.WriteInt32(mechEventType);
     MessageParcel reply;
     MessageOption option;
 
@@ -263,13 +375,33 @@ void UnSubscribeCallbackInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> me
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    /* Run your code on data */
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+    FuzzedDataProvider fdp(data, size);
     auto mechBodyControllerStubPtr = std::make_shared<OHOS::MechBodyControllerService>();
-    OHOS::RegisterCmdChannelInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::RotateByDegreeInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::GetMaxRotationTimeInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::GetMaxRotationSpeedInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::RotateBySpeedInnerFuzzTest(mechBodyControllerStubPtr, data, size);
-    OHOS::UnSubscribeCallbackInnerFuzzTest(mechBodyControllerStubPtr, data, size);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 6;
+    switch (funcIndex) {
+        case 0:
+            OHOS::RegisterCmdChannelInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 1:
+            OHOS::RotateByDegreeInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 2:
+            OHOS::GetMaxRotationTimeInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 3:
+            OHOS::GetMaxRotationSpeedInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 4:
+            OHOS::RotateBySpeedInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        case 5:
+            OHOS::UnSubscribeCallbackInnerFuzzTest(mechBodyControllerStubPtr, fdp);
+            break;
+        default:
+            break;
+    }
     return 0;
 }
