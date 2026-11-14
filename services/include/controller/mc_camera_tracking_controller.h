@@ -141,6 +141,8 @@ public:
     void Init();
     void UnInit();
     void HandleTrackingFrame(TrackingFrameParams trackingFrameParams);
+    void CalcRoiRotate(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot);
+    void BodyRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot);
     int32_t OnCaptureSessionConfiged(const CameraStandard::CaptureSessionInfo& captureSessionInfo);
     int32_t OnMetadataInfo(const std::shared_ptr<OHOS::Camera::CameraMetadata>& result);
     void UpdateCurrentCameraInfoByCaptureSessionInfo(
