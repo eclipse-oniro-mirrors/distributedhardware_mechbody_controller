@@ -2741,6 +2741,37 @@ bool MechManager::InitBaseChannel()
     }
 }
 
+static void DefineExtraEnums(napi_env env, napi_value exports)
+{
+    napi_value speedGearEnum =
+        CreateEnumObject(env, {{"LOW_SPEED", 0}, {"MIDDLE_SPEED", 1}, {"HIGH_SPEED", 2}});
+    napi_set_named_property(env, exports, "SpeedGear", speedGearEnum);
+
+    napi_value marchingModeEnum =
+        CreateEnumObject(env, {{"TURN_THEN_MOVE", 0}, {"TURNING_MOVING", 1}});
+    napi_set_named_property(env, exports, "MarchingMode", marchingModeEnum);
+
+    napi_value actionTypeEnum =
+        CreateEnumObject(env, {{"LANDSCAPE_PORTRAIT_SWITCH", 0}, {"PATROL_MODE", 1}, {"GREET_MODE", 2},
+                               {"HEAD_UP", 3}, {"HEAD_UP_SLIGHTLY", 4}, {"EYE_LEVEL", 5},
+                               {"HEAD_DOWN_SLIGHTLY", 6}, {"HEAD_DOWN", 7}, {"HEAD_WIGGLE", 8},
+                               {"NOD", 9}, {"HEAD_SHAKE", 10}, {"HEAD_TURN_TO_BASE", 11},
+                               {"BASE_TURN_TO_HEAD", 12}, {"HAPPY", 1000}, {"ANGRY", 1001},
+                               {"SAD", 1002}, {"SCARED", 1003}, {"DANCE", 2000}, {"ACTING_CUTE", 2001},
+                               {"CELEBRATE", 2002}, {"WAKEUP", 2003}, {"SLEEP", 2004}, {"LOW_POWER", 2005},
+                               {"THINKING", 2006}});
+    napi_set_named_property(env, exports, "ActionType", actionTypeEnum);
+
+    napi_value mechEventTypeEnum = CreateEnumObject(env,
+        {{"DEVICE_ADSORBED", 0}, {"DEVICE_UNADSORBED", 1}, {"REACH_CLIFF", 2},
+        {"REACH_OBSTACLE", 3}, {"LOW_POWER", 4}});
+    napi_set_named_property(env, exports, "MechEventType", mechEventTypeEnum);
+
+    napi_value adsorbStateEnum =
+        CreateEnumObject(env, {{"UNKNOWN", -1}, {"ADSORBED", 0}, {"UNADSORBED", 1}});
+    napi_set_named_property(env, exports, "AdsorbState", adsorbStateEnum);
+}
+
 static napi_value DefineEnums(napi_env env, napi_value exports)
 {
     napi_value rotationAxisLimitedEnum =
@@ -2775,31 +2806,12 @@ static napi_value DefineEnums(napi_env env, napi_value exports)
 
     napi_value targetTypeEnum = CreateEnumObject(env, {{"HUMAN_FACE", 0}});
     napi_set_named_property(env, exports, "TargetType", targetTypeEnum);
+
     napi_value searchDirectionEnum = CreateEnumObject(env, {{"DEFAULT", 0}, {"LEFTWARD", 1}, {"RIGHTWARD", 2}});
     napi_set_named_property(env, exports, "SearchDirection", searchDirectionEnum);
-    napi_value speedGearEnum =
-        CreateEnumObject(env, {{"LOW_SPEED", 0}, {"MIDDLE_SPEED", 1}, {"HIGH_SPEED", 2}});
-    napi_set_named_property(env, exports, "SpeedGear", speedGearEnum);
-    napi_value marchingModeEnum =
-        CreateEnumObject(env, {{"TURN_THEN_MOVE", 0}, {"TURNING_MOVING", 1}});
-    napi_set_named_property(env, exports, "MarchingMode", marchingModeEnum);
-    napi_value actionTypeEnum =
-        CreateEnumObject(env, {{"LANDSCAPE_PORTRAIT_SWITCH", 0}, {"PATROL_MODE", 1}, {"GREET_MODE", 2},
-                               {"HEAD_UP", 3}, {"HEAD_UP_SLIGHTLY", 4}, {"EYE_LEVEL", 5},
-                               {"HEAD_DOWN_SLIGHTLY", 6}, {"HEAD_DOWN", 7}, {"HEAD_WIGGLE", 8},
-                               {"NOD", 9}, {"HEAD_SHAKE", 10}, {"HEAD_TURN_TO_BASE", 11},
-                               {"BASE_TURN_TO_HEAD", 12}, {"HAPPY", 1000}, {"ANGRY", 1001},
-                               {"SAD", 1002}, {"SCARED", 1003}, {"DANCE", 2000}, {"ACTING_CUTE", 2001},
-                               {"CELEBRATE", 2002}, {"WAKEUP", 2003}, {"SLEEP", 2004}, {"LOW_POWER", 2005},
-                               {"THINKING", 2006}});
-    napi_set_named_property(env, exports, "ActionType", actionTypeEnum);
-    napi_value mechEventTypeEnum = CreateEnumObject(env,
-        {{"DEVICE_ADSORBED", 0}, {"DEVICE_UNADSORBED", 1}, {"REACH_CLIFF", 2},
-        {"REACH_OBSTACLE", 3}, {"LOW_POWER", 4}});
-    napi_set_named_property(env, exports, "MechEventType", mechEventTypeEnum);
-    napi_value adsorbStateEnum =
-        CreateEnumObject(env, {{"UNKNOWN", -1}, {"ADSORBED", 0}, {"UNADSORBED", 1}});
-    napi_set_named_property(env, exports, "AdsorbState", adsorbStateEnum);
+
+    DefineExtraEnums(env, exports);
+
     return exports;
 }
 

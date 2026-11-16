@@ -38,8 +38,6 @@ namespace MechBodyController {
 class JsMechManagerStub : public IRemoteStub<IJsMechManager> {
 
 public:
-    static constexpr int32_t MIN_BATTERY_LEVEL = -1;
-    static constexpr int32_t MAX_BATTERY_LEVEL = 100;
 
     JsMechManagerStub();
 

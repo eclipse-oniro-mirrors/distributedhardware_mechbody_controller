@@ -27,6 +27,8 @@ namespace MechBodyController {
 namespace {
     const std::string TAG = "JsMechManagerStub";
     constexpr int32_t TRACK_MAX = 2;
+    static constexpr int32_t MIN_BATTERY_LEVEL = -1;
+    static constexpr int32_t MAX_BATTERY_LEVEL = 100;
 }
 
 int32_t JsMechManagerStub::OnRemoteRequest(uint32_t code,
