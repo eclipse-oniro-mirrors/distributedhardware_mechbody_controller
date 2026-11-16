@@ -84,6 +84,8 @@ enum ActionType : i32 {
     HEAD_WIGGLE = 8,
     NOD = 9,
     HEAD_SHAKE = 10,
+    HEAD_TURN_TO_BASE = 11,
+    BASE_TURN_TO_HEAD = 12,
     HAPPY = 1000,
     ANGRY = 1001,
     SAD = 1002,

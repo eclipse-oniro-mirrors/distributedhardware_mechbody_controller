@@ -218,7 +218,8 @@ enum class ControlCommand : int32_t {
     UNKNOWN = -1,
     STOP = 0,
     GO_CENTER = 1,
-    HORIZONTALLY_SWITCH = 2
+    HORIZONTALLY_SWITCH = 2,
+    HEAD_TURN_TO_BASE = 3
 };
 
 enum class ProtocolVersion : int8_t {
@@ -257,6 +258,8 @@ enum class ActionType: int32_t {
     HEAD_WIGGLE = 8,
     NOD = 9,
     HEAD_SHAKE = 10,
+    HEAD_TURN_TO_BASE = 11,
+    BASE_TURN_TO_HEAD = 12,
     HAPPY = 1000,
     ANGRY = 1001,
     SAD = 1002,
