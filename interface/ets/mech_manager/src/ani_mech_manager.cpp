@@ -65,8 +65,8 @@ void AniMechManager::ProcessOnResultCode(int32_t &result)
 {
     HILOGE("Register the callback function result code: %{public}d ", result);
     if (result == MechNapiErrorCode::PARAMETER_CHECK_FAILED) {
-        ::taihe::set_business_error(401,
-            "Parameter error. Possible causes: 2. Incorrect parameter types;");
+        ::taihe::set_business_error(result, "Invalid event type.");
+        return;
     }
     if (result == MechNapiErrorCode::PERMISSION_DENIED) {
         ::taihe::set_business_error(result, "Not system application");
@@ -1382,8 +1382,8 @@ void AniMechManager::ProcessOffResultCode(int32_t &result)
 {
     HILOGE("UnRegister the callback function result code: %{public}d ", result);
     if (result == MechNapiErrorCode::PARAMETER_CHECK_FAILED) {
-        ::taihe::set_business_error(401,
-            "Parameter error. Possible causes: 2. Incorrect parameter types;");
+        ::taihe::set_business_error(MechNapiErrorCode::PARAMETER_CHECK_FAILED, "Invalid event type.");
+        return;
     }
     if (result != ERR_OK) {
         ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");

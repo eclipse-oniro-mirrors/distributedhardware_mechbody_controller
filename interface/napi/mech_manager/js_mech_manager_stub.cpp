@@ -117,7 +117,7 @@ int32_t JsMechManagerStub::BatteryLevelChangeCallback(MessageParcel &data, Messa
     int32_t batteryLevel = data.ReadInt32();
     bool isCharging = data.ReadBool();
     HILOGI("mech id: %{public}d; batteryLevel: %{public}d; isCharging: %{public}d", mechId, batteryLevel, isCharging);
-    if (batteryLevel < -1 || batteryLevel > 100) {
+    if (batteryLevel < MIN_BATTERY_LEVEL || batteryLevel > MAX_BATTERY_LEVEL) {
         HILOGE("invalid batteryLevel: %{public}d, drop", batteryLevel);
         return NAPI_RECV_DATA_FAIL;
     }

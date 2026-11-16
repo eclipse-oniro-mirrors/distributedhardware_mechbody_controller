@@ -32,6 +32,8 @@ namespace OHOS {
 namespace MechBodyController {
 class AniMechManagerStub : public IRemoteStub<IJsMechManager> {
 public:
+    static constexpr int32_t MIN_BATTERY_LEVEL = -1;
+    static constexpr int32_t MAX_BATTERY_LEVEL = 100;
     AniMechManagerStub();
     virtual ~AniMechManagerStub();
     void SetDeathRecipient(sptr<IRemoteObject::DeathRecipient> deathRecipient);

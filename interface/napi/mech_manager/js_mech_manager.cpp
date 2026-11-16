@@ -2016,7 +2016,7 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
     napi_value args[PARAM_COUNT_TWO];
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < PARAM_COUNT_TWO) {
-        napi_throw_business_error(env, 401,
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
             "Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
         HILOGE("Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
         return nullptr;
@@ -2025,7 +2025,7 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
     napi_valuetype type;
     napi_typeof(env, args[0], &type);
     if (type != napi_number) {
-        napi_throw_business_error(env, 401,
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
             "Parameter error. Possible causes: 2. Incorrect parameter types;");
         HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
         return nullptr;
@@ -2036,7 +2036,7 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
  
     napi_typeof(env, args[1], &type);
     if (type != napi_function) {
-        napi_throw_business_error(env, 401,
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
             "Parameter error. Possible causes: 2. Incorrect parameter types;");
         HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
         return nullptr;
@@ -2046,7 +2046,7 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
     napi_status status = napi_create_reference(env, args[1], 1, &callbackRef);
     if (status != napi_ok || callbackRef == nullptr) {
         HILOGE("Failed to create reference to callback");
-        napi_throw_business_error(env, 401,
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
             "Parameter error. Possible causes: 2. Incorrect parameter types;");
         if (callbackRef != nullptr) {
             napi_delete_reference(env, callbackRef);
@@ -2072,7 +2072,7 @@ napi_value MechManager::OffBatteryLevelChange(napi_env env, napi_callback_info i
     napi_value args[PARAM_COUNT_TWO];
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < 1) {
-        napi_throw_business_error(env, 401,
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
             "Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
         HILOGE("Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
         return nullptr;
@@ -2081,7 +2081,7 @@ napi_value MechManager::OffBatteryLevelChange(napi_env env, napi_callback_info i
     napi_valuetype type;
     napi_typeof(env, args[0], &type);
     if (type != napi_number) {
-        napi_throw_business_error(env, 401,
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
             "Parameter error. Possible causes: 2. Incorrect parameter types;");
         HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
         return nullptr;
@@ -2775,18 +2775,14 @@ static napi_value DefineEnums(napi_env env, napi_value exports)
 
     napi_value targetTypeEnum = CreateEnumObject(env, {{"HUMAN_FACE", 0}});
     napi_set_named_property(env, exports, "TargetType", targetTypeEnum);
-
     napi_value searchDirectionEnum = CreateEnumObject(env, {{"DEFAULT", 0}, {"LEFTWARD", 1}, {"RIGHTWARD", 2}});
     napi_set_named_property(env, exports, "SearchDirection", searchDirectionEnum);
-
     napi_value speedGearEnum =
         CreateEnumObject(env, {{"LOW_SPEED", 0}, {"MIDDLE_SPEED", 1}, {"HIGH_SPEED", 2}});
     napi_set_named_property(env, exports, "SpeedGear", speedGearEnum);
-
     napi_value marchingModeEnum =
         CreateEnumObject(env, {{"TURN_THEN_MOVE", 0}, {"TURNING_MOVING", 1}});
     napi_set_named_property(env, exports, "MarchingMode", marchingModeEnum);
-
     napi_value actionTypeEnum =
         CreateEnumObject(env, {{"LANDSCAPE_PORTRAIT_SWITCH", 0}, {"PATROL_MODE", 1}, {"GREET_MODE", 2},
                                {"HEAD_UP", 3}, {"HEAD_UP_SLIGHTLY", 4}, {"EYE_LEVEL", 5},
@@ -2797,16 +2793,13 @@ static napi_value DefineEnums(napi_env env, napi_value exports)
                                {"CELEBRATE", 2002}, {"WAKEUP", 2003}, {"SLEEP", 2004}, {"LOW_POWER", 2005},
                                {"THINKING", 2006}});
     napi_set_named_property(env, exports, "ActionType", actionTypeEnum);
-
     napi_value mechEventTypeEnum = CreateEnumObject(env,
         {{"DEVICE_ADSORBED", 0}, {"DEVICE_UNADSORBED", 1}, {"REACH_CLIFF", 2},
         {"REACH_OBSTACLE", 3}, {"LOW_POWER", 4}});
     napi_set_named_property(env, exports, "MechEventType", mechEventTypeEnum);
-
     napi_value adsorbStateEnum =
         CreateEnumObject(env, {{"UNKNOWN", -1}, {"ADSORBED", 0}, {"UNADSORBED", 1}});
     napi_set_named_property(env, exports, "AdsorbState", adsorbStateEnum);
-
     return exports;
 }
 
