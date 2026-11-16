@@ -66,7 +66,7 @@ mech_external_deps = [
   "ability_runtime:app_manager",
 ]
 
-mech_public_deps = [ "${mechbody_path}/services:mechbody_service" ]
+mech_public_deps = [ "${mechbody_path}/services:mechbody_service_sources" ]
 
 ohos_unittest("mc_transport_command_test") {
   cflags = [
