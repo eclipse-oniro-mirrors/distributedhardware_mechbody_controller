@@ -67,6 +67,8 @@ std::mutex MechManager::cmdChannelMutex_;
 sptr<JsMechManagerStub> MechManager::cmdChannel_ = nullptr;
 std::mutex MechManager::baseChannelMutex_;
 sptr<JsMechManagerStub> MechManager::baseChannel_ = nullptr;
+std::mutex MechManager::batteryLevelStubMutex_;
+sptr<JsMechManagerStub> MechManager::batteryLevelStub_ = nullptr;
 std::mutex MechManager::mechClientMutex_;
 std::shared_ptr<MechClient> MechManager::mechClient_ = std::make_shared<MechClient>();
 
@@ -303,6 +305,10 @@ void MechManager::ProcessOnResultCode(napi_env env, int32_t &result)
     }
     if (result == MechNapiErrorCode::DEVICE_NOT_CONNECTED) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::DEVICE_NOT_CONNECTED).c_str(), "Device not connected");
+        return;
+    }
+    if (result == MechNapiErrorCode::DEVICE_NOT_SUPPORTED) {
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::DEVICE_NOT_SUPPORTED).c_str(), "Device not supported");
         return;
     }
 }
@@ -2000,6 +2006,150 @@ napi_value MechManager::UnSubscribe(napi_env env, napi_callback_info info)
     return nullptr;
 }
 
+napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info info)
+{
+    if (CheckControlL1(env)) {
+        return nullptr;
+    }
+ 
+    size_t argc = PARAM_COUNT_TWO;
+    napi_value args[PARAM_COUNT_TWO];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < PARAM_COUNT_TWO) {
+        napi_throw_business_error(env, 401,
+            "Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
+        HILOGE("Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
+        return nullptr;
+    }
+ 
+    napi_valuetype type;
+    napi_typeof(env, args[0], &type);
+    if (type != napi_number) {
+        napi_throw_business_error(env, 401,
+            "Parameter error. Possible causes: 2. Incorrect parameter types;");
+        HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
+        return nullptr;
+    }
+ 
+    int32_t mechId = 0;
+    napi_get_value_int32(env, args[0], &mechId);
+ 
+    napi_typeof(env, args[1], &type);
+    if (type != napi_function) {
+        napi_throw_business_error(env, 401,
+            "Parameter error. Possible causes: 2. Incorrect parameter types;");
+        HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
+        return nullptr;
+    }
+ 
+    napi_ref callbackRef = nullptr;
+    napi_status status = napi_create_reference(env, args[1], 1, &callbackRef);
+    if (status != napi_ok || callbackRef == nullptr) {
+        HILOGE("Failed to create reference to callback");
+        napi_throw_business_error(env, 401,
+            "Parameter error. Possible causes: 2. Incorrect parameter types;");
+        if (callbackRef != nullptr) {
+            napi_delete_reference(env, callbackRef);
+            callbackRef = nullptr;
+        }
+        return nullptr;
+    }
+ 
+    CallbackFunctionInfo callbackFunctionInfo = {env, callbackRef};
+    int32_t result = ExecuteOnBatteryLevelChange(mechId, callbackFunctionInfo);
+    // Note: ExecuteOnBatteryLevelChange already deletes callbackRef on failure, do not double-free
+    ProcessOnResultCode(env, result);
+    return nullptr;
+}
+ 
+napi_value MechManager::OffBatteryLevelChange(napi_env env, napi_callback_info info)
+{
+    if (CheckControlL1(env)) {
+        return nullptr;
+    }
+ 
+    size_t argc = PARAM_COUNT_TWO;
+    napi_value args[PARAM_COUNT_TWO];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 1) {
+        napi_throw_business_error(env, 401,
+            "Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
+        HILOGE("Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
+        return nullptr;
+    }
+ 
+    napi_valuetype type;
+    napi_typeof(env, args[0], &type);
+    if (type != napi_number) {
+        napi_throw_business_error(env, 401,
+            "Parameter error. Possible causes: 2. Incorrect parameter types;");
+        HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
+        return nullptr;
+    }
+ 
+    int32_t mechId = 0;
+    napi_get_value_int32(env, args[0], &mechId);
+ 
+    napi_value callbackValue = nullptr;
+    bool hasCallback = false;
+    if (argc >= PARAM_COUNT_TWO) {
+        napi_typeof(env, args[1], &type);
+        if (type == napi_function) {
+            callbackValue = args[1];
+            hasCallback = true;
+        }
+    }
+ 
+    int32_t result = ExecuteOffBatteryLevelChange(mechId, env, hasCallback ? &callbackValue : nullptr);
+    ProcessOffResultCode(env, result);
+    return nullptr;
+}
+
+napi_value MechManager::GetDeviceAdsorbState(napi_env env, napi_callback_info info)
+{
+    if (CheckDeviceL1(env)) {
+        return nullptr;
+    }
+    if (!IsSystemApp()) {
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+        return nullptr;
+    }
+    size_t argc = 1;
+    napi_value args[1];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 1) {
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
+            "Wrong number of arguments");
+        return nullptr;
+    }
+    int32_t mechId;
+    napi_status status = napi_get_value_int32(env, args[0], &mechId);
+    if (status != napi_ok) {
+        napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
+            "mechId must be a number");
+        return nullptr;
+    }
+ 
+    AttachmentState state = AttachmentState::UNKNOWN;
+    if (!InitMechClient()) {
+        HILOGE("Init Mech Client failed.");
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY).c_str(), "System exception");
+        return nullptr;
+    }
+    int32_t result = mechClient_->GetDeviceAdsorbState(mechId, state);
+    if (result == MechNapiErrorCode::DEVICE_NOT_CONNECTED) {
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::DEVICE_NOT_CONNECTED).c_str(), "Device not connected");
+        return nullptr;
+    }
+    if (result != ERR_OK) {
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY).c_str(), "System exception");
+        return nullptr;
+    }
+    napi_value stateValue;
+    napi_create_int32(env, static_cast<int32_t>(state), &stateValue);
+    return stateValue;
+}
+
 bool MechManager::GetSearchTargetParam(napi_env env, napi_callback_info info,
     TargetInfo &targetInfo, SearchParams &searchParams)
 {
@@ -2415,6 +2565,108 @@ int32_t MechManager::ExecuteUnSubscribe(std::vector<MechEventType> &mechEventTyp
     return registerResult;
 }
 
+int32_t MechManager::ExecuteOnBatteryLevelChange(int32_t mechId, CallbackFunctionInfo &callbackFunctionInfo)
+{
+    if (!InitMechClient()) {
+        HILOGE("Init Mech Client failed.");
+        napi_delete_reference(callbackFunctionInfo.env, callbackFunctionInfo.callbackRef);
+        return MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY;
+    }
+    if (!InitBatteryLevelStub()) {
+        napi_delete_reference(callbackFunctionInfo.env, callbackFunctionInfo.callbackRef);
+        return MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY;
+    }
+    {
+        std::lock_guard<std::mutex> lock(JsMechManagerService::GetInstance().batteryLevelCallbackMutex_);
+        JsMechManagerService::GetInstance().batteryLevelCallback_[mechId].insert(callbackFunctionInfo);
+        size_t count = JsMechManagerService::GetInstance().batteryLevelCallback_[mechId].size();
+        HILOGI("battery callback added, mechId: %{public}d, callback count: %{public}zu", mechId, count);
+    }
+    int32_t registerResult = mechClient_->RegisterBatteryChannel(batteryLevelStub_, mechId);
+    HILOGI("RegisterBatteryChannel result: %{public}d, mechId: %{public}d", registerResult, mechId);
+    if (registerResult != ERR_OK) {
+        HILOGE("RegisterBatteryChannel failed.");
+        std::lock_guard<std::mutex> lock(JsMechManagerService::GetInstance().batteryLevelCallbackMutex_);
+        auto &callbackSet = JsMechManagerService::GetInstance().batteryLevelCallback_[mechId];
+        callbackSet.erase(callbackFunctionInfo);
+        if (callbackSet.empty()) {
+            JsMechManagerService::GetInstance().batteryLevelCallback_.erase(mechId);
+        }
+        napi_delete_reference(callbackFunctionInfo.env, callbackFunctionInfo.callbackRef);
+        return registerResult;
+    }
+    return registerResult;
+}
+ 
+int32_t MechManager::ExecuteOffBatteryLevelChange(int32_t mechId, napi_env env, napi_value *callback)
+{
+    if (!InitMechClient()) {
+        HILOGE("Init Mech Client failed.");
+        return MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY;
+    }
+    bool shouldUnRegisterChannel = false;
+    {
+        std::lock_guard<std::mutex> lock(JsMechManagerService::GetInstance().batteryLevelCallbackMutex_);
+        auto &callbackMap = JsMechManagerService::GetInstance().batteryLevelCallback_;
+        auto it = callbackMap.find(mechId);
+        if (it == callbackMap.end()) {
+            HILOGI("No battery callback found for mechId: %{public}d", mechId);
+            return ERR_OK;
+        }
+        if (callback != nullptr) {
+            auto &callbackSet = it->second;
+            for (auto setIt = callbackSet.begin(); setIt != callbackSet.end(); ++setIt) {
+                napi_value storedValue = nullptr;
+                napi_get_reference_value(setIt->env, setIt->callbackRef, &storedValue);
+                bool isEqual = false;
+                napi_strict_equals(env, *callback, storedValue, &isEqual);
+                if (isEqual) {
+                    napi_delete_reference(setIt->env, setIt->callbackRef);
+                    callbackSet.erase(setIt);
+                    break;
+                }
+            }
+            if (callbackSet.empty()) {
+                callbackMap.erase(it);
+                shouldUnRegisterChannel = true;
+            }
+        } else {
+            for (const auto &item : it->second) {
+                napi_delete_reference(item.env, item.callbackRef);
+            }
+            callbackMap.erase(it);
+            shouldUnRegisterChannel = true;
+        }
+    }
+    int32_t registerResult = ERR_OK;
+    if (shouldUnRegisterChannel) {
+        registerResult = mechClient_->UnRegisterBatteryChannel();
+        HILOGI("UnRegisterBatteryChannel result: %{public}d, mechId: %{public}d", registerResult, mechId);
+    } else {
+        HILOGI("skip UnRegisterBatteryChannel, still has callbacks for mechId: %{public}d", mechId);
+    }
+    return registerResult;
+}
+ 
+bool MechManager::InitBatteryLevelStub()
+{
+    if (batteryLevelStub_ != nullptr) {
+        return true;
+    }
+    std::lock_guard<std::mutex> lock(batteryLevelStubMutex_);
+    if (batteryLevelStub_ != nullptr) {
+        return true;
+    }
+    if (!InitMechClient()) {
+        return false;
+    }
+    sptr<JsMechManagerStub> stub = new JsMechManagerStub();
+    sptr<IRemoteObject::DeathRecipient> deathListener = new BatteryLevelStubDeathListener();
+    stub->SetDeathRecipient(deathListener);
+    batteryLevelStub_ = stub;
+    return batteryLevelStub_ != nullptr;
+}
+
 void MechManager::AttachStateChangeStubDeathListener::OnRemoteDied(const wptr <IRemoteObject> &object)
 {
     HILOGE("AttachStateChangeStub RemoteObject dead; ");
@@ -2448,6 +2700,24 @@ void MechManager::BaseChannelDeathListener::OnRemoteDied(const wptr <IRemoteObje
     HILOGE("Channel RemoteObject dead; ");
     std::lock_guard<std::mutex> lock(baseChannelMutex_);
     baseChannel_ = nullptr;
+}
+
+void MechManager::BatteryLevelStubDeathListener::OnRemoteDied(const wptr <IRemoteObject> &object)
+{
+    HILOGE("BatteryLevelStub RemoteObject dead; ");
+    {
+        std::lock_guard<std::mutex> lock(batteryLevelStubMutex_);
+        batteryLevelStub_ = nullptr;
+    }
+    // Clean up all battery callback references to avoid leaking napi_refs
+    std::lock_guard<std::mutex> cbLock(JsMechManagerService::GetInstance().batteryLevelCallbackMutex_);
+    auto &callbackMap = JsMechManagerService::GetInstance().batteryLevelCallback_;
+    for (auto &pair : callbackMap) {
+        for (const auto &item : pair.second) {
+            napi_delete_reference(item.env, item.callbackRef);
+        }
+    }
+    callbackMap.clear();
 }
 
 bool MechManager::InitBaseChannel()
@@ -2533,6 +2803,10 @@ static napi_value DefineEnums(napi_env env, napi_value exports)
         {"REACH_OBSTACLE", 3}, {"LOW_POWER", 4}});
     napi_set_named_property(env, exports, "MechEventType", mechEventTypeEnum);
 
+    napi_value adsorbStateEnum =
+        CreateEnumObject(env, {{"UNKNOWN", -1}, {"ADSORBED", 0}, {"UNADSORBED", 1}});
+    napi_set_named_property(env, exports, "AdsorbState", adsorbStateEnum);
+
     return exports;
 }
 
@@ -2569,6 +2843,9 @@ napi_value Init(napi_env env, napi_value exports)
         DECLARE_NAPI_FUNCTION("doAction", MechManager::DoAction),
         DECLARE_NAPI_FUNCTION("subscribe", MechManager::Subscribe),
         DECLARE_NAPI_FUNCTION("unSubscribe", MechManager::UnSubscribe),
+        DECLARE_NAPI_FUNCTION("onBatteryLevelChange", MechManager::OnBatteryLevelChange),
+        DECLARE_NAPI_FUNCTION("offBatteryLevelChange", MechManager::OffBatteryLevelChange),
+        DECLARE_NAPI_FUNCTION("getDeviceAdsorbState", MechManager::GetDeviceAdsorbState),
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

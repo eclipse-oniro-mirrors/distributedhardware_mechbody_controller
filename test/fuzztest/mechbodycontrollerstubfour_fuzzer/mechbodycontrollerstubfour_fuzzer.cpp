@@ -116,6 +116,16 @@ int32_t MechBodyControllerService::UnRegisterTrackingEventCallback()
     return 0;
 }
 
+int32_t MechBodyControllerService::RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId)
+{
+    return 0;
+}
+ 
+int32_t MechBodyControllerService::UnRegisterBatteryLevelCallback()
+{
+    return 0;
+}
+
 int32_t MechBodyControllerService::SetTrackingLayout(CameraTrackingLayout &cameraTrackingLayout)
 {
     return 0;
@@ -245,6 +255,11 @@ int32_t MechBodyControllerService::SubscribeCallback(sptr<IRemoteObject> &callba
 }
 
 int32_t MechBodyControllerService::UnSubscribeCallback(MechEventType mechEventType)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state)
 {
     return 0;
 }

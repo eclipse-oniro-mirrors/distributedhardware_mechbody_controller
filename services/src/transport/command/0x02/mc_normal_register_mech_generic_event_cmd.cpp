@@ -83,6 +83,7 @@ bool NormalRegisterMechGenericEventCmd::Unmarshal(std::shared_ptr<MechDataBuffer
             }
             continue;
         } else if (resultType == CMD_GET_MECH_POWER_TYPE) {
+            HILOGI("Received power event, resultType: %{public}u", resultType);
             result = RegisterPowerEvent(data, offset);
             if (!result) {
                 return false;
@@ -149,6 +150,8 @@ bool NormalRegisterMechGenericEventCmd::RegisterPowerEvent(std::shared_ptr<MechD
     CHECK_ERR_RETURN_VALUE(data->ReadUint8(offset, bitResult), false, "read bitResult");
     lowPower = (bitResult >> 0) & 1;
     isCharging = (bitResult >> 1) & 1;
+    HILOGI("RegisterPowerEvent, bitResult: %{public}u, lowPower: %{public}u, isCharging: %{public}u",
+        bitResult, lowPower, isCharging);
     offset++;
     return true;
 }
@@ -193,6 +196,11 @@ uint8_t NormalRegisterMechGenericEventCmd::GetResult() const
 uint8_t NormalRegisterMechGenericEventCmd::GetLowPower() const
 {
     return lowPower;
+}
+
+uint8_t NormalRegisterMechGenericEventCmd::GetIsCharging() const
+{
+    return isCharging;
 }
 } // namespace MechBodyController
 } // namespace OHOS

@@ -27,6 +27,7 @@
 #include "mechbody_controller_service.h"
 #include "mc_camera_tracking_controller.h"
 #include "mc_connect_manager.h"
+#include "ble_send_manager.h"
 #include "mechbody_controller_utils.h"
 #include "hisysevent_utils.h"
 #include "mc_set_mech_motion_control_cmd.h"
@@ -372,11 +373,17 @@ void MotionManager::MechParamNotify(const std::shared_ptr<CommonRegisterMechStat
 
 void MotionManager::MechGenericEventNotify(const std::shared_ptr<NormalRegisterMechGenericEventCmd>& cmd)
 {
-    HILOGD("Received generic param change event.");
+    HILOGI("Received generic param change event, mechId: %{public}d", mechId_);
     CHECK_POINTER_RETURN(cmd, "cmd");
     if (cmd->GetLowPower() == BIT_1) {
         MechBodyControllerService::GetInstance().NotifyMechEvent(mechId_, MechEventType::LOW_POWER);
         HILOGI("notify low battery event");
+    }
+    uint8_t isCharging = cmd->GetIsCharging();
+    HILOGI("power event isCharging: %{public}u, lowPower: %{public}u", isCharging, cmd->GetLowPower());
+    auto *batteryManager = BleSendManager::GetInstance().GetBatteryManager();
+    if (batteryManager != nullptr) {
+        batteryManager->SetIsCharging(isCharging == 1);
     }
     DeviceStateInfo info = cmd->GetParams();
     RotationAxesStatus status{};

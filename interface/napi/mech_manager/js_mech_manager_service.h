@@ -101,6 +101,9 @@ public:
 
     int32_t SubscribeCallbackInvoke(const int32_t &mechId, const MechEventType &mechEventType);
 
+    int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
+        const bool &isCharging);
+
 private:
     static void InvokeCallbackTask(const CallbackFunctionInfo &item, int32_t mechId, MechEventType mechEventType);
     static napi_value CreateRotationAxesStatusEvent(napi_env env, int32_t mechId,
@@ -119,6 +122,8 @@ public:
     std::map<std::string, std::shared_ptr<RotatePrimiseFulfillmentParam>> searchTargetCallback_;
     std::mutex subscribeCallbackMutex_;
     std::map<MechEventType, std::set<CallbackFunctionInfo>> subscribeCallback_;
+    std::mutex batteryLevelCallbackMutex_;
+    std::map<int32_t, std::set<CallbackFunctionInfo>> batteryLevelCallback_;
 };
 } // namespace MechManager
 } // namespace OHOS

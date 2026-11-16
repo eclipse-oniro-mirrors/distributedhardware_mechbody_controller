@@ -42,6 +42,7 @@ public:
     DeviceStateInfo GetParams() const;
     uint8_t GetResult() const;
     uint8_t GetLowPower() const;
+    uint8_t GetIsCharging() const;
 
 private:
     DeviceStateInfo params_;

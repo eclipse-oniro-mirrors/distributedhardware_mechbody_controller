@@ -113,6 +113,18 @@ int32_t AniMechManagerStub::SubscribeCallback(MessageParcel &data, MessageParcel
     return AniMechManager::GetInstance().SubscribeCallback(mechId, mechEventType);
 }
 
+int32_t AniMechManagerStub::BatteryLevelChangeCallback(MessageParcel &data, MessageParcel &reply)
+{
+    int32_t mechId = data.ReadInt32();
+    int32_t batteryLevel = data.ReadInt32();
+    bool isCharging = data.ReadBool();
+    if (batteryLevel < -1 || batteryLevel > 100) {
+        HILOGE("invalid batteryLevel: %{public}d, drop", batteryLevel);
+        return NAPI_RECV_DATA_FAIL;
+    }
+    return AniMechManager::GetInstance().BatteryLevelChangeCallbackInvoke(mechId, batteryLevel, isCharging);
+}
+
 void AniMechManagerStub::InitMechManagerFunc()
 {
     mechManagerFuncMap_[IMechBodyControllerCode::ATTACH_STATE_CHANGE_CALLBACK] =
@@ -123,6 +135,8 @@ void AniMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::ROTATE_CALLBACK] = &AniMechManagerStub::RotatePromiseFulfillment;
     mechManagerFuncMap_[IMechBodyControllerCode::SEARCH_TARGET_CALLBACK] = &AniMechManagerStub::SearchTargetCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &AniMechManagerStub::SubscribeCallback;
+    mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
+        &AniMechManagerStub::BatteryLevelChangeCallback;
 }
 
 AniMechManagerStub::AniMechManagerStub()

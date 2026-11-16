@@ -218,6 +218,18 @@ int32_t TurnBySpeed(const int32_t &mechId, std::string &cmdId,
     {
         return ERR_OK;
     }
+    int32_t GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state) override
+    {
+        return ERR_OK;
+    }
+    int32_t RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId) override
+    {
+        return ERR_OK;
+    }
+    int32_t UnRegisterBatteryLevelCallback() override
+    {
+        return ERR_OK;
+    }
 };
 
 void MechBodyControllerStubTest::SetUpTestCase()

@@ -145,6 +145,12 @@ struct AttachStateChangeInfo {
     mechInfo: MechInfo;
 }
 
+struct BatteryLevelInfo {
+    mechId: i32;
+    batteryLevel: i32;
+    isCharging: bool;
+}
+
 struct TargetInfo {
     targetType: TargetType;
 }
@@ -294,3 +300,12 @@ function UnSubscribeInner(events: Array<MechEventType>, callback: (info :MechEve
 
 @rename("isControlSupported")
 function IsControlSupportedInner(mechDeviceType: Optional<MechDeviceType>): bool;
+
+@rename("getDeviceAdsorbState")
+function GetDeviceAdsorbStateInner(mechId: i32): AttachState;
+ 
+@rename("onBatteryLevelChange")
+function OnBatteryLevelChangeInner(mechId: i32, callback: (info: BatteryLevelInfo) => void): void;
+ 
+@rename("offBatteryLevelChange")
+function OffBatteryLevelChangeInner(mechId: i32, callback: Optional<(info: BatteryLevelInfo) => void>): void;

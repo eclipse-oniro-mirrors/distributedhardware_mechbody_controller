@@ -443,6 +443,16 @@ void BleSendManager::NotifyGetRealName()
     HILOGI(" end");
 }
 
+McBatteryManager* BleSendManager::GetBatteryManager()
+{
+    return batteryManager_.get();
+}
+ 
+std::string BleSendManager::GetMac()
+{
+    return address_;
+}
+
 void BleSendManager::OnHidStateChanged(int hidState, int cause, MechInfo &mechInfo)
 {
     HILOGI("MECHBODY_EXEC_CONNECT device HID connect state change. "
@@ -567,6 +577,15 @@ int32_t BleSendManager::OnGattReady(MechInfo &mechInfo)
     int32_t result = MechConnectManager::GetInstance().NotifyMechConnect(mechInfo);
     if (result == MECH_CONNECT_FAILED) {
         return MECH_CONNECT_FAILED;
+    }
+    batteryManager_ = std::make_unique<McBatteryManager>();
+    int32_t batteryRet = batteryManager_->Init(mechInfo.mac, mechInfo.mechId,
+        [](int32_t mechId, int32_t batteryLevel, bool isCharging) {
+            MechBodyControllerService::GetInstance().NotifyBatteryLevelChange(mechId, batteryLevel, isCharging);
+        });
+    HILOGI("batteryManager init result: %{public}d", batteryRet);
+    if (batteryRet != ERR_OK) {
+        batteryManager_.reset();
     }
     HILOGI("MECHBODY_EXEC_CONNECT Tracking init start.");
     McCameraTrackingController::GetInstance().Init();
@@ -953,6 +972,7 @@ int32_t BleSendManager::MechbodyDisConnectSync(MechInfo &mechInfo)
 void BleSendManager::OnGattDisconnect(MechInfo &mechInfo)
 {
     MechConnectManager::GetInstance().NotifyMechDisconnect(mechInfo);
+    batteryManager_.reset();
     DelayedUnloadSystemAbility();
     HILOGI("destruct bleGattClientCallBack_ start");
     {

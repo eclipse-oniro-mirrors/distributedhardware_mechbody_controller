@@ -65,6 +65,11 @@ enum class IMechBodyControllerCode : uint32_t {
     UN_SUBSCRIBE = 35,
     SUBSCRIBE_CALLBACK = 36,
     UN_SUBSCRIBE_CALLBACK = 37,
+    GET_DEVICE_ADSORB_STATE = 38,
+ 
+    BATTERY_LEVEL_LISTEN_ON = 39,
+    BATTERY_LEVEL_LISTEN_OFF = 40,
+    BATTERY_LEVEL_CHANGE_CALLBACK = 41,
 };
 } // namespace MechBodyController
 } // namespace OHOS
