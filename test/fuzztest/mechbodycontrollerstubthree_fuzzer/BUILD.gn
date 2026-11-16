@@ -24,18 +24,7 @@ ohos_fuzztest("MechBodyControllerStubThreeFuzzTest") {
   fuzz_config_file =
       "${mechbody_path}/test/fuzztest/mechbodycontrollerstubthree_fuzzer"
   include_dirs = [
-    "${mechbody_path}/services/include",
-    "${mechbody_path}/services/include/dotReport",
-    "${mechbody_path}/services/include/connect",
-    "${mechbody_path}/services/include/controller",
-    "${mechbody_path}/services/include/motion",
-    "${mechbody_path}/services/include/transport",
-    "${mechbody_path}/services/include/transport/command",
-    "${mechbody_path}/services/include/transport/command/0x01",
-    "${mechbody_path}/services/include/transport/command/0x02",
-    "${mechbody_path}/services/include/transport/command/0x03",
     "${mechbody_path}/interface/inner_api",
-    "${mechbody_path}/services/include/utils",
   ]
   cflags = [
     "-g",
@@ -43,12 +32,13 @@ ohos_fuzztest("MechBodyControllerStubThreeFuzzTest") {
     "-Wno-unused-variable",
     "-fno-omit-frame-pointer",
   ]
+  ldflags = [ "-Wl,--allow-multiple-definition" ]
+
   sources = [
-    "${mechbody_path}/services/src/mechbody_controller_stub.cpp",
     "${mechbody_path}/test/fuzztest/mechbodycontrollerstubthree_fuzzer/mechbodycontrollerstubthree_fuzzer.cpp",
   ]
 
-  deps = [ "${mechbody_path}/services:mechbody_service" ]
+  deps = [ "${mechbody_path}/services:mechbody_service_sources" ]
 
   external_deps = [
     "access_token:libaccesstoken_sdk",
