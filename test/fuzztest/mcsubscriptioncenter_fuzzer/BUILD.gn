@@ -42,6 +42,8 @@ ohos_fuzztest("McSubscriptionCenterFuzzTest") {
     "-Wno-unused-variable",
     "-fno-omit-frame-pointer",
   ]
+  ldflags = [ "-Wl,--allow-multiple-definition" ]
+
   sources = [
     "${mechbody_path}/services/src/connect/bluetooth_state_adapter.cpp",
     "${mechbody_path}/services/src/connect/bluetooth_state_listener.cpp",
@@ -117,7 +119,7 @@ ohos_fuzztest("McSubscriptionCenterFuzzTest") {
     "${mechbody_path}/test/fuzztest/mcsubscriptioncenter_fuzzer/mcsubscriptioncenter_fuzzer.cpp",
   ]
 
-  deps = [ "${mechbody_path}/services:mechbody_service" ]
+  deps = [ "${mechbody_path}/services:mechbody_service_sources" ]
 
   external_deps = [
     "access_token:libaccesstoken_sdk",
