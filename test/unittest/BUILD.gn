@@ -173,6 +173,8 @@ ohos_unittest("mechbody_controller_stub_test") {
     "-Dprotected=public",
   ]
 
+  ldflags = [ "-Wl,--allow-multiple-definition" ]
+
   sanitize = {
     blocklist = "./cfi_blocklist.txt"
     cfi = true
