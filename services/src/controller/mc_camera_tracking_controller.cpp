@@ -150,7 +150,7 @@ void McCameraTrackingController::Init()
         }
         int8_t deviceType = -1;
         {
-            std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+            std::lock_guard<std::mutex> mgrlock(MechBodyControllerService::GetInstance().motionManagersMutex);
             for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
                 int32_t mechId = item.first;
                 auto motionManager = item.second;
@@ -1040,10 +1040,14 @@ int32_t McCameraTrackingController::UpdateActionControl()
         (std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now())
             .time_since_epoch().count());
     auto lastFrame = std::atomic_load(&lastTrackingFrame_);
+    uint64_t lastTrackingTimeStamp = 0;
+    if (lastFrame != nullptr) {
+        lastTrackingTimeStamp = lastFrame->timeStamp;
+    }
     if (currentCameraInfo_ != nullptr && currentCameraInfo_->trackingTargetNum.load(std::memory_order_relaxed) > 0 &&
-        lastFrame->timeStamp <= currentTime &&
-        currentTime - lastFrame->timeStamp < TRACKING_PARAM_LOST_DELAY &&
-        currentCameraInfo_->currentTrackingEnable.load(std::memory_order_relaxed)) {
+        lastFrame != nullptr && lastTrackingTimeStamp <= currentTime &&
+        currentTime - lastTrackingTimeStamp < TRACKING_PARAM_LOST_DELAY &&
+        IsCurrentTrackingEnabled()) {
         actionControlParam.controlReq = 1;
         actionControlParam.yawControl = 1;
         actionControlParam.pitchControl = 1;

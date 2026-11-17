@@ -1188,7 +1188,7 @@ int32_t BleSendManager::MechbodyGattcWriteCharacteristic(uint8_t *data, uint32_t
     wrCharacteristic.SetWriteType(GattCharacteristic::WriteType::NO_RESPONSE);
     HILOGI("Mech writeC");
     uint64_t beginTime = GetTimeStampMs();
-    result = client->WriteCharacteristic(wrCharacteristic);
+    result = gattClient->WriteCharacteristic(wrCharacteristic);
     uint64_t endTime = GetTimeStampMs();
     HILOGI("Mech writeC, result = %{public}d handle: %{public}d dataLen: %{public}d, castTime:%{public}s \n", \
         result, handle, dataLen, std::to_string(endTime - beginTime).c_str());

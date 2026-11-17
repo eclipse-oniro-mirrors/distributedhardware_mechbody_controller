@@ -934,34 +934,7 @@ void MotionManager::InitDfxInfo()
     HILOGI("InitDfxInfo start.");
     // 连接且吸附初始化DFX
     if (deviceStatus_->stateInfo.isPhoneOn) {
-        controlInfo_.upWard = 0;
-        controlInfo_.downWard = 0;
-        controlInfo_.turnLeft = 0;
-        controlInfo_.turnRight = 0;
-        controlInfo_.fastRotation = 0;
-        controlInfo_.landScapePortrait = 0;
-        controlInfo_.cameraMode = 0;
-        controlInfo_.trackingDuration = 0;
-        controlInfo_.cameraType = 0;
-        controlInfo_.zoomRatio = 0.0f;
-        controlInfo_.obstacleNumber = 0;
-        controlInfo_.cliffNumber = 0;
-        controlInfo_.successNumber = 0;
-        controlInfo_.failNumber = 0;
-        controlInfo_.deviceType = 0;
-        controlInfo_.stickNum = 0;
-        controlInfo_.connectCode = 0;
-        controlInfo_.connectDelay = 0;
-
-        controlInfo_.appName.clear();
-        controlInfo_.appName.resize(MAX_DFX_APP_NUM);
-        controlInfo_.existenceTime.clear();
-        controlInfo_.existenceTime.resize(MAX_DFX_APP_NUM);
-        controlInfo_.cmdWord.clear();
-        controlInfo_.cmdWord.resize(MAX_DFX_APP_NUM);
-        controlInfo_.errorCode.clear();
-        controlInfo_.errorCode.resize(MAX_DFX_APP_NUM);
-        controlInfo_.packageName.clear();
+        ResetControlInfo()
         // 初始化在前台的APP的数据
         auto appManager = GetAppManagerInstance();
         if (appManager == nullptr) {
