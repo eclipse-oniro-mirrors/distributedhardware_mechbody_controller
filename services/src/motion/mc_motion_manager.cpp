@@ -934,7 +934,7 @@ void MotionManager::InitDfxInfo()
     HILOGI("InitDfxInfo start.");
     // 连接且吸附初始化DFX
     if (deviceStatus_->stateInfo.isPhoneOn) {
-        ResetControlInfo()
+        ResetControlInfo();
         // 初始化在前台的APP的数据
         auto appManager = GetAppManagerInstance();
         if (appManager == nullptr) {
