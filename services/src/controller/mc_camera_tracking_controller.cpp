@@ -112,8 +112,6 @@ namespace {
 
     constexpr int32_t MAX_PAUSED_FRAME = 10;
 
-    constexpr float IOU_THRESHOLD = 0.1f;
-    constexpr float IOU_DEFAULT = 0.0f;
     constexpr int32_t META_DATA_SIZE = 2;
 #ifdef MECHBODY_CONTROLLER_EXTENDED
     const std::string PREDICTION_TASK_NAME = "PredictionTaskName";
@@ -202,10 +200,17 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
         }
     }
 
+void McCameraTrackingController::DispatchTrackingFrameToManagers(
+    std::shared_ptr<TrackingFrameParams> &params)
+{
     CameraInfoParams camInfo{currentCameraInfo_->fovHBasic, currentCameraInfo_->fovVBasic,
         currentCameraInfo_->zoomFactor, currentCameraInfo_->isRecording, CameraType::FRONT};
     ScreenInfoParams screenInfo{.isPortrait = IsVertical(sensorRotation_)};
-    auto& mgrMap = MechBodyControllerService::GetInstance().motionManagers_;
+    std::map<int32_t, std::shared_ptr<MotionManager>> mgrMap;
+    {
+        std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+        mgrMap = MechBodyControllerService::GetInstance().motionManagers_;
+    }
  
     for (const auto& item : mgrMap) {
         int32_t mechId = item.first;
@@ -943,6 +948,8 @@ int32_t McCameraTrackingController::GetTrackingTargetFallback(CameraStandard::Re
             }
         }
     }
+    DispatchTrackingFrameToManagers(params);
+}
 
     for (const auto &item : detectedObjects) {
         CameraStandard::Rect itemRect = item->GetBoundingBox();
@@ -1046,18 +1053,6 @@ int32_t McCameraTrackingController::CinematicVideoModeTrackingTargetFilter(
     return ERR_OK;
 }
 
-bool McCameraTrackingController::IsAllowedConversion(
-    CameraStandard::Rect &lastTrackingRect, CameraStandard::Rect &trackingRect)
-{
-    float iou = CalculateIOU(lastTrackingRect, trackingRect);
-    if (iou > IOU_THRESHOLD) {
-        HILOGI("Conversion allowed, IOU: %{public}f", iou);
-        return true;
-    } else {
-        HILOGW("Conversion rejected, IOU too low: %{public}f", iou);
-        return false;
-    }
-}
 
 void McCameraTrackingController::UpdateROI(std::shared_ptr<TrackingFrameParams> &trackingFrameParams,
     CameraStandard::Rect &rect)

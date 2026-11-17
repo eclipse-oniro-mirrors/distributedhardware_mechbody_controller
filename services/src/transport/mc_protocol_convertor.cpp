@@ -136,6 +136,10 @@ std::shared_ptr<MechDataBuffer> ProtocolConverter::GetData(
         HILOGE("datalen larger than actual length!");
         return nullptr;
     }
+    if (dataLen < BT_COMMAND_HEADER_LENTH) {
+        HILOGE("datalen is too small!");
+        return nullptr;
+    }
 
     // Copy data
     std::shared_ptr<MechDataBuffer> data = std::make_shared<MechDataBuffer>(static_cast<size_t>(

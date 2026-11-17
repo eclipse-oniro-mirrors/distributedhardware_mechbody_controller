@@ -100,6 +100,7 @@ public:
     int32_t GetCurrentPosition(std::shared_ptr<EulerAngles> &eulerAngles);
     int32_t GetRotationLimit(RotateDegreeLimit &rotationLimit);
     int32_t SetMechCameraTrackingFrame(const std::shared_ptr<TrackingFrameParams> trackingFrameParams);
+    void UpdateTrackingDfxInfo(const std::shared_ptr<TrackingFrameParams> trackingFrameParams);
     void SetAutoCentering(bool isAutoCentering);
     int32_t GetMechCameraTrackingEnabled(bool &isEnabled);
     int32_t SetMechCameraTrackingEnabled(bool &isEnabled);
@@ -232,6 +233,7 @@ private:
     void MechkitFaultInfoReport(const RotateBySpeedParam& rotateSpeedParam);
     void MechkitIntelligentInfoReport(const CameraInfoParams &mechCameraInfo);
     void InitDfxInfo();
+    void ResetControlInfo();
     void GetDfxDeviceTypeInfo();
     void DfxGetSendCmdInfo(uint16_t cmdType, uint8_t result);
     ExecResult MapDeviceErrorCodeToExecResult(uint16_t cmdType, uint8_t deviceErrorCode);
@@ -298,6 +300,7 @@ private:
     std::mutex appForegroundInfoMutex_;
     uint64_t trackingTime_ = 0;
     MechkitControlInfo controlInfo_ = {0};
+    std::mutex controlInfoMutex_;
     std::vector<SendCmdInfo> sendCmdInfo_;
     std::mutex sendCmdInfoMutex_;
 };

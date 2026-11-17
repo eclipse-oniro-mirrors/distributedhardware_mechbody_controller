@@ -141,6 +141,7 @@ public:
     void Init();
     void UnInit();
     void HandleTrackingFrame(TrackingFrameParams trackingFrameParams);
+    void DispatchTrackingFrameToManagers(std::shared_ptr<TrackingFrameParams> &params);
     void CalcRoiRotate(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot);
     void BodyRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot);
     int32_t OnCaptureSessionConfiged(const CameraStandard::CaptureSessionInfo& captureSessionInfo);
