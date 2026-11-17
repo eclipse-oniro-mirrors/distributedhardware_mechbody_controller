@@ -1874,7 +1874,7 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_001, TestSize.Level1)
     controller.lastStickTime_ = std::chrono::steady_clock::now();
 
     // When: AdjustOffset runs the stick+UP path via SmoothOffsetValue/UpdateStickState/ApplyRoiOffset (AddYOffset)
-    // vertical_=0.01 after SmoothOffsetValue increment; AddYOffset: xOffset=-0.01+FACE_OFFSET(0.1)=0.09; roi.x=0.5+0.09=0.59
+    // vertical_=0.01 after SmoothOffsetValue increment;
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
     // Then: verify the actual side effects — SmoothOffsetValue increments vertical_ and roi shifted
     // objectType 复位已下沉到 BuildDeviceTrackingParams 分发时执行，此处保持 FACE 传递给分发层判定
@@ -1909,7 +1909,7 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_002, TestSize.Level1)
     controller.sensorRotation_ = MobileRotation::UP;
     controller.lastStickTime_ = std::chrono::steady_clock::now();
 
-    // When: AdjustOffset runs the stick+UP path (AddYOffset); SmoothOffsetValue decrements vertical_, x-offset clamped to -0.2
+    // When: AdjustOffset runs the stick+UP path (AddYOffset);
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
     // Then: verify the actual side effects — SmoothOffsetValue decrements vertical_
     EXPECT_FLOAT_EQ(controller.vertical_, 0.49f);

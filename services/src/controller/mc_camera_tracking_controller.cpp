@@ -283,7 +283,7 @@ void McCameraTrackingController::TargetRoiOffset(std::shared_ptr<TrackingFramePa
     } else if (params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE)) {
         if (rot == MobileRotation::RIGHT) {
             params->roi.x = params->roi.x + FACE_PARAM_OFFSET*params->roi.width;
-        } else if (rot == MobileRotation::LEFT){
+        } else if (rot == MobileRotation::LEFT) {
             params->roi.x = params->roi.x - FACE_PARAM_OFFSET*params->roi.width;
         }
     }
