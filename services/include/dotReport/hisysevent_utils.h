@@ -58,6 +58,7 @@ struct MechkitControlInfo {
     uint32_t connectCode;
     std::vector<uint16_t> cmdWord;
     std::vector<uint16_t> errorCode;
+    uint8_t cameraStatus;
 };
 
 struct AppForegroundInfo {

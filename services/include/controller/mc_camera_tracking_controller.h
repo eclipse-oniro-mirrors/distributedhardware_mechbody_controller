@@ -237,7 +237,7 @@ private:
     void AddXOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
     void SmoothOffsetValue(float &offset, const float &targetOffset);
     void UpdateStickState();
-    void ApplyRoiOffset(ROI &roi, CameraType cameraType, bool isFace, bool isBody)
+    void ApplyRoiOffset(ROI &roi, CameraType cameraType, bool isFace, bool isBody);
     void AdjustYOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
     void AdjustXOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
     bool IsCurrentTrackingEnabled();
