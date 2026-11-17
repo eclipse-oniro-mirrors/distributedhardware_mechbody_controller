@@ -172,7 +172,8 @@ void McCameraTrackingController::Init()
     HILOGI("end");
 }
 
-void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackingFrameParams) {
+void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackingFrameParams)
+{
     auto params = std::make_shared<TrackingFrameParams>(trackingFrameParams);
     CalcRoiRotate(params, sensorRotation_);
     BodyRoiOffset(params, sensorRotation_);

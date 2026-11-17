@@ -296,11 +296,7 @@ float McCameraTrackingController::CalculateIOU(const CameraStandard::Rect &rect1
     if (minArea <= TRACKING_LOST_CHECK) {
         return IOU_DEFAULT;
     }
-    if (minArea <= 0.0f) {
-        return IOU_DEFAULT;
-    } else {
-        return interArea / minArea;
-    }
+    return (minArea > 0.0f) ? (interArea / minArea) : IOU_DEFAULT;
 }
 
 bool McCameraTrackingController::IsAllowedConversion(
