@@ -103,9 +103,7 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
         HILOGE("OnServicesDiscovered state is not sucess");
         return;
     }
-
-
-     std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
+    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
     {
         std::lock_guard<std::mutex> lock(bleSendManager.gattClientMutex_);
         gattClient = bleSendManager.gattClient_;
