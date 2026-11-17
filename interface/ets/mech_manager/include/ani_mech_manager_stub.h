@@ -32,6 +32,7 @@ namespace OHOS {
 namespace MechBodyController {
 class AniMechManagerStub : public IRemoteStub<IJsMechManager> {
 public:
+    
     AniMechManagerStub();
     virtual ~AniMechManagerStub();
     void SetDeathRecipient(sptr<IRemoteObject::DeathRecipient> deathRecipient);
@@ -43,6 +44,7 @@ public:
     int32_t RotatePromiseFulfillment(MessageParcel &data, MessageParcel &reply) override;
     int32_t SearchTargetCallback(MessageParcel &data, MessageParcel &reply) override;
     int32_t SubscribeCallback(MessageParcel &data, MessageParcel &reply) override;
+    int32_t BatteryLevelChangeCallback(MessageParcel &data, MessageParcel &reply) override;
 
 private:
     void InitMechManagerFunc();

@@ -105,6 +105,12 @@ void MechBodyControllerStub::InitFuncsInnerPart2()
             &MechBodyControllerStub::SubscribeCallbackInner;
     funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::UN_SUBSCRIBE_CALLBACK)] =
             &MechBodyControllerStub::UnSubscribeCallbackInner;
+    funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::GET_DEVICE_ADSORB_STATE)] =
+            &MechBodyControllerStub::GetDeviceAdsorbStateInner;
+    funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_ON)] =
+            &MechBodyControllerStub::BatteryLevelListenOnInner;
+    funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_OFF)] =
+            &MechBodyControllerStub::BatteryLevelListenOffInner;
 }
 
 int32_t MechBodyControllerStub::OnRemoteRequest(
@@ -477,6 +483,50 @@ int32_t MechBodyControllerStub::UnSubscribeCallbackInner(MessageParcel &data, Me
 {
     MechEventType mechEventType = static_cast<MechEventType>(data.ReadInt32());
     int32_t result = MechBodyControllerService::GetInstance().UnSubscribeCallback(mechEventType);
+    bool writeResult = reply.WriteInt32(result);
+    HILOGI("result %{public}d", result);
+    HILOGI("writeResult %{public}d", writeResult);
+    return result;
+}
+
+int32_t MechBodyControllerStub::GetDeviceAdsorbStateInner(MessageParcel &data, MessageParcel &reply)
+{
+    uint32_t tokenId = IPCSkeleton::GetCallingTokenID();
+    std::string processName = MechBodyControllerService::GetAppNameByTokenId(tokenId);
+    HILOGI("start, mechkit access name: %{public}s", processName.c_str());
+    int32_t mechId = data.ReadInt32();
+    AttachmentState state = AttachmentState::UNKNOWN;
+    int32_t result = MechBodyControllerService::GetInstance().GetDeviceAdsorbState(mechId, state);
+    bool writeResult = reply.WriteInt32(result);
+    if (result == ERR_OK) {
+        writeResult = reply.WriteInt32(static_cast<int32_t>(state));
+    }
+    HILOGI("result %{public}d", result);
+    return result;
+}
+ 
+int32_t MechBodyControllerStub::BatteryLevelListenOnInner(MessageParcel &data, MessageParcel &reply)
+{
+    uint32_t tokenId = IPCSkeleton::GetCallingTokenID();
+    std::string processName = MechBodyControllerService::GetAppNameByTokenId(tokenId);
+    HILOGI("start, mechkit access name: %{public}s", processName.c_str());
+ 
+    sptr<IRemoteObject> callback = data.ReadRemoteObject();
+    int32_t mechId = data.ReadInt32();
+    int32_t result = MechBodyControllerService::GetInstance().RegisterBatteryLevelCallback(callback, mechId);
+    bool writeResult = reply.WriteInt32(result);
+    HILOGI("result %{public}d", result);
+    HILOGI("writeResult %{public}d", writeResult);
+    return result;
+}
+ 
+int32_t MechBodyControllerStub::BatteryLevelListenOffInner(MessageParcel &data, MessageParcel &reply)
+{
+    uint32_t tokenId = IPCSkeleton::GetCallingTokenID();
+    std::string processName = MechBodyControllerService::GetAppNameByTokenId(tokenId);
+    HILOGI("start, mechkit access name: %{public}s", processName.c_str());
+ 
+    int32_t result = MechBodyControllerService::GetInstance().UnRegisterBatteryLevelCallback();
     bool writeResult = reply.WriteInt32(result);
     HILOGI("result %{public}d", result);
     HILOGI("writeResult %{public}d", writeResult);

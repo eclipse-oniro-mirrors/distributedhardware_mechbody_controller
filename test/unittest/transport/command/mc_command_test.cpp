@@ -119,10 +119,6 @@ void MechCommandTest::TearDown()
 {
 }
 
-void SetTimeout()
-{
-}
-
 uint16_t g_taskIdOldCommand = 0;
 
 /**

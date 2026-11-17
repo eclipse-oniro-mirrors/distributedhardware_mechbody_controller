@@ -80,6 +80,7 @@ int32_t MechConnectManager::NotifyMechDisconnect(const MechInfo& mechInfo)
 {
     HILOGI("called, mechId: %{public}d.", mechInfo.mechId);
     McCameraTrackingController::GetInstance().OnConnectChange();
+    MechBodyControllerService::GetInstance().OnDeviceDisconnected(mechInfo.mechId);
     {
         std::lock_guard<std::mutex> autoLock(mechInfosMutex_);
         auto it = mechInfos_.find(mechInfo);
@@ -87,7 +88,7 @@ int32_t MechConnectManager::NotifyMechDisconnect(const MechInfo& mechInfo)
             mechInfos_.erase(it);
         }
     }
-    MechBodyControllerService::GetInstance().OnDeviceDisconnected(mechInfo.mechId);
+    
     auto offlineNotifyTask = [this, mechInfo]() {
         std::lock_guard<std::mutex> autoLock(listenerSetMutex_);
         for (auto& listener : listenerSet_) {

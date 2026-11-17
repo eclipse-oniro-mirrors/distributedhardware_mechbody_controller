@@ -142,6 +142,13 @@ RotationAxesStatusTaihe GetRotationAxesStatusInner(int32_t mechId)
     return result;
 }
 
+AttachStateTaihe GetDeviceAdsorbStateInner(int32_t mechId)
+{
+    AttachStateTaihe result = AttachStateTaihe::key_t::ATTACHED;
+    AniMechManager::GetInstance().GetDeviceAdsorbState(mechId, result);
+    return result;
+}
+
 void OnRotationAxesStatusChangeInner(::taihe::callback_view<void(RotationAxesStateChangeInfoTaihe const&)> callback)
 {
     HILOGD("begin!");
@@ -215,6 +222,18 @@ void UnSubscribeInner(::taihe::array_view<MechEventTypeTaihe> events,
     AniMechManager::GetInstance().UnSubscribe(events, callback);
 }
 
+void OnBatteryLevelChangeInner(int32_t mechId, ::taihe::callback_view<void(BatteryLevelInfoTaihe const&)> callback)
+{
+    HILOGI("onBatteryLevelChange inner begin! mechId: %{public}d", mechId);
+    AniMechManager::GetInstance().OnBatteryLevelChange(mechId, callback);
+}
+ 
+void OffBatteryLevelChangeInner(int32_t mechId, ::taihe::optional_view<BatteryLevelCBTaihe> callback)
+{
+    HILOGI("offBatteryLevelChange inner begin! mechId: %{public}d", mechId);
+    AniMechManager::GetInstance().OffBatteryLevelChange(mechId, callback);
+}
+
 bool IsControlSupportedInner(::taihe::optional_view<MechDeviceTypeTaihe> mechDeviceTypeTaihe)
 {
     HILOGI("isControlSupported inner begin!");
@@ -256,6 +275,9 @@ TH_EXPORT_CPP_API_IsSupportActionInner(IsSupportActionInner);
 TH_EXPORT_CPP_API_DoActionInner(DoActionInner);
 TH_EXPORT_CPP_API_SubscribeInner(SubscribeInner);
 TH_EXPORT_CPP_API_UnSubscribeInner(UnSubscribeInner);
+TH_EXPORT_CPP_API_OnBatteryLevelChangeInner(OnBatteryLevelChangeInner);
+TH_EXPORT_CPP_API_OffBatteryLevelChangeInner(OffBatteryLevelChangeInner);
 TH_EXPORT_CPP_API_IsControlSupportedInner(IsControlSupportedInner);
+TH_EXPORT_CPP_API_GetDeviceAdsorbStateInner(GetDeviceAdsorbStateInner);
 // NOLINTEND
 

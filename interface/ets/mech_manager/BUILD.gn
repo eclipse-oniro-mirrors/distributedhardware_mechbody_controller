@@ -76,6 +76,7 @@ taihe_shared_library("mechanic_manager_ani") {
   sources = get_target_outputs(":run_taihe")
   configs = [ ":mech_manager_config" ]
   sources += [
+    "src/ani_battery_level_manager.cpp",
     "src/ani_constructor.cpp",
     "src/ani_mech_manager.cpp",
     "src/ani_mech_manager_client.cpp",

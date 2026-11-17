@@ -340,5 +340,59 @@ int32_t JsMechManagerService::SubscribeCallbackInvoke(const int32_t &mechId, con
     HILOGI("end");
     return ERR_OK;
 }
+
+int32_t JsMechManagerService::BatteryLevelChangeCallbackInvoke(
+    const int32_t &mechId, const int32_t &batteryLevel, const bool &isCharging)
+{
+    std::set<CallbackFunctionInfo> callbackSet;
+    {
+        std::lock_guard<std::mutex> lock(batteryLevelCallbackMutex_);
+        auto it = batteryLevelCallback_.find(mechId);
+        if (it == batteryLevelCallback_.end()) {
+            HILOGI("No battery callback found for mechId: %{public}d", mechId);
+            return ERR_OK;
+        }
+        callbackSet = it->second;
+    }
+    HILOGI("battery callback count for mechId %{public}d: %{public}zu", mechId, callbackSet.size());
+    for (const auto &item : callbackSet) {
+        auto task = [item, mechId, batteryLevel, isCharging]() {
+            napi_handle_scope scope;
+            napi_status res = napi_open_handle_scope(item.env, &scope);
+            if (res != napi_ok || scope == nullptr) {
+                HILOGE("open handle scope failed!");
+                return;
+            }
+ 
+            napi_value jsEvent;
+            napi_create_object(item.env, &jsEvent);
+ 
+            napi_value jsMechId;
+            napi_create_int32(item.env, mechId, &jsMechId);
+            napi_set_named_property(item.env, jsEvent, "mechId", jsMechId);
+ 
+            napi_value jsBatteryLevel;
+            napi_create_int32(item.env, batteryLevel, &jsBatteryLevel);
+            napi_set_named_property(item.env, jsEvent, "batteryLevel", jsBatteryLevel);
+ 
+            napi_value jsIsCharging;
+            napi_get_boolean(item.env, isCharging, &jsIsCharging);
+            napi_set_named_property(item.env, jsEvent, "isCharging", jsIsCharging);
+ 
+            napi_value callback;
+            napi_get_reference_value(item.env, item.callbackRef, &callback);
+ 
+            napi_value global;
+            napi_get_global(item.env, &global);
+ 
+            napi_value result;
+            napi_call_function(item.env, global, callback, 1, &jsEvent, &result);
+ 
+            napi_close_handle_scope(item.env, scope);
+        };
+        napi_send_event(item.env, task, napi_eprio_high, "MechbodyTask");
+    }
+    return ERR_OK;
+}
 } // namespace MechManager
 } // namespace OHOS

@@ -19,6 +19,7 @@
 #include "mechbody_controller_stub.h"
 #include "system_ability.h"
 #include "mc_controller_manager.h"
+#include "mc_battery_manager.h"
 
 namespace OHOS {
 namespace MechBodyController {
@@ -89,8 +90,16 @@ public:
     int32_t DoAction(const int32_t &mechId, std::string &cmdId, ActionType actionType) override;
     int32_t SubscribeCallback(sptr <IRemoteObject> &callback, MechEventType mechEventType) override;
     int32_t UnSubscribeCallback(MechEventType mechEventType) override;
+    int32_t GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state) override;
+ 
+    int32_t RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId) override;
+    int32_t UnRegisterBatteryLevelCallback() override;
+    int32_t NotifyBatteryLevelChange(int32_t mechId, int32_t batteryLevel, bool isCharging);
 
 private:
+    void NotifyBatteryLevelChangeToToken(uint32_t tokenId, const sptr<IRemoteObject> &callback,
+        int32_t mechId, int32_t batteryLevel, bool isCharging);
+    void NotifyBatteryUnavailableOnDisconnect(int32_t mechId);
     bool IsSystemApp();
 
 protected:
@@ -110,6 +119,8 @@ public:
     std::mutex subscribeChannelMutex_;
     std::map<std::pair<uint32_t, MechEventType>, sptr<IRemoteObject>> subscribeChannels_;
     std::shared_ptr<TransportSendAdapter> sendAdapter_;
+    std::mutex batteryLevelCallbackMutex_;
+    std::map<uint32_t, sptr<IRemoteObject>> batteryLevelCallback_;
 };
 } // namespace MechBodyController
 } // namespace OHOS

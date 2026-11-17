@@ -18,6 +18,7 @@
 
 #include <string>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -38,6 +39,7 @@
 #include "system_ability_status_change_stub.h"
 #include "mechbody_controller_log.h"
 #include "mechbody_controller_types.h"
+#include "mc_battery_manager.h"
 
 namespace OHOS {
 namespace MechBodyController {
@@ -197,6 +199,9 @@ public:
     void GetRealName(MechInfo &mechInfo);
     void NotifyGetRealName();
 
+    McBatteryManager* GetBatteryManager();
+    std::string GetMac();
+
 public:
     bool isGattReady_ = false;
     std::mutex isGattReadyMtx_;
@@ -256,6 +261,7 @@ private:
     std::mutex getRealNameMutex_;
     std::condition_variable getRealNameCv_;
     std::atomic<bool> connectFailed_{false};
+    std::unique_ptr<McBatteryManager> batteryManager_;
 };
 
 class BleCentralManagerCallbackImpl : public Bluetooth::BleCentralManagerCallback {

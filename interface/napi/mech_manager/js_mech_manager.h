@@ -86,6 +86,12 @@ public:
 
     static napi_value UnSubscribe(napi_env env, napi_callback_info info);
 
+    static napi_value OnBatteryLevelChange(napi_env env, napi_callback_info info);
+ 
+    static napi_value OffBatteryLevelChange(napi_env env, napi_callback_info info);
+
+    static napi_value GetDeviceAdsorbState(napi_env env, napi_callback_info info);
+
 private:
     static int32_t CheckControlL1(napi_env env);
     static int32_t CheckDeviceL1(napi_env env);
@@ -153,6 +159,9 @@ private:
     static int32_t ExecuteSubscribe(
         std::vector<MechEventType> &mechEventTypes, CallbackFunctionInfo &callbackFunctionInfo);
     static int32_t ExecuteUnSubscribe(std::vector<MechEventType> &mechEventTypes);
+    static int32_t ExecuteOnBatteryLevelChange(int32_t mechId, CallbackFunctionInfo &callbackFunctionInfo);
+    static int32_t ExecuteOffBatteryLevelChange(int32_t mechId, napi_env env, napi_value *callback);
+    static bool InitBatteryLevelStub();
     static bool InitBaseChannel();
     static void ProcessUnsubscribeForEvent(MechEventType mechEventType, int32_t &registerResult);
     static bool ParseIsSupportActionArgs(napi_env env, napi_callback_info info,
@@ -185,6 +194,8 @@ private:
     static std::shared_ptr<MechClient> mechClient_;
     static std::mutex baseChannelMutex_;
     static sptr<JsMechManagerStub> baseChannel_;
+    static std::mutex batteryLevelStubMutex_;
+    static sptr<JsMechManagerStub> batteryLevelStub_;
 
     class AttachStateChangeStubDeathListener : public IRemoteObject::DeathRecipient {
     public:
@@ -207,6 +218,10 @@ private:
     };
 
     class BaseChannelDeathListener : public IRemoteObject::DeathRecipient {
+    public:
+        void OnRemoteDied(const wptr<IRemoteObject> &object) override;
+    };
+    class BatteryLevelStubDeathListener : public IRemoteObject::DeathRecipient {
     public:
         void OnRemoteDied(const wptr<IRemoteObject> &object) override;
     };

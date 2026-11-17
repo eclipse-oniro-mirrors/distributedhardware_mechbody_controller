@@ -27,6 +27,8 @@ namespace MechBodyController {
 namespace {
     const std::string TAG = "AniMechManagerStub";
     constexpr int32_t TRACK_MAX = 2;
+    static constexpr int32_t MIN_BATTERY_LEVEL = -1;
+    static constexpr int32_t MAX_BATTERY_LEVEL = 100;
 }
 
 int32_t AniMechManagerStub::OnRemoteRequest(uint32_t code,
@@ -113,6 +115,18 @@ int32_t AniMechManagerStub::SubscribeCallback(MessageParcel &data, MessageParcel
     return AniMechManager::GetInstance().SubscribeCallback(mechId, mechEventType);
 }
 
+int32_t AniMechManagerStub::BatteryLevelChangeCallback(MessageParcel &data, MessageParcel &reply)
+{
+    int32_t mechId = data.ReadInt32();
+    int32_t batteryLevel = data.ReadInt32();
+    bool isCharging = data.ReadBool();
+    if (batteryLevel < MIN_BATTERY_LEVEL || batteryLevel > MAX_BATTERY_LEVEL) {
+        HILOGE("invalid batteryLevel: %{public}d, drop", batteryLevel);
+        return NAPI_RECV_DATA_FAIL;
+    }
+    return AniMechManager::GetInstance().BatteryLevelChangeCallbackInvoke(mechId, batteryLevel, isCharging);
+}
+
 void AniMechManagerStub::InitMechManagerFunc()
 {
     mechManagerFuncMap_[IMechBodyControllerCode::ATTACH_STATE_CHANGE_CALLBACK] =
@@ -123,6 +137,8 @@ void AniMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::ROTATE_CALLBACK] = &AniMechManagerStub::RotatePromiseFulfillment;
     mechManagerFuncMap_[IMechBodyControllerCode::SEARCH_TARGET_CALLBACK] = &AniMechManagerStub::SearchTargetCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &AniMechManagerStub::SubscribeCallback;
+    mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
+        &AniMechManagerStub::BatteryLevelChangeCallback;
 }
 
 AniMechManagerStub::AniMechManagerStub()

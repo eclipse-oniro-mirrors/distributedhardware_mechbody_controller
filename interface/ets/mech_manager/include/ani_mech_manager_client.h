@@ -51,6 +51,8 @@ public:
     int32_t SendRotationAxesStatusChangeListenOn(sptr<AniMechManagerStub> callback);
 
     int32_t SendSubscribeCallbackStub(sptr<AniMechManagerStub> &callback, MechEventType mechEventType);
+
+    int32_t SendBatteryLevelListenOn(sptr<AniMechManagerStub> callback, int32_t mechId);
     
     void RemoveSubscribeCallback(MechEventType mechEventType);
 
@@ -116,6 +118,8 @@ public:
 
     int32_t GetRotationAxesStatus(const int32_t &mechId, RotationAxesStatus &axesStatus);
 
+    int32_t GetDeviceAdsorbState(int32_t mechId, AttachmentState &state);
+
     int32_t RotationAxesStatusChangeListenOn(sptr<AniMechManagerStub> callback);
 
     int32_t RotationAxesStatusChangeListenOff();
@@ -137,6 +141,10 @@ public:
     int32_t RegisterSubscribeChannel(sptr<AniMechManagerStub> &stub, MechEventType mechEventType);
 
     int32_t UnRegisterSubscribeChannel(MechEventType mechEventType);
+
+    int32_t RegisterBatteryChannel(sptr<AniMechManagerStub> &stub, int32_t mechId);
+ 
+    int32_t UnRegisterBatteryChannel();
 
     int32_t CheckAnyDeviceControlSupported(bool &isSupported);
 

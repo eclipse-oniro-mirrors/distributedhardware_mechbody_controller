@@ -51,6 +51,8 @@ public:
     int32_t SendRotationAxesStatusChangeListenOn(sptr<JsMechManagerStub> callback);
 
     int32_t SendSubscribeCallbackStub(sptr<JsMechManagerStub> &callback, MechEventType mechEventType);
+
+    int32_t SendBatteryLevelListenOn(sptr<JsMechManagerStub> callback, int32_t mechId);
     
     void RemoveSubscribeCallback(MechEventType mechEventType);
 
@@ -143,6 +145,12 @@ public:
         MechEventType mechEventType);
 
     int32_t UnRegisterSubscribeChannel(MechEventType mechEventType);
+
+    int32_t RegisterBatteryChannel(sptr<JsMechManagerStub> &stub, int32_t mechId);
+ 
+    int32_t UnRegisterBatteryChannel();
+
+    int32_t GetDeviceAdsorbState(int32_t mechId, AttachmentState &state);
 private:
     sptr <IRemoteObject> GetDmsProxy();
 

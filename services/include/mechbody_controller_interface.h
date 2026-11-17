@@ -72,6 +72,10 @@ public:
         ActionType actionType) = 0;
     virtual int32_t SubscribeCallback(sptr <IRemoteObject> &callback, MechEventType mechEventType) = 0;
     virtual int32_t UnSubscribeCallback(MechEventType mechEventType) = 0;
+    virtual int32_t GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state) = 0;
+
+    virtual int32_t RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId) = 0;
+    virtual int32_t UnRegisterBatteryLevelCallback() = 0;
 };
 } // namespace MechBodyController
 } // namespace OHOS

@@ -50,6 +50,13 @@ void MechControllerIpcDeathListener::OnRemoteDied(const wptr <IRemoteObject> &ob
         MechBodyControllerService::GetInstance().cmdChannels_.erase(tokenId_);
         return;
     }
+
+    if (RemoteObjectType::BATTERY_LEVEL_CALLBACK == objectType_) {
+        auto &service = MechBodyControllerService::GetInstance();
+        std::lock_guard<std::mutex> lock(service.batteryLevelCallbackMutex_);
+        service.batteryLevelCallback_.erase(tokenId_);
+        return;
+    }
 }
 }
 }

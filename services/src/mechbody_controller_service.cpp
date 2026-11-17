@@ -17,6 +17,7 @@
 
 #include "cJSON.h"
 #include <string>
+#include <vector>
 
 #include "accesstoken_kit.h"
 #include "ble_send_manager.h"
@@ -314,6 +315,7 @@ int32_t MechBodyControllerService::OnDeviceConnected(
 int32_t MechBodyControllerService::OnDeviceDisconnected(int32_t mechId)
 {
     HILOGI("enter. mechId %{public}d", mechId);
+    NotifyBatteryUnavailableOnDisconnect(mechId);
     std::lock_guard<std::mutex> lock(motionManagersMutex);
     if (motionManagers_.empty()) {
         HILOGD("motionManagers_ is empty.");
@@ -330,6 +332,25 @@ int32_t MechBodyControllerService::OnDeviceDisconnected(int32_t mechId)
         motionManagers_.erase(it);
     }
     return ERR_OK;
+}
+
+void MechBodyControllerService::NotifyBatteryUnavailableOnDisconnect(int32_t mechId)
+{
+    std::vector<std::pair<uint32_t, sptr<IRemoteObject>>> disconnectedCallbacks;
+    {
+        std::lock_guard<std::mutex> lock(batteryLevelCallbackMutex_);
+        if (!batteryLevelCallback_.empty()) {
+            HILOGI("mechId: %{public}d, callback count: %{public}zu",
+                mechId, batteryLevelCallback_.size());
+            for (const auto &it : batteryLevelCallback_) {
+                disconnectedCallbacks.emplace_back(it.first, it.second);
+            }
+            batteryLevelCallback_.clear();
+        }
+    }
+    for (const auto &cb : disconnectedCallbacks) {
+        NotifyBatteryLevelChangeToToken(cb.first, cb.second, mechId, -1, false);
+    }
 }
 
 int32_t MechBodyControllerService::CleanMotionManagers()
@@ -1379,6 +1400,127 @@ int32_t MechBodyControllerService::UnSubscribeCallback(MechEventType mechEventTy
         GetAnonymUint32(tokenId).c_str(), static_cast<int32_t>(mechEventType));
     std::lock_guard<std::mutex> lock(subscribeChannelMutex_);
     subscribeChannels_.erase(std::pair(tokenId, mechEventType));
+    return ERR_OK;
+}
+
+int32_t MechBodyControllerService::GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state)
+{
+    uint32_t tokenId = IPCSkeleton::GetCallingTokenID();
+    if (!IsSystemApp()) {
+        HILOGE("current app is not system app.");
+        return PERMISSION_DENIED;
+    }
+    if (mechId < 0) {
+        HILOGE("Invalid mech id");
+        return INVALID_MECH_ID;
+    }
+    HILOGI("start, tokenId: %{public}s; mechId: %{public}d;", GetAnonymUint32(tokenId).c_str(), mechId);
+    MechInfo mechInfo;
+    if (!MechConnectManager::GetInstance().GetMechBasicInfo(mechId, mechInfo)) {
+        HILOGE("device not found, mechId: %{public}d", mechId);
+        state = AttachmentState::UNKNOWN;
+        return DEVICE_NOT_CONNECTED;
+    }
+    state = mechInfo.state;
+    HILOGI("end, state: %{public}d", static_cast<int32_t>(state));
+    return ERR_OK;
+}
+ 
+int32_t MechBodyControllerService::RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId)
+{
+    uint32_t tokenId = IPCSkeleton::GetCallingTokenID();
+    HILOGI("start, tokenId: %{public}s, mechId: %{public}d", GetAnonymUint32(tokenId).c_str(), mechId);
+    if (callback == nullptr) {
+        HILOGE("callback is nullptr");
+        return INVALID_REMOTE_OBJECT;
+    }
+    if (!IsSystemApp()) {
+        HILOGE("current app is not system app.");
+        return PERMISSION_DENIED;
+    }
+    auto *batteryManager = BleSendManager::GetInstance().GetBatteryManager();
+    MechInfo targetMechInfo;
+    if (!MechConnectManager::GetInstance().GetMechBasicInfo(mechId, targetMechInfo)) {
+        HILOGE("mechId: %{public}d not connected", mechId);
+        return DEVICE_NOT_CONNECTED;
+    }
+    if (batteryManager == nullptr || !batteryManager->IsObserverRegistered()) {
+        HILOGE("mechId: %{public}d does not support battery service", mechId);
+        return DEVICE_NOT_SUPPORTED;
+    }
+    bool needRequestBattery = false;
+    {
+        std::lock_guard<std::mutex> lock(batteryLevelCallbackMutex_);
+        sptr<MechControllerIpcDeathListener> diedListener = new MechControllerIpcDeathListener();
+        diedListener->tokenId_ = tokenId;
+        diedListener->objectType_ = RemoteObjectType::BATTERY_LEVEL_CALLBACK;
+        callback->AddDeathRecipient(diedListener);
+        batteryLevelCallback_[tokenId] = callback;
+        int32_t cachedLevel = batteryManager->GetCachedBatteryLevel();
+        if (cachedLevel != BATTERY_LEVEL_NOT_QUERIED) {
+            bool isCharging = batteryManager->GetIsCharging();
+            NotifyBatteryLevelChangeToToken(tokenId, callback, mechId, cachedLevel, isCharging);
+        } else {
+            needRequestBattery = true;
+        }
+    }
+    if (needRequestBattery) {
+        batteryManager->RequestBatteryLevel();
+    }
+    return ERR_OK;
+}
+ 
+int32_t MechBodyControllerService::UnRegisterBatteryLevelCallback()
+{
+    uint32_t tokenId = IPCSkeleton::GetCallingTokenID();
+    HILOGI("start, tokenId: %{public}s;", GetAnonymUint32(tokenId).c_str());
+    {
+        std::lock_guard<std::mutex> lock(batteryLevelCallbackMutex_);
+        batteryLevelCallback_.erase(tokenId);
+    }
+    return ERR_OK;
+}
+ 
+void MechBodyControllerService::NotifyBatteryLevelChangeToToken(uint32_t tokenId,
+    const sptr<IRemoteObject> &callback, int32_t mechId, int32_t batteryLevel, bool isCharging)
+{
+    if (callback == nullptr) {
+        HILOGE("battery callback is nullptr for tokenId: %{public}s", GetAnonymUint32(tokenId).c_str());
+        return;
+    }
+    MessageParcel data;
+    if (!data.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN)) {
+        HILOGE("Write interface token failed");
+        return;
+    }
+    if (!data.WriteInt32(mechId)) {
+        HILOGE("Write mechId failed");
+        return;
+    }
+    if (!data.WriteInt32(batteryLevel)) {
+        HILOGE("Write batteryLevel failed");
+        return;
+    }
+    if (!data.WriteBool(isCharging)) {
+        HILOGE("Write isCharging failed");
+        return;
+    }
+    MessageParcel reply;
+    MessageOption option;
+    int32_t error = callback->SendRequest(
+        static_cast<uint32_t>(IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK), data, reply, option);
+    HILOGI("Send battery callback %{public}s, tokenId: %{public}s",
+        error == ERR_NONE ? "success" : "failed", GetAnonymUint32(tokenId).c_str());
+}
+ 
+int32_t MechBodyControllerService::NotifyBatteryLevelChange(int32_t mechId, int32_t batteryLevel, bool isCharging)
+{
+    HILOGI("mechId: %{public}d, batteryLevel: %{public}d, isCharging: %{public}d",
+        mechId, batteryLevel, isCharging);
+    std::lock_guard<std::mutex> lock(batteryLevelCallbackMutex_);
+    for (const auto &it : batteryLevelCallback_) {
+        NotifyBatteryLevelChangeToToken(it.first, it.second, mechId, batteryLevel, isCharging);
+    }
     return ERR_OK;
 }
 } // namespace MechBodyController

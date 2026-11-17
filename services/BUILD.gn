@@ -114,6 +114,7 @@ ohos_source_set("mechbody_service_sources") {
       "src/connect/bluetooth_state_adapter.cpp",
       "src/connect/bluetooth_state_listener.cpp",
       "src/connect/mc_connect_manager.cpp",
+      "src/connect/mc_battery_manager.cpp",
       "src/controller/mc_camera_tracking_controller.cpp",
       "src/controller/mc_camera_auto_center.cpp",
       "src/controller/mc_controller_ipc_death_listener.cpp",

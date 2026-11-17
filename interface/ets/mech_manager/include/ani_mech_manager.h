@@ -40,11 +40,13 @@ namespace MechBodyController {
 #define TRACKING_EVENT_INFO_CB  void(TrackingEventInfoTaihe const& info)
 #define ROT_AXES_STATE_CHANGE_INFO_CB  void(RotationAxesStateChangeInfoTaihe const& info)
 #define SUBSCRIBE_INFO_CB  void(MechEventInfoTaihe const& info)
+#define BATTERY_LEVEL_INFO_CB  void(BatteryLevelInfoTaihe const& info)
 
 using AttachStateChangeInfoTaihe = ::ohos::distributedHardware::mechanicManager::AttachStateChangeInfo;
 using TrackingEventInfoTaihe = ::ohos::distributedHardware::mechanicManager::TrackingEventInfo;
 using RotationAxesStateChangeInfoTaihe = ::ohos::distributedHardware::mechanicManager::RotationAxesStateChangeInfo;
 using MechEventInfoTaihe = ::ohos::distributedHardware::mechanicManager::MechEvent;
+using BatteryLevelInfoTaihe = ::ohos::distributedHardware::mechanicManager::BatteryLevelInfo;
 using AttachStateTaihe = ::ohos::distributedHardware::mechanicManager::AttachState;
 using TrackingEventTaihe = ::ohos::distributedHardware::mechanicManager::TrackingEvent;
 using MechInfoTaihe = ::ohos::distributedHardware::mechanicManager::MechInfo;
@@ -72,6 +74,7 @@ using AttachStateCBTaihe = ::taihe::callback<ACH_STATE_CHANGE_INFO_CB>;
 using TrackingEventCBTaihe = ::taihe::callback<TRACKING_EVENT_INFO_CB>;
 using RotationAxesCBTaihe = ::taihe::callback<ROT_AXES_STATE_CHANGE_INFO_CB>;
 using SubscribeCBTaihe = ::taihe::callback<SUBSCRIBE_INFO_CB>;
+using BatteryLevelCBTaihe = ::taihe::callback<BATTERY_LEVEL_INFO_CB>;
 
 struct AniRotatePrimiseFulfillmentParam {
     std::string cmdId;
@@ -102,6 +105,8 @@ public:
         const int32_t &result);
     int32_t SearchTargetCallback(std::string &cmdId, const int32_t &targetsNum, const int32_t &result);
     int32_t SubscribeCallback(const int32_t &mechId, const MechEventType &mechEvent);
+    int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
+        const bool &isCharging);
     void ExecuteCallbackTask(const SubscribeCBTaihe& callback, int32_t mechId, MechEventType mechEventType);
     void OnAttachStateChangeRemoteDied(const wptr <IRemoteObject> &object);
     void OnTrackingEventRemoteDied(const wptr <IRemoteObject> &object);
@@ -127,6 +132,7 @@ public:
     void GetCurrentAngles(int32_t mechId, EulerAnglesTaihe &out);
     void GetRotationLimits(int32_t mechId, RotationLimitsTaihe &limits);
     void GetRotationAxesStatus(int32_t mechId, RotationAxesStatusTaihe &out);
+    void GetDeviceAdsorbState(int32_t mechId, AttachStateTaihe &out);
     void OnRotationAxesStatusChange(const RotationAxesCBTaihe &callback);
     void OffRotationAxesStatusChange(const ::taihe::optional_view<RotationAxesCBTaihe> &callback);
     void SearchTarget(const TargetInfoTaihe &target, const SearchParamsTaihe &params, uintptr_t &promise);
@@ -136,6 +142,8 @@ public:
     void IsSupportAction(int32_t mechId, const ActionTypeTaihe &actionTypeTaihe, bool &isSupport);
     void DoAction(int32_t mechId, const ActionTypeTaihe &actionTypeTaihe, uintptr_t &promise);
     void Subscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
+    void OnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
+    void OffBatteryLevelChange(int32_t mechId, const ::taihe::optional_view<BatteryLevelCBTaihe> &callback);
     void UnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
     void IsControlSupported(
         const ::taihe::optional_view<MechDeviceTypeTaihe> &mechDeviceTypeTaihe, bool &isControlSupported);
@@ -149,11 +157,14 @@ private:
     int32_t ExecuteSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
     int32_t ExecuteUnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes,
         const SubscribeCBTaihe &callback);
+    int32_t ExecuteOnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
+    int32_t ExecuteOffBatteryLevelChange(int32_t mechId, const ::taihe::optional_view<BatteryLevelCBTaihe> &callback);
 
     bool InitAttachStateChangeStub();
     bool InitTrackingEventStub();
     bool InitRotationAxesStatusChangeStub();
     bool InitBaseChannel();
+    bool InitBatteryLevelStub();
 
     void ProcessOnResultCode(int32_t &result);
     void ProcessOffResultCode(int32_t &result);
@@ -187,6 +198,8 @@ private:
     sptr<AniMechManagerStub> cmdChannel_  { nullptr };;
     std::mutex baseChannelMutex_;
     sptr<AniMechManagerStub> baseChannel_  { nullptr };;
+    std::mutex batteryLevelStubMutex_;
+    sptr<AniMechManagerStub> batteryLevelStub_  { nullptr };;
     std::mutex mechClientMutex_;
     std::shared_ptr<AniMechClient> mechClient_  { nullptr };
 
@@ -204,6 +217,8 @@ private:
     std::shared_ptr<OHOS::AppExecFwk::EventHandler> mainHandler_ { nullptr };
     std::mutex subscribeCallbackMutex_;
     std::map<MechEventType, std::vector<SubscribeCBTaihe>> subscribeCallback_;
+    std::mutex batteryLevelCallbackMutex_;
+    std::map<int32_t, std::vector<BatteryLevelCBTaihe>> batteryLevelCallback_;
 
     class AniAttachStateChangeStubDeathListener : public IRemoteObject::DeathRecipient {
     public:
@@ -225,6 +240,11 @@ private:
         void OnRemoteDied(const wptr<IRemoteObject> &object) override;
     };
     class AniBaseChannelDeathListener : public IRemoteObject::DeathRecipient {
+    public:
+        void OnRemoteDied(const wptr<IRemoteObject> &object) override;
+    };
+
+    class AniBatteryLevelStubDeathListener : public IRemoteObject::DeathRecipient {
     public:
         void OnRemoteDied(const wptr<IRemoteObject> &object) override;
     };

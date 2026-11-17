@@ -600,6 +600,34 @@ int32_t AniMechClient::GetRotationAxesStatus(const int32_t &mechId, RotationAxes
     return result;
 }
 
+int32_t AniMechClient::GetDeviceAdsorbState(int32_t mechId, AttachmentState &state)
+{
+    sptr <IRemoteObject> remote = GetDmsProxy();
+    if (remote == nullptr) {
+        return MECH_GET_SAMGR_EXCEPTION;
+    }
+    MessageParcel data;
+    if (!data.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    if (!data.WriteInt32(mechId)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    MessageParcel reply;
+    MessageOption option;
+    int32_t error = remote->SendRequest(
+        static_cast<int32_t>(IMechBodyControllerCode::GET_DEVICE_ADSORB_STATE),
+        data, reply, option);
+    if (error != ERR_NONE) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    int32_t result = reply.ReadInt32();
+    if (result == ERR_OK) {
+        state = static_cast<AttachmentState>(reply.ReadInt32());
+    }
+    return result;
+}
+
 int32_t AniMechClient::RotationAxesStatusChangeListenOn(sptr<AniMechManagerStub> callback)
 {
     sptr <IRemoteObject> remote = GetDmsProxy();
@@ -873,6 +901,43 @@ int32_t AniMechClient::UnRegisterSubscribeChannel(MechEventType mechEventType)
     return unRegisterResult;
 }
 
+int32_t AniMechClient::RegisterBatteryChannel(sptr<AniMechManagerStub> &stub, int32_t mechId)
+{
+    sptr<IRemoteObject> remote = GetDmsProxy();
+    if (remote == nullptr || SubscribeMechAbility() != ERR_OK) {
+        HILOGE("RegisterBatteryChannel failed, remote is null or SubscribeMechAbility failed");
+        return MECH_GET_SAMGR_EXCEPTION;
+    }
+    int32_t res = systemAbilityStatusChangeListener_->SendBatteryLevelListenOn(stub, mechId);
+    HILOGI("SendBatteryLevelListenOn result: %{public}d", res);
+    return res;
+}
+ 
+int32_t AniMechClient::UnRegisterBatteryChannel()
+{
+    sptr<IRemoteObject> remote = GetDmsProxy();
+    if (remote == nullptr) {
+        HILOGE("UnRegisterBatteryChannel failed, remote is nullptr");
+        return MECH_GET_SAMGR_EXCEPTION;
+    }
+    MessageParcel data;
+    if (!data.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    MessageParcel reply;
+    MessageOption option;
+    int32_t error = remote->SendRequest(
+        static_cast<int32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_OFF),
+        data, reply, option);
+    HILOGI("UnRegisterBatteryChannel SendRequest error: %{public}d", error);
+    if (error != ERR_NONE) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    int32_t result = reply.ReadInt32();
+    HILOGI("UnRegisterBatteryChannel reply result: %{public}d", result);
+    return result;
+}
+
 sptr <IRemoteObject> AniMechClient::GetDmsProxy()
 {
     auto samgrProxy = SystemAbilityManagerClient::GetInstance().GetSystemAbilityManager();
@@ -1131,6 +1196,42 @@ int32_t AniSystemAbilityStatusChangeListener::SendSubscribeCallbackStub(sptr<Ani
         return NAPI_SEND_DATA_FAIL;
     }
     return reply.ReadInt32();
+}
+
+int32_t AniSystemAbilityStatusChangeListener::SendBatteryLevelListenOn(
+    sptr<AniMechManagerStub> callback, int32_t mechId)
+{
+    sptr<IRemoteObject> remote = GetDmsProxy();
+    if (remote == nullptr) {
+        HILOGE("SendBatteryLevelListenOn failed, remote is nullptr");
+        return MECH_GET_SAMGR_EXCEPTION;
+    }
+    MessageParcel data;
+    if (!data.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN)) {
+        HILOGE("SendBatteryLevelListenOn WriteInterfaceToken failed");
+        return NAPI_SEND_DATA_FAIL;
+    }
+    CHECK_POINTER_RETURN_VALUE(callback, INVALID_PARAMETERS_ERR, "callback");
+    if (!data.WriteRemoteObject(callback->AsObject())) {
+        HILOGE("SendBatteryLevelListenOn WriteRemoteObject failed");
+        return NAPI_SEND_DATA_FAIL;
+    }
+    if (!data.WriteInt32(mechId)) {
+        HILOGE("SendBatteryLevelListenOn WriteInt32 mechId failed");
+        return NAPI_SEND_DATA_FAIL;
+    }
+    MessageParcel reply;
+    MessageOption option;
+    int32_t error = remote->SendRequest(
+        static_cast<int32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_ON),
+        data, reply, option);
+    HILOGI("SendBatteryLevelListenOn SendRequest error: %{public}d", error);
+    if (error != ERR_NONE) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    int32_t result = reply.ReadInt32();
+    HILOGI("SendBatteryLevelListenOn reply result: %{public}d", result);
+    return result;
 }
 
 void AniSystemAbilityStatusChangeListener::RemoveSubscribeCallback(MechEventType mechEventType)

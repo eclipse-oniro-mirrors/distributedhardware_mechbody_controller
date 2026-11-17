@@ -76,6 +76,10 @@ void AniMechManager::ProcessOnResultCode(int32_t &result)
         ::taihe::set_business_error(result, "Device not connected");
         return;
     }
+    if (result == MechNapiErrorCode::DEVICE_NOT_SUPPORTED) {
+        ::taihe::set_business_error(result, "Device not supported");
+        return;
+    }
     if (result != ERR_OK) {
         ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
         return;
@@ -626,6 +630,34 @@ void AniMechManager::GetRotationAxesStatus(int32_t mechId, RotationAxesStatusTai
         return;
     }
     RotationAxesStatusToAni(axesStatus, out);
+}
+
+void AniMechManager::GetDeviceAdsorbState(int32_t mechId, AttachStateTaihe &out)
+{
+    if (CheckDeviceL1()) {
+        return;
+    }
+    if (!IsSystemApp()) {
+        ::taihe::set_business_error(MechNapiErrorCode::PERMISSION_DENIED, "Not system application");
+        return;
+    }
+    if (!InitMechClient()) {
+        HILOGE("Init Mech Client failed.");
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    AttachmentState state = AttachmentState::UNKNOWN;
+    int32_t result = mechClient_->GetDeviceAdsorbState(mechId, state);
+    HILOGE("result: %{public}d;", result);
+    if (result == MechNapiErrorCode::DEVICE_NOT_CONNECTED) {
+        ::taihe::set_business_error(MechNapiErrorCode::DEVICE_NOT_CONNECTED, "Device not connected");
+        return;
+    }
+    if (result != ERR_OK) {
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    out = AttachStateTaihe::from_value(static_cast<int32_t>(state));
 }
 
 void AniMechManager::OnRotationAxesStatusChange(const RotationAxesCBTaihe &callback)
