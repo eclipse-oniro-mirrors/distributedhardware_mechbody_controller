@@ -69,6 +69,7 @@ namespace {
     constexpr float MIDDLE_MIN = 0.45f;
     constexpr float FACE_OFFSET = 0.1f;
     constexpr float BODY_OFFSET = 0.1f;
+    constexpr float FACE_PARAM_OFFSET = 0.4f;
     constexpr int16_t STICK_BASE = 300;
     constexpr float UP_LIMIT = 1.2f;
     constexpr float DOWN_LIMIT = 0.2f;
@@ -176,7 +177,7 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
 {
     auto params = std::make_shared<TrackingFrameParams>(trackingFrameParams);
     CalcRoiRotate(params, sensorRotation_);
-    BodyRoiOffset(params, sensorRotation_);
+    TargetRoiOffset(params, sensorRotation_);
     params->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
     if (currentCameraInfo_ == nullptr) {
         HILOGW("currentCameraInfo_ is nullptr in HandleTrackingFrame");
@@ -252,14 +253,38 @@ void McCameraTrackingController::CalcRoiRotate(std::shared_ptr<TrackingFramePara
     }
 }
 
-// 人体偏移逻辑原样复制，无修改
-void McCameraTrackingController::BodyRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot)
+// 分发时按设备构造跟踪帧：仅人脸帧 + WHEEL_BASE 且小艺前台时，在独立拷贝上做横竖屏偏移
+std::shared_ptr<TrackingFrameParams> McCameraTrackingController::BuildDeviceTrackingParams(
+    const std::shared_ptr<MotionManager> &motionManager,
+    const std::shared_ptr<TrackingFrameParams> &params)
+{
+    std::shared_ptr<TrackingFrameParams> result = params;
+    bool isFace = params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE);
+    if (isFace && motionManager != nullptr &&
+        motionManager->GetDeviceType() == static_cast<uint8_t>(MechType::WHEEL_BASE) &&
+        motionManager->IsCeliaForeground()) {
+        result = std::make_shared<TrackingFrameParams>(*params);
+        TargetRoiOffset(result, sensorRotation_);
+        setTrackingLimit(result->roi);
+    }
+    result->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
+    return result;
+}
+
+//由于体验问题对相机后台和小艺桌面精灵前台的人脸进行偏移人脸比例的0.4,使人脸和手机横屏/竖屏状态平行
+void McCameraTrackingController::TargetRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot)
 {
     if (params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY)) {
         if (rot == MobileRotation::UP || rot == MobileRotation::DOWN) {
             params->roi.x = params->roi.x - BODY_OFFSET;
         } else if (rot == MobileRotation::RIGHT || rot == MobileRotation::LEFT) {
             params->roi.y = params->roi.y + BODY_OFFSET;
+        }
+    } else if (params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE)) {
+        if (rot == MobileRotation::RIGHT) {
+            params->roi.x = params->roi.x + FACE_PARAM_OFFSET*params->roi.width;
+        } else if (rot == MobileRotation::LEFT){
+            params->roi.x = params->roi.x - FACE_PARAM_OFFSET*params->roi.width;
         }
     }
 }
@@ -849,8 +874,8 @@ int32_t McCameraTrackingController::UpdateMotionsWithTrackingData(
             HILOGE("MotionManager not exists; mechId: %{public}d", mechId);
             continue;
         }
-
-        int32_t setResult = motionManager->SetMechCameraTrackingFrame(params);
+        int32_t setResult = motionManager->SetMechCameraTrackingFrame(
+            BuildDeviceTrackingParams(motionManager, params));
         HILOGI("Set tracking info for mech id: %{public}d; result: %{public}s; code: %{public}d",
                mechId, setResult == ERR_OK ? "success" : "failed", setResult);
     }
@@ -1478,6 +1503,53 @@ void McCameraTrackingController::AdjustROI(ROI &roi, CameraStandard::Rect &rect,
     }
 }
 
+void McCameraTrackingController::SmoothOffsetValue(float &offset, const float &targetOffset)
+{
+    if (std::abs(targetOffset - offset) <= TRACKING_LOST_CHECK) {
+        return;
+    }
+    if (targetOffset > offset) {
+        offset += OFFSET_VALUE_BASE_1;
+    } else if (targetOffset < offset) {
+        offset -= OFFSET_VALUE_BASE_1;
+    }
+}
+
+void McCameraTrackingController::UpdateStickState()
+{
+    if (isStick_) {
+        return;
+    }
+    auto currentTime = std::chrono::steady_clock::now();
+    auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastStickTime_).count();
+    if (timeDiff > TRACKING_STATE_TIME) {
+        isStick_ = true;
+    }
+}
+
+void McCameraTrackingController::ApplyRoiOffset(ROI &roi, CameraType cameraType, bool isFace, bool isBody)
+{
+    bool isVerticalRotation = sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::DOWN;
+    bool isHorizontalRotation = sensorRotation_ == MobileRotation::LEFT || sensorRotation_ == MobileRotation::RIGHT;
+    if (isStick_) {
+        if (isVerticalRotation) {
+            AddYOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AddYOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        } else if (isHorizontalRotation) {
+            AddXOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AddXOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        }
+    } else {
+        if (isVerticalRotation) {
+            AdjustYOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AdjustYOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        } else if (isHorizontalRotation) {
+            AdjustXOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AdjustXOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        }
+    }
+}
+
 void McCameraTrackingController::AdjustOffset(std::shared_ptr<TrackingFrameParams> &trackingParams,
     CameraType cameraType)
 {
@@ -1485,53 +1557,13 @@ void McCameraTrackingController::AdjustOffset(std::shared_ptr<TrackingFrameParam
         HILOGW("trackingParams is nullptr.");
         return;
     }
-    if (std::abs(targetVertical_ - vertical_) > TRACKING_LOST_CHECK) {
-        if (targetVertical_ > vertical_) {
-            vertical_ += OFFSET_VALUE_BASE_1;
-        } else if (targetVertical_ < vertical_) {
-            vertical_ -= OFFSET_VALUE_BASE_1;
-        }
-    }
-
-    if (std::abs(targetHorizontal_ - horizontal_) > TRACKING_LOST_CHECK) {
-        if (targetHorizontal_ > horizontal_) {
-            horizontal_ += OFFSET_VALUE_BASE_1;
-        } else if (targetHorizontal_ < horizontal_) {
-            horizontal_ -= OFFSET_VALUE_BASE_1;
-        }
-    }
-
-    if (!isStick_) {
-        auto currentTime = std::chrono::steady_clock::now();
-        auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastStickTime_).count();
-        if (timeDiff > TRACKING_STATE_TIME) {
-            isStick_ = true;
-        }
-    }
-
+    SmoothOffsetValue(vertical_, targetVertical_);
+    SmoothOffsetValue(horizontal_, targetHorizontal_);
+    UpdateStickState();
     bool isFace = trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE);
     bool isBody = trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY);
-    if (isStick_) {
-        if (sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::DOWN) {
-            AddYOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AddYOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        } else if (sensorRotation_ == MobileRotation::LEFT || sensorRotation_ == MobileRotation::RIGHT) {
-            AddXOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AddXOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        }
-    } else {
-        if (sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::DOWN) {
-            AdjustYOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AdjustYOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        } else if (sensorRotation_ == MobileRotation::LEFT || sensorRotation_ == MobileRotation::RIGHT) {
-            AdjustXOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AdjustXOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        }
-    }
-
+    ApplyRoiOffset(trackingParams->roi, cameraType, isFace, isBody);
     setTrackingLimit(trackingParams->roi);
-
-    trackingParams->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
 }
 
 void McCameraTrackingController::setTrackingLimit(ROI &roi)

@@ -605,7 +605,7 @@ void MotionManager::RegisterAbilityStateChangeListener()
         appChangeListener_ = nullptr;
         return;
     }
-
+    isCeliaForeground_.store(MechJudgeCeliaFront());
     HILOGI("RegisterAbilityStateChangeListener success");
 }
 
@@ -3497,6 +3497,10 @@ void AbilityStateListener::OnAppStateChanged(const AppExecFwk::AppStateData &app
     HILOGI("bundleName:%{public}s, state:%{public}d", appStateData.bundleName.c_str(), appStateData.state);
     if (appStateData.bundleName == SCENEBOARD_BUNDLE_NAME) {
         return;
+    }
+    if (appStateData.bundleName == CELIA_BUNDLE_NAME) {
+        motionManager_->SetCeliaForeground(appStateData.state == APP_STATE_FOREGROUND);
+        HILOGI("Celia foreground state: %{public}d", motionManager_->IsCeliaForeground());
     }
     motionManager_->UpdateAppForegroundInfo(appStateData);
 }

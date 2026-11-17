@@ -143,7 +143,7 @@ public:
     void HandleTrackingFrame(TrackingFrameParams trackingFrameParams);
     void DispatchTrackingFrameToManagers(std::shared_ptr<TrackingFrameParams> &params);
     void CalcRoiRotate(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot);
-    void BodyRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot);
+    void TargetRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot);
     int32_t OnCaptureSessionConfiged(const CameraStandard::CaptureSessionInfo& captureSessionInfo);
     int32_t OnMetadataInfo(const std::shared_ptr<OHOS::Camera::CameraMetadata>& result);
     void UpdateCurrentCameraInfoByCaptureSessionInfo(
@@ -177,6 +177,9 @@ public:
     void UpdateScreenInfo(MobileRotation sensorRotation);
 
 private:
+    std::shared_ptr<TrackingFrameParams> BuildDeviceTrackingParams(
+        const std::shared_ptr<MotionManager> &motionManager,
+        const std::shared_ptr<TrackingFrameParams> &params);
     int32_t ComputeFov();
     void SensorCutForVideoMode(float &sensorWidthCut, float &sensorHighCut);
     bool IsCurrentFocus();
@@ -232,6 +235,9 @@ private:
     void setTrackingLimit(ROI &roi);
     void AddYOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
     void AddXOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
+    void SmoothOffsetValue(float &offset, const float &targetOffset);
+    void UpdateStickState();
+    void ApplyRoiOffset(ROI &roi, CameraType cameraType, bool isFace, bool isBody)
     void AdjustYOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
     void AdjustXOffset(ROI &roi, CameraType cameraType, float &offsetX, float &offsetY, bool &isFace, bool &isBody);
     bool IsCurrentTrackingEnabled();

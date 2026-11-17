@@ -1873,11 +1873,13 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_001, TestSize.Level1)
     controller.sensorRotation_ = MobileRotation::UP;
     controller.lastStickTime_ = std::chrono::steady_clock::now();
 
-    // When: AdjustOffset runs the stick+UP path (AddYOffset)
-    // vertical_=0.01 after increment; AddYOffset: xOffset=-0.01+FACE_OFFSET(0.1)=0.09; roi.x=0.5+0.09=0.59
+    // When: AdjustOffset runs the stick+UP path via SmoothOffsetValue/UpdateStickState/ApplyRoiOffset (AddYOffset)
+    // vertical_=0.01 after SmoothOffsetValue increment; AddYOffset: xOffset=-0.01+FACE_OFFSET(0.1)=0.09; roi.x=0.5+0.09=0.59
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
-    // Then: verify the actual side effects — objectType reset and roi shifted
-    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER));
+    // Then: verify the actual side effects — SmoothOffsetValue increments vertical_ and roi shifted
+    // objectType 复位已下沉到 BuildDeviceTrackingParams 分发时执行，此处保持 FACE 传递给分发层判定
+    EXPECT_FLOAT_EQ(controller.vertical_, 0.01f);
+    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE));
     EXPECT_FLOAT_EQ(trackingParams->roi.x, 0.59f);
     EXPECT_FLOAT_EQ(trackingParams->roi.y, 0.5f);
 
@@ -1907,10 +1909,12 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_002, TestSize.Level1)
     controller.sensorRotation_ = MobileRotation::UP;
     controller.lastStickTime_ = std::chrono::steady_clock::now();
 
-    // When: AdjustOffset runs the stick+UP path (AddYOffset); vertical_ decremented, x-offset clamped to -0.2
+    // When: AdjustOffset runs the stick+UP path (AddYOffset); SmoothOffsetValue decrements vertical_, x-offset clamped to -0.2
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
-    // Then: verify the actual side effects
-    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER));
+    // Then: verify the actual side effects — SmoothOffsetValue decrements vertical_
+    EXPECT_FLOAT_EQ(controller.vertical_, 0.49f);
+    // objectType 复位已下沉到 BuildDeviceTrackingParams 分发时执行，此处保持 FACE
+    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE));
     EXPECT_FLOAT_EQ(trackingParams->roi.x, 0.3f);
     EXPECT_FLOAT_EQ(trackingParams->roi.y, 0.5f);
 
@@ -1941,10 +1945,12 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_003, TestSize.Level1)
     controller.lastStickTime_ = std::chrono::steady_clock::now();
 
     // When: AdjustOffset runs the stick+UP path (AddYOffset);
-    // horizontal_=0.01; yOffset=-0.01; xOffset=0+FACE_OFFSET=0.1
+    // SmoothOffsetValue: horizontal_=0.01; yOffset=-0.01; xOffset=0+FACE_OFFSET=0.1
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
-    // Then: verify the actual side effects — roi.x=0.5+0.1=0.6; roi.y=0.5-0.01=0.49
-    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER));
+    // Then: verify the actual side effects — horizontal_ incremented; roi.x=0.5+0.1=0.6; roi.y=0.5-0.01=0.49
+    EXPECT_FLOAT_EQ(controller.horizontal_, 0.01f);
+    // objectType 复位已下沉到 BuildDeviceTrackingParams 分发时执行，此处保持 FACE
+    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE));
     EXPECT_FLOAT_EQ(trackingParams->roi.x, 0.6f);
     EXPECT_FLOAT_EQ(trackingParams->roi.y, 0.49f);
 
@@ -1975,10 +1981,12 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_004, TestSize.Level1)
     controller.lastStickTime_ = std::chrono::steady_clock::now();
 
     // When: AdjustOffset runs the stick+UP path (AddYOffset);
-    // horizontal_=0.5-0.01=0.49; yOffset=-0.49 clamped to -0.2; xOffset=0+FACE_OFFSET=0.1
+    // SmoothOffsetValue: horizontal_=0.5-0.01=0.49; yOffset=-0.49 clamped to -0.2; xOffset=0+FACE_OFFSET=0.1
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
-    // Then: verify the actual side effects — roi.x=0.5+0.1=0.6; roi.y=0.5+(-0.2)=0.3
-    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER));
+    // Then: verify the actual side effects — horizontal_ decremented; roi.x=0.5+0.1=0.6; roi.y=0.5+(-0.2)=0.3
+    EXPECT_FLOAT_EQ(controller.horizontal_, 0.49f);
+    // objectType 复位已下沉到 BuildDeviceTrackingParams 分发时执行，此处保持 FACE
+    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE));
     EXPECT_FLOAT_EQ(trackingParams->roi.x, 0.6f);
     EXPECT_FLOAT_EQ(trackingParams->roi.y, 0.3f);
 
@@ -2010,9 +2018,10 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_005, TestSize.Level1)
 
     // When: AdjustOffset runs the non-stick+UP path (AdjustYOffset)
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
-    // Then: verify the actual side effects — isStick_ remains false (time guard) and objectType reset
+    // Then: verify the actual side effects — UpdateStickState time guard keeps isStick_ false
+    // objectType 复位已下沉到 BuildDeviceTrackingParams 分发时执行，此处保持 FACE 传递给分发层判定
     EXPECT_FALSE(controller.isStick_);
-    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER));
+    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE));
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustOffset_005 end" << std::endl;
 }
@@ -2030,7 +2039,7 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_006, TestSize.Level1)
     std::shared_ptr<TrackingFrameParams> trackingParams = std::make_shared<TrackingFrameParams>();
     trackingParams->roi.x = 0.5f;
     trackingParams->roi.y = 0.5f;
-    // 预设非默认 objectType，验证 AdjustOffset 重置为 MSG_OBJ_OTHER 的副作用
+    // 预设非默认 objectType，验证 AdjustOffset 保留 objectType 原样传递给分发层判定
     trackingParams->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE);
     controller.targetVertical_ = 0.0f;
     controller.vertical_ = 0.0f;
@@ -2041,10 +2050,10 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustOffset_006, TestSize.Level1)
     controller.lastStickTime_ = std::chrono::steady_clock::now();
 
     controller.AdjustOffset(trackingParams, CameraType::FRONT);
-    // LEFT 旋转 + isStick=false：进入 AdjustXOffset 非 stick 路径，offsets 全为 0、roi 居中，时间守卫保持 false
+    // LEFT 旋转 + isStick=false：ApplyRoiOffset 进入 AdjustXOffset 非 stick 路径，offsets 全为 0、roi 居中，时间守卫保持 false
     EXPECT_FALSE(controller.isStick_);
-    // 验证 AdjustOffset 的实际副作用：objectType 被重置为 MSG_OBJ_OTHER
-    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER));
+    // objectType 复位已下沉到 BuildDeviceTrackingParams 分发时执行，此处保持 FACE 传递给分发层判定
+    EXPECT_EQ(trackingParams->objectType, static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE));
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustOffset_006 end" << std::endl;
 }

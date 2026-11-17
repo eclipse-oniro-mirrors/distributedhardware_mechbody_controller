@@ -156,6 +156,16 @@ public:
     void UpdateAppForegroundInfo(const AppExecFwk::AppStateData &appStateData);
     void UpdateEndtimeAndCompute();
 
+public:
+    bool IsCeliaForeground() const
+    {
+        return isCeliaForeground_.load();
+    }
+    void SetCeliaForeground(bool isForeground)
+    {
+        isCeliaForeground_.store(isForeground);
+    }
+
 private:
     void MMIKeyEvent(CameraKeyEvent eventType);
     void JudgingYawLimit(RotateDegreeLimit& limit);
@@ -294,6 +304,7 @@ private:
     bool deviceBaseInfoReady_ = false;
     bool isFirstConnect_ = false;
     bool isFirstConnectWheelBase_ = false;
+    std::atomic<bool> isCeliaForeground_{false};
     uint32_t deviceIdentifier_ = 0x00000000;
     sptr<AppExecFwk::IApplicationStateObserver> appChangeListener_;
     std::set<AppForegroundInfo> appForegroundInfos_;
