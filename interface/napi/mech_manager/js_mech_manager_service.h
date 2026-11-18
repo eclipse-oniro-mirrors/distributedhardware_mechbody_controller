@@ -123,7 +123,7 @@ public:
     std::map<std::string, std::shared_ptr<RotatePrimiseFulfillmentParam>> searchTargetCallback_;
     std::mutex subscribeCallbackMutex_;
     std::map<MechEventType, std::set<CallbackFunctionInfo>> subscribeCallback_;
-std::mutex batteryLevelCallbackMutex_;
+    std::mutex batteryLevelCallbackMutex_;
     std::map<int32_t, std::set<CallbackFunctionInfo>> batteryLevelCallback_;
     std::mutex connectCallbackMutex_;
     std::map<std::string, std::shared_ptr<RotatePrimiseFulfillmentParam>> connectCallback_;

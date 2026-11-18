@@ -307,7 +307,7 @@ void MechManager::ProcessOnResultCode(napi_env env, int32_t &result)
             "System exception");
         return;
     }
-if (result == MechNapiErrorCode::DEVICE_NOT_SUPPORTED) {
+    if (result == MechNapiErrorCode::DEVICE_NOT_SUPPORTED) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::DEVICE_NOT_SUPPORTED).c_str(), "Device not supported");
         return;
     }
@@ -3002,7 +3002,7 @@ napi_value Init(napi_env env, napi_value exports)
         DECLARE_NAPI_FUNCTION("doAction", MechManager::DoAction),
         DECLARE_NAPI_FUNCTION("subscribe", MechManager::Subscribe),
         DECLARE_NAPI_FUNCTION("unSubscribe", MechManager::UnSubscribe),
-DECLARE_NAPI_FUNCTION("onBatteryLevelChange", MechManager::OnBatteryLevelChange),
+        DECLARE_NAPI_FUNCTION("onBatteryLevelChange", MechManager::OnBatteryLevelChange),
         DECLARE_NAPI_FUNCTION("offBatteryLevelChange", MechManager::OffBatteryLevelChange),
         DECLARE_NAPI_FUNCTION("getDeviceAdsorbState", MechManager::GetDeviceAdsorbState),
         DECLARE_NAPI_FUNCTION("connectDevice", MechManager::ConnectDevice),
