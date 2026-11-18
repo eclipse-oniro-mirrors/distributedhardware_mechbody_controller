@@ -215,11 +215,10 @@ void SubscribeInner(::taihe::array_view<MechEventTypeTaihe> events,
     AniMechManager::GetInstance().Subscribe(events, callback);
 }
 
-void UnSubscribeInner(::taihe::array_view<MechEventTypeTaihe> events,
-    ::taihe::callback_view<void(MechEventInfoTaihe const&)> callback)
+void UnSubscribeInner(::taihe::array_view<MechEventTypeTaihe> events)
 {
     HILOGI("unSubscribe inner begin!");
-    AniMechManager::GetInstance().UnSubscribe(events, callback);
+    AniMechManager::GetInstance().UnSubscribe(events);
 }
 
 void OnBatteryLevelChangeInner(int32_t mechId, ::taihe::callback_view<void(BatteryLevelInfoTaihe const&)> callback)
@@ -240,6 +239,22 @@ bool IsControlSupportedInner(::taihe::optional_view<MechDeviceTypeTaihe> mechDev
     bool isControlSupported = false;
     AniMechManager::GetInstance().IsControlSupported(mechDeviceTypeTaihe, isControlSupported);
     return isControlSupported;
+}
+
+uintptr_t ConnectDeviceInner(AddressInfoTaihe const& addrInfo, ConnectParamTaihe const& connectParam)
+{
+    HILOGI("connectDevice inner begin!");
+    uintptr_t promise = 0;
+    AniMechManager::GetInstance().ConnectDevice(addrInfo, connectParam, promise);
+    return promise;
+}
+
+uintptr_t DisconnectDeviceInner(int32_t mechId)
+{
+    HILOGI("disconnectDevice inner begin!");
+    uintptr_t promise = 0;
+    AniMechManager::GetInstance().DisconnectDevice(mechId, promise);
+    return promise;
 }
 }  // namespace
 
@@ -279,5 +294,7 @@ TH_EXPORT_CPP_API_OnBatteryLevelChangeInner(OnBatteryLevelChangeInner);
 TH_EXPORT_CPP_API_OffBatteryLevelChangeInner(OffBatteryLevelChangeInner);
 TH_EXPORT_CPP_API_IsControlSupportedInner(IsControlSupportedInner);
 TH_EXPORT_CPP_API_GetDeviceAdsorbStateInner(GetDeviceAdsorbStateInner);
+TH_EXPORT_CPP_API_ConnectDeviceInner(ConnectDeviceInner);
+TH_EXPORT_CPP_API_DisconnectDeviceInner(DisconnectDeviceInner);
 // NOLINTEND
 

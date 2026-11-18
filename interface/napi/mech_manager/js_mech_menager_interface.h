@@ -38,7 +38,9 @@ public:
 
     virtual int32_t SubscribeCallback(MessageParcel &data, MessageParcel &reply) = 0;
 
-    virtual int32_t BatteryLevelChangeCallback(MessageParcel &data, MessageParcel &reply) = 0;
+virtual int32_t BatteryLevelChangeCallback(MessageParcel &data, MessageParcel &reply) = 0;
+
+    virtual int32_t ConnectCallback(MessageParcel &data, MessageParcel &reply) = 0;
 };
 } // namespace MechBodyController
 } // namespace OHOS

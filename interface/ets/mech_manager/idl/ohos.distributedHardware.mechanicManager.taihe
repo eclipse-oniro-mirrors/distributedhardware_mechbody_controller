@@ -66,7 +66,7 @@ enum SpeedGear : i32 {
     MIDDLE_SPEED = 1,
     HIGH_SPEED = 2
 }
-
+ 
 enum MarchingMode : i32 {
     TURN_THEN_MOVE = 0,
     TURNING_MOVING = 1,
@@ -98,7 +98,7 @@ enum ActionType : i32 {
     LOW_POWER = 2005,
     THINKING = 2006
 }
-
+ 
 enum MechEventType : i32 {
     DEVICE_ADSORBED = 0,
     DEVICE_UNADSORBED = 1,
@@ -106,14 +106,14 @@ enum MechEventType : i32 {
     REACH_OBSTACLE = 3,
     LOW_POWER = 4,
 }
-
+ 
 struct MoveParams {
     distance: i32;
     angle: f64;
     speedGear: Optional<SpeedGear>;
     mode: Optional<MarchingMode>;
 }
-
+ 
 struct SpeedParams {
     speed: i32;
     angle: f64;
@@ -162,6 +162,24 @@ struct SearchParams {
 struct SearchResult {
     targetCount: i32;
 }
+
+enum AddressType : i32 {
+    BLE_ADDR = 0,
+    CLASSIC_ADDR = 1,
+    UNKNOWN_ADDR = 2
+}
+
+struct AddressInfo {
+    address: String;
+    addressType: AddressType;
+}
+
+struct ConnectParam {
+    deviceName: String;
+    identifier: i32;
+    custdata: String;
+}
+
 enum Operation : i32 {
     CONNECT = 0,
     DISCONNECT = 1
@@ -279,16 +297,16 @@ function SearchTargetInner(target: TargetInfo, params: SearchParams):  @sts_type
 
 @rename("move")
 function MoveInner(mechId: i32, moveParams: MoveParams): @sts_type("Promise<Result>") Opaque;
-
+ 
 @rename("moveBySpeed")
 function MoveBySpeedInner(mechId: i32, speedParams: SpeedParams, duration: i32): @sts_type("Promise<Result>") Opaque;
-
+ 
 @rename("turnBySpeed")
 function TurnBySpeedInner(mechId: i32, angleSpeed: f64, duration: i32): @sts_type("Promise<Result>") Opaque;
-
+ 
 @rename("isSupportAction")
 function IsSupportActionInner(mechId: i32, actionType: ActionType): bool;
-
+ 
 @rename("doAction")
 function DoActionInner(mechId: i32, actionType: ActionType): @sts_type("Promise<Result>") Opaque;
 
@@ -296,7 +314,7 @@ function DoActionInner(mechId: i32, actionType: ActionType): @sts_type("Promise<
 function SubscribeInner(events: Array<MechEventType>, callback: (info :MechEvent) => void): void;
 
 @rename("unSubscribe")
-function UnSubscribeInner(events: Array<MechEventType>, callback: (info :MechEvent) => void): void;
+function UnSubscribeInner(events: Array<MechEventType>): void;
 
 @rename("isControlSupported")
 function IsControlSupportedInner(mechDeviceType: Optional<MechDeviceType>): bool;
@@ -309,3 +327,9 @@ function OnBatteryLevelChangeInner(mechId: i32, callback: (info: BatteryLevelInf
  
 @rename("offBatteryLevelChange")
 function OffBatteryLevelChangeInner(mechId: i32, callback: Optional<(info: BatteryLevelInfo) => void>): void;
+
+@rename("connectDevice")
+function ConnectDeviceInner(addrInfo: AddressInfo, connectParam: ConnectParam): @sts_type("Promise<AttachStateChangeInfo>") Opaque;
+
+@rename("disconnectDevice")
+function DisconnectDeviceInner(mechId: i32): @sts_type("Promise<Result>") Opaque;

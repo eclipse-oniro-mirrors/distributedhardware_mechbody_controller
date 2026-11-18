@@ -62,6 +62,8 @@ public:
     int32_t RotateByDegree(const int32_t &mechId, std::string &cmdId,
         const std::shared_ptr<RotateByDegreeParam> &rotateByDegreeParam) override;
     int32_t NotifyOperationResult(const uint32_t &tokenId, const std::string &cmdId, const ExecResult &result);
+    int32_t NotifyConnectResult(const uint32_t &tokenId, const std::string &cmdId,
+        const AttachmentState &state, const MechInfo &mechInfo);
     int32_t RotateToEulerAngles(const int32_t &mechId, std::string &cmdId,
         const std::shared_ptr<RotateToEulerAnglesParam> &rotateToEulerAnglesParam) override;
     int32_t GetMaxRotationTime(const int32_t &mechId, std::shared_ptr<TimeLimit> &speedLimit) override;
@@ -90,11 +92,15 @@ public:
     int32_t DoAction(const int32_t &mechId, std::string &cmdId, ActionType actionType) override;
     int32_t SubscribeCallback(sptr <IRemoteObject> &callback, MechEventType mechEventType) override;
     int32_t UnSubscribeCallback(MechEventType mechEventType) override;
-    int32_t GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state) override;
+int32_t GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state) override;
  
     int32_t RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId) override;
     int32_t UnRegisterBatteryLevelCallback() override;
     int32_t NotifyBatteryLevelChange(int32_t mechId, int32_t batteryLevel, bool isCharging);
+    int32_t ConnectDevice(std::string &cmdId,
+        const std::shared_ptr<AddressInfo> &addrInfo,
+        const std::shared_ptr<ConnectParam> &params) override;
+    int32_t DisconnectDevice(std::string &cmdId, int32_t mechId) override;
 
 private:
     void NotifyBatteryLevelChangeToToken(uint32_t tokenId, const sptr<IRemoteObject> &callback,
@@ -119,8 +125,12 @@ public:
     std::mutex subscribeChannelMutex_;
     std::map<std::pair<uint32_t, MechEventType>, sptr<IRemoteObject>> subscribeChannels_;
     std::shared_ptr<TransportSendAdapter> sendAdapter_;
-    std::mutex batteryLevelCallbackMutex_;
+std::mutex batteryLevelCallbackMutex_;
     std::map<uint32_t, sptr<IRemoteObject>> batteryLevelCallback_;
+    std::mutex disconnectRequestMutex_;
+    std::map<int32_t, std::pair<uint32_t, std::string>> disconnectRequests_;
+    std::mutex connectRequestMutex_;
+    std::map<std::string, std::pair<uint32_t, std::string>> connectRequests_;
 };
 } // namespace MechBodyController
 } // namespace OHOS

@@ -65,9 +65,12 @@ private:
     int32_t DoActionInner(MessageParcel &data, MessageParcel &reply);
     int32_t SubscribeCallbackInner(MessageParcel &data, MessageParcel &reply);
     int32_t UnSubscribeCallbackInner(MessageParcel &data, MessageParcel &reply);
-    int32_t GetDeviceAdsorbStateInner(MessageParcel &data, MessageParcel &reply);
+int32_t GetDeviceAdsorbStateInner(MessageParcel &data, MessageParcel &reply);
     int32_t BatteryLevelListenOnInner(MessageParcel &data, MessageParcel &reply);
     int32_t BatteryLevelListenOffInner(MessageParcel &data, MessageParcel &reply);
+    int32_t ConnectDeviceInner(MessageParcel &data, MessageParcel &reply);
+    int32_t DisconnectDeviceInner(MessageParcel &data, MessageParcel &reply);
+    int32_t ConnectCallbackInner(MessageParcel &data, MessageParcel &reply);
 
 private:
     using MechBodyControllerFunc = int32_t(MechBodyControllerStub::*)(MessageParcel& data, MessageParcel& reply);

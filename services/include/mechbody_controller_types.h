@@ -851,35 +851,35 @@ struct ActionControlParams {
 };
 
 struct DeviceBaseInfo {
-    uint8_t devType;
-    uint8_t ctrlType;
-    uint8_t protocolVer;
-    std::array<uint8_t, ADDRESS_COUNT> macAddress;
-    std::string realName;
+    uint8_t devType = 0;
+    uint8_t ctrlType = 0;
+    uint8_t protocolVer = 0;
+    std::array<uint8_t, ADDRESS_COUNT> macAddress = {};
+    std::string realName = "";
 };
 
 struct DeviceCapabilityInfo {
-    uint8_t centerAble;
-    uint8_t switchAble;
-    uint8_t trackAble;
-    uint8_t absoluteCoordinate;
-    uint8_t relativeCoordinate;
-    uint8_t poseReport;
-    uint8_t batteryReport;
-    uint8_t trackPoints;
-    uint8_t yawable;
-    uint8_t rollable;
-    uint8_t pitchable;
-    float yawmaxspeed;
-    float rollmaxspeed;
-    float pitchmaxspeed;
-    uint16_t maxturntime;
+    uint8_t centerAble = 0;
+    uint8_t switchAble = 0;
+    uint8_t trackAble = 0;
+    uint8_t absoluteCoordinate = 0;
+    uint8_t relativeCoordinate = 0;
+    uint8_t poseReport = 0;
+    uint8_t batteryReport = 0;
+    uint8_t trackPoints = 0;
+    uint8_t yawable = 0;
+    uint8_t rollable = 0;
+    uint8_t pitchable = 0;
+    float yawmaxspeed = 0.0f;
+    float rollmaxspeed = 0.0f;
+    float pitchmaxspeed = 0.0f;
+    uint16_t maxturntime = 0;
 };
 
 struct DeviceAccelerationInfo {
-    uint16_t accelerationX;
-    uint16_t accelerationY;
-    uint16_t accelerationZ;
+    uint16_t accelerationX = 0;
+    uint16_t accelerationY = 0;
+    uint16_t accelerationZ = 0;
 };
 
 struct DeviceStateInfo {
@@ -890,10 +890,10 @@ struct DeviceStateInfo {
 };
 
 struct DeviceCoordinateInfo {
-    uint8_t ismoving;
-    float yawPose;
-    float rollPose;
-    float pitchPose;
+    uint8_t ismoving = 0;
+    float yawPose = 0.0f;
+    float rollPose = 0.0f;
+    float pitchPose = 0.0f;
 };
 
 struct WheelCapabilityInfo {
@@ -941,6 +941,113 @@ struct ObstacleInfo {
 struct SendCmdInfo {
     uint16_t cmdWord;
     uint16_t errorCode;
+};
+
+struct AddressInfo : public OHOS::Parcelable {
+    std::string address;
+    AddressType addressType = AddressType::BLE_ADDR;
+
+    bool Marshalling(OHOS::Parcel &parcel) const override
+    {
+        return parcel.WriteString(address) &&
+               parcel.WriteInt32(static_cast<int32_t>(addressType));
+    }
+
+    static AddressInfo *Unmarshalling(OHOS::Parcel &parcel)
+    {
+        auto obj = new AddressInfo();
+        if (!parcel.ReadString(obj->address)) {
+            delete obj;
+            return nullptr;
+        }
+        int32_t type = 0;
+        if (!parcel.ReadInt32(type)) {
+            delete obj;
+            return nullptr;
+        }
+        obj->addressType = static_cast<AddressType>(type);
+        return obj;
+    }
+
+    std::string ToString() const
+    {
+        return "AddressInfo { address=" + GetAnonymStr(address) +
+               ", addressType=" + std::to_string(static_cast<int>(addressType)) + " }";
+    }
+};
+
+struct ConnectParam : public OHOS::Parcelable {
+    std::string deviceName;
+    int32_t identifier = 0;
+    std::string custdata;
+
+    bool Marshalling(OHOS::Parcel &parcel) const override
+    {
+        return parcel.WriteString(deviceName) &&
+               parcel.WriteInt32(identifier) &&
+               parcel.WriteString(custdata);
+    }
+
+    static ConnectParam *Unmarshalling(OHOS::Parcel &parcel)
+    {
+        auto obj = new ConnectParam();
+        if (!parcel.ReadString(obj->deviceName)) {
+            delete obj;
+            return nullptr;
+        }
+        if (!parcel.ReadInt32(obj->identifier)) {
+            delete obj;
+            return nullptr;
+        }
+        if (!parcel.ReadString(obj->custdata)) {
+            delete obj;
+            return nullptr;
+        }
+        return obj;
+    }
+
+    std::string ToString() const
+    {
+        return "ConnectParam { deviceName=" + GetAnonymStr(deviceName) +
+               ", identifier=" + std::to_string(identifier) +
+               ", custdata=" + GetAnonymStr(custdata) + " }";
+    }
+};
+
+struct AttachStateChangeInfo : public OHOS::Parcelable {
+    AttachmentState state = AttachmentState::UNKNOWN;
+    MechInfo mechInfo;
+
+    bool Marshalling(OHOS::Parcel &parcel) const override
+    {
+        return parcel.WriteInt32(static_cast<int32_t>(state)) &&
+               parcel.WriteParcelable(&mechInfo);
+    }
+
+    static AttachStateChangeInfo *Unmarshalling(OHOS::Parcel &parcel)
+    {
+        auto obj = new AttachStateChangeInfo();
+        int32_t state = 0;
+        if (!parcel.ReadInt32(state)) {
+            delete obj;
+            return nullptr;
+        }
+        obj->state = static_cast<AttachmentState>(state);
+        auto mechInfoPtr = parcel.ReadParcelable<MechInfo>();
+        if (mechInfoPtr == nullptr) {
+            delete obj;
+            return nullptr;
+        }
+        obj->mechInfo = *mechInfoPtr;
+        delete mechInfoPtr;
+        return obj;
+    }
+
+    std::string ToString() const
+    {
+        return "AttachStateChangeInfo { state=" + std::to_string(static_cast<int>(state)) +
+               ", mechInfo=" + mechInfo.ToString() + " }";
+    }
 };
 }  // namespace MechBodyController
 }  // namespace OHOS

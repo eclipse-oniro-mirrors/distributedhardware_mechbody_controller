@@ -31,6 +31,7 @@
 #include "ohos.distributedHardware.mechanicManager.proj.hpp"
 #include "ohos.distributedHardware.mechanicManager.impl.hpp"
 #include "ohos.distributedHardware.mechanicManager.SearchResult.ani.1.hpp"
+#include "ohos.distributedHardware.mechanicManager.AttachStateChangeInfo.ani.1.hpp"
 #include "stdexcept"
 #include "taihe/runtime.hpp"
 
@@ -70,6 +71,8 @@ using ActionTypeTaihe = ::ohos::distributedHardware::mechanicManager::ActionType
 using MechEventTypeTaihe = ::ohos::distributedHardware::mechanicManager::MechEventType;
 using MoveParamsTaihe = ::ohos::distributedHardware::mechanicManager::MoveParams;
 using SpeedParamsTaihe = ::ohos::distributedHardware::mechanicManager::SpeedParams;
+using AddressInfoTaihe = ::ohos::distributedHardware::mechanicManager::AddressInfo;
+using ConnectParamTaihe = ::ohos::distributedHardware::mechanicManager::ConnectParam;
 using AttachStateCBTaihe = ::taihe::callback<ACH_STATE_CHANGE_INFO_CB>;
 using TrackingEventCBTaihe = ::taihe::callback<TRACKING_EVENT_INFO_CB>;
 using RotationAxesCBTaihe = ::taihe::callback<ROT_AXES_STATE_CHANGE_INFO_CB>;
@@ -105,8 +108,10 @@ public:
         const int32_t &result);
     int32_t SearchTargetCallback(std::string &cmdId, const int32_t &targetsNum, const int32_t &result);
     int32_t SubscribeCallback(const int32_t &mechId, const MechEventType &mechEvent);
-    int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
+int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
         const bool &isCharging);
+    int32_t ConnectCallback(const std::string &cmdId, const AttachmentState &state,
+        const std::shared_ptr<MechInfo> &mechInfo);
     void ExecuteCallbackTask(const SubscribeCBTaihe& callback, int32_t mechId, MechEventType mechEventType);
     void OnAttachStateChangeRemoteDied(const wptr <IRemoteObject> &object);
     void OnTrackingEventRemoteDied(const wptr <IRemoteObject> &object);
@@ -142,11 +147,15 @@ public:
     void IsSupportAction(int32_t mechId, const ActionTypeTaihe &actionTypeTaihe, bool &isSupport);
     void DoAction(int32_t mechId, const ActionTypeTaihe &actionTypeTaihe, uintptr_t &promise);
     void Subscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
-    void OnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
+void OnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
     void OffBatteryLevelChange(int32_t mechId, const ::taihe::optional_view<BatteryLevelCBTaihe> &callback);
-    void UnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
+    void UnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes);
     void IsControlSupported(
         const ::taihe::optional_view<MechDeviceTypeTaihe> &mechDeviceTypeTaihe, bool &isControlSupported);
+    void ConnectDevice(const AddressInfoTaihe &addrInfo, const ConnectParamTaihe &connectParam, uintptr_t &promise);
+    void DisconnectDevice(int32_t mechId, uintptr_t &promise);
+    void AttachStateChangeInfoPromise(ani_env *env, ani_resolver deferred,
+        const AttachmentState &state, const std::shared_ptr<MechInfo> &mechInfo);
 private:
     int32_t ExecuteOnForAttachStateChange(const AttachStateCBTaihe &callback);
     int32_t ExecuteOffForAttachStateChange(const ::taihe::optional_view<AttachStateCBTaihe> &callbck);
@@ -155,8 +164,7 @@ private:
     int32_t ExecuteOnForRotationAxesStatusChange(const RotationAxesCBTaihe &callback);
     int32_t ExecuteOffForRotationAxesStatusChange(const ::taihe::optional_view<RotationAxesCBTaihe> &callback);
     int32_t ExecuteSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
-    int32_t ExecuteUnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes,
-        const SubscribeCBTaihe &callback);
+int32_t ExecuteUnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes);
     int32_t ExecuteOnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
     int32_t ExecuteOffBatteryLevelChange(int32_t mechId, const ::taihe::optional_view<BatteryLevelCBTaihe> &callback);
 
@@ -213,8 +221,11 @@ private:
     std::map<std::string, std::shared_ptr<AniRotatePrimiseFulfillmentParam>> promiseParams_;
     std::mutex searchTargetPromiseParamMutex_;
     std::map<std::string, std::shared_ptr<AniRotatePrimiseFulfillmentParam>> searchTargetPromiseParam_;
+    std::mutex connectCallbackMutex_;
+    std::map<std::string, std::shared_ptr<AniRotatePrimiseFulfillmentParam>> connectCallback_;
     std::mutex mainHandlerMutex_;
     std::shared_ptr<OHOS::AppExecFwk::EventHandler> mainHandler_ { nullptr };
+    
     std::mutex subscribeCallbackMutex_;
     std::map<MechEventType, std::vector<SubscribeCBTaihe>> subscribeCallback_;
     std::mutex batteryLevelCallbackMutex_;
@@ -239,6 +250,7 @@ private:
     public:
         void OnRemoteDied(const wptr<IRemoteObject> &object) override;
     };
+    
     class AniBaseChannelDeathListener : public IRemoteObject::DeathRecipient {
     public:
         void OnRemoteDied(const wptr<IRemoteObject> &object) override;

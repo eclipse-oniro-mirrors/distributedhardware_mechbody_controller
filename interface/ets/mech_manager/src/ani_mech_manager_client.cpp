@@ -938,6 +938,64 @@ int32_t AniMechClient::UnRegisterBatteryChannel()
     return result;
 }
 
+int32_t AniMechClient::ConnectDevice(const std::string &cmdId, const AddressInfo &addrInfo,
+    const ConnectParam &connectParam)
+{
+    sptr<IRemoteObject> remote = GetDmsProxy();
+    if (remote == nullptr) {
+        return MECH_GET_SAMGR_EXCEPTION;
+    }
+    MessageParcel data;
+    if (!data.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    if (!data.WriteString(cmdId)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    if (!data.WriteParcelable(&addrInfo)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    if (!data.WriteParcelable(&connectParam)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    MessageParcel reply;
+    MessageOption option;
+    int32_t error = remote->SendRequest(
+        static_cast<int32_t>(IMechBodyControllerCode::CONNECT_DEVICE),
+        data, reply, option);
+    if (error != ERR_NONE) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    return reply.ReadInt32();
+}
+
+int32_t AniMechClient::DisconnectDevice(const std::string &cmdId, int32_t mechId)
+{
+    sptr<IRemoteObject> remote = GetDmsProxy();
+    if (remote == nullptr) {
+        return MECH_GET_SAMGR_EXCEPTION;
+    }
+    MessageParcel data;
+    if (!data.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    if (!data.WriteString(cmdId)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    if (!data.WriteInt32(mechId)) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    MessageParcel reply;
+    MessageOption option;
+    int32_t error = remote->SendRequest(
+        static_cast<int32_t>(IMechBodyControllerCode::DISCONNECT_DEVICE),
+        data, reply, option);
+    if (error != ERR_NONE) {
+        return NAPI_SEND_DATA_FAIL;
+    }
+    return reply.ReadInt32();
+}
+
 sptr <IRemoteObject> AniMechClient::GetDmsProxy()
 {
     auto samgrProxy = SystemAbilityManagerClient::GetInstance().GetSystemAbilityManager();

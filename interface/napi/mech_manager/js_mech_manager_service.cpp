@@ -71,7 +71,7 @@ int32_t JsMechManagerService::AttachStateChangeCallback(const AttachmentState &a
             napi_create_int32(item.env, static_cast<int32_t>(mechInfo->mechType), &jsMechType);
             napi_create_string_utf8(item.env, mechInfo->mechName.c_str(), NAPI_AUTO_LENGTH, &jsMechName);
             napi_set_named_property(item.env, jsMechInfo, "mechId", jsMechId);
-            napi_set_named_property(item.env, jsMechInfo, "mechType", jsMechType);
+            napi_set_named_property(item.env, jsMechInfo, "mechDeviceType", jsMechType);
             napi_set_named_property(item.env, jsMechInfo, "mechName", jsMechName);
             napi_set_named_property(item.env, jsEvent, "mechInfo", jsMechInfo);
 
@@ -392,6 +392,57 @@ int32_t JsMechManagerService::BatteryLevelChangeCallbackInvoke(
         };
         napi_send_event(item.env, task, napi_eprio_high, "MechbodyTask");
     }
+    return ERR_OK;
+}
+
+int32_t JsMechManagerService::ConnectCallback(const std::string &cmdId, const AttachmentState &state,
+    const std::shared_ptr<MechInfo> &mechInfo)
+{
+    HILOGI("cmdId: %{public}s, state: %{public}d", cmdId.c_str(), static_cast<int32_t>(state));
+    CHECK_POINTER_RETURN_VALUE(mechInfo, INVALID_PARAMETERS_ERR, "mechInfo");
+    std::lock_guard<std::mutex> lock(connectCallbackMutex_);
+    auto it = connectCallback_.find(cmdId);
+    if (it == connectCallback_.end()) {
+        HILOGE("connect callback not found, cmdId: %{public}s", cmdId.c_str());
+        return ERR_OK;
+    }
+    std::shared_ptr<RotatePrimiseFulfillmentParam> param = it->second;
+    auto task = [cmdId, param, state, mechInfo]() {
+        napi_handle_scope scope;
+        napi_status res = napi_open_handle_scope(param->env, &scope);
+        if (res != napi_ok || scope == nullptr) {
+            HILOGE("open handle scope failed!");
+            return;
+        }
+
+        napi_value jsEvent;
+        napi_create_object(param->env, &jsEvent);
+
+        napi_value jsState;
+        napi_create_int32(param->env, static_cast<int32_t>(state), &jsState);
+        napi_set_named_property(param->env, jsEvent, "state", jsState);
+
+        napi_value jsMechInfo;
+        napi_create_object(param->env, &jsMechInfo);
+        napi_value jsMechId;
+        napi_value jsMechType;
+        napi_value jsMechName;
+        napi_create_int32(param->env, mechInfo->mechId, &jsMechId);
+        napi_create_int32(param->env, static_cast<int32_t>(mechInfo->mechType), &jsMechType);
+        napi_create_string_utf8(param->env, mechInfo->mechName.c_str(), NAPI_AUTO_LENGTH, &jsMechName);
+        napi_set_named_property(param->env, jsMechInfo, "mechId", jsMechId);
+        napi_set_named_property(param->env, jsMechInfo, "mechDeviceType", jsMechType);
+        napi_set_named_property(param->env, jsMechInfo, "mechName", jsMechName);
+        napi_set_named_property(param->env, jsEvent, "mechInfo", jsMechInfo);
+
+        napi_status status = napi_resolve_deferred(param->env, param->deferred, jsEvent);
+        if (status != napi_ok) {
+            HILOGI("Promise Fulfillment failed for cmdId: %{public}s", cmdId.c_str());
+        }
+        JsMechManagerService::GetInstance().connectCallback_.erase(cmdId);
+        napi_close_handle_scope(param->env, scope);
+    };
+    napi_send_event(param->env, task, napi_eprio_high, "MechbodyTask");
     return ERR_OK;
 }
 } // namespace MechManager

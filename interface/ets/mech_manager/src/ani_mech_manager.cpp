@@ -971,14 +971,13 @@ void AniMechManager::Subscribe(::taihe::array_view<MechEventTypeTaihe> mechEvent
     ProcessOffResultCode(result);
 }
 
-void AniMechManager::UnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes,
-    const SubscribeCBTaihe &callback)
+void AniMechManager::UnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes)
 {
     HILOGI("start");
     if (CheckDeviceL1()) {
         return;
     }
-    int32_t result = ExecuteUnSubscribe(mechEventTypes, callback);
+    int32_t result = ExecuteUnSubscribe(mechEventTypes);
     ProcessOffResultCode(result);
 }
 
@@ -1340,14 +1339,10 @@ int32_t AniMechManager::ExecuteSubscribe(
 }
 
 int32_t AniMechManager::ExecuteUnSubscribe(
-    ::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback)
+    ::taihe::array_view<MechEventTypeTaihe> mechEventTypes)
 {
     HILOGI("enter");
     int32_t registerResult = ERR_OK;
-    if (callback.is_error()) {
-        HILOGE("Callback error");
-        return MechNapiErrorCode::PARAMETER_CHECK_FAILED;
-    }
     std::lock_guard<std::mutex> lock(subscribeCallbackMutex_);
     for (const MechEventTypeTaihe& mechEventTypeTaihe : mechEventTypes) {
         int32_t mechEventTypeValue = static_cast<int32_t>(mechEventTypeTaihe);
@@ -1357,19 +1352,9 @@ int32_t AniMechManager::ExecuteUnSubscribe(
         auto itEvent = subscribeCallback_.find(mechEventType);
         if (itEvent != subscribeCallback_.end()) {
             subscribeCallback = itEvent->second;
-            auto it = std::find(subscribeCallback.begin(), subscribeCallback.end(), callback);
-            if (it == subscribeCallback.end()) {
-                HILOGI("No found callback info.");
-                return registerResult;
-            }
-            subscribeCallback.erase(it);
             HILOGI("unSubscribe callback, remove callback, mechEventType: %{public}d; callback size: %{public}zu.",
                 mechEventTypeValue, subscribeCallback.size());
-            if (subscribeCallback.size() <= 0) {
-                registerResult = mechClient_->UnRegisterSubscribeChannel(mechEventType);
-                subscribeCallback_.erase(mechEventType);
-                return registerResult;
-            }
+            subscribeCallback_.erase(mechEventType);
         } else {
             HILOGE("not found callback mechEventType: %{public}d.", mechEventTypeValue);
             return registerResult;
@@ -1733,6 +1718,35 @@ void AniMechManager::SearchResultTaihePromise(ani_env *env, ani_resolver deferre
     return;
 }
 
+void AniMechManager::AttachStateChangeInfoPromise(ani_env *env, ani_resolver deferred,
+    const AttachmentState &state, const std::shared_ptr<MechInfo> &mechInfo)
+{
+    if (env == nullptr || deferred == nullptr) {
+        HILOGE("env or deferred is null!");
+        return;
+    }
+    ani_status status = ANI_OK;
+    AttachStateTaihe attachState = AttachStateTaihe::from_value(static_cast<int32_t>(state));
+    MechInfoTaihe mechInfoTaihe {
+        .mechId = mechInfo->mechId,
+        .mechDeviceType = MechDeviceTypeTaihe::from_value(static_cast<int32_t>(mechInfo->mechType)),
+        .mechName = ::taihe::string(mechInfo->mechName)
+    };
+    AttachStateChangeInfoTaihe taiheItem {
+        .state = attachState,
+        .mechInfo = mechInfoTaihe
+    };
+    auto promiseResult = ::taihe::into_ani<AttachStateChangeInfoTaihe>(env, taiheItem);
+    if (promiseResult == nullptr) {
+        HILOGE("promiseResult is null!");
+        return;
+    }
+    if ((status = env->PromiseResolver_Resolve(deferred, promiseResult)) != ANI_OK) {
+        HILOGE("PromiseResolver_Resolve failed, status = %{public}d", status);
+        return;
+    }
+}
+
 int32_t AniMechManager::RotatePromiseFulfillment(const std::string &cmdId,
     const int32_t &result)
 {
@@ -1838,6 +1852,130 @@ int32_t AniMechManager::SubscribeCallback(const int32_t &mechId, const MechEvent
 
     HILOGI("end");
     return ERR_OK;
+}
+
+int32_t AniMechManager::ConnectCallback(const std::string &cmdId, const AttachmentState &state,
+    const std::shared_ptr<MechInfo> &mechInfo)
+{
+    HILOGI("cmdId: %{public}s, state: %{public}d", cmdId.c_str(), static_cast<int32_t>(state));
+    CHECK_POINTER_RETURN_VALUE(mechInfo, INVALID_PARAMETERS_ERR, "mechInfo");
+    std::shared_ptr<AniRotatePrimiseFulfillmentParam> param = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(connectCallbackMutex_);
+        auto it = connectCallback_.find(cmdId);
+        if (it == connectCallback_.end()) {
+            HILOGE("connect callback not found, cmdId: %{public}s", cmdId.c_str());
+            return ERR_OK;
+        }
+        param = it->second;
+        if (param == nullptr) {
+            HILOGE("param is nullptr, cmdId: %{public}s", cmdId.c_str());
+            return ERR_OK;
+        }
+    }
+    auto task = [this, param, cmdId, state, mechInfo]() {
+        HILOGI("cmdId: %{public}s, state: %{public}d", cmdId.c_str(), static_cast<int32_t>(state));
+        if (param == nullptr || param->env == nullptr) {
+            HILOGE("param or env is null!");
+            return;
+        }
+        ani_env *etsEnv = param->env;
+        AttachStateChangeInfoPromise(etsEnv, param->deferred, state, mechInfo);
+        {
+            std::lock_guard<std::mutex> lock(connectCallbackMutex_);
+            connectCallback_.erase(cmdId);
+        }
+    };
+    AniSendEvent(task);
+    return ERR_OK;
+}
+
+void AniMechManager::ConnectDevice(const AddressInfoTaihe &addrInfoTaihe,
+    const ConnectParamTaihe &connectParamTaihe, uintptr_t &promise)
+{
+    HILOGI("start");
+    promise = 0;
+    if (!IsSystemApp()) {
+        ::taihe::set_business_error(MechNapiErrorCode::PERMISSION_DENIED, "Not system application");
+        return;
+    }
+    AddressInfo addrInfo;
+    std::string address(addrInfoTaihe.address);
+    addrInfo.address = address;
+    addrInfo.addressType = static_cast<AddressType>(static_cast<int32_t>(addrInfoTaihe.addressType));
+    ConnectParam connectParam;
+    std::string deviceName(connectParamTaihe.deviceName);
+    connectParam.deviceName = deviceName;
+    connectParam.identifier = connectParamTaihe.identifier;
+    std::string custdata(connectParamTaihe.custdata);
+    connectParam.custdata = custdata;
+
+    auto rotatePromiseParam = std::make_shared<AniRotatePrimiseFulfillmentParam>();
+    if (!InitRotatePrimiseFulfillmentParam(*rotatePromiseParam)) {
+        HILOGE("InitRotatePrimiseFulfillmentParam failed;");
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    if (!InitMechClient() || !RegisterCmdChannel()) {
+        HILOGE("InitMechClient or RegisterCmdChannel failed;");
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(connectCallbackMutex_);
+        connectCallback_[rotatePromiseParam->cmdId] = rotatePromiseParam;
+    }
+    int32_t result = mechClient_->ConnectDevice(rotatePromiseParam->cmdId, addrInfo, connectParam);
+    HILOGI("result code: %{public}d ", result);
+    if (result != ERR_OK) {
+        std::lock_guard<std::mutex> lock(connectCallbackMutex_);
+        connectCallback_.erase(rotatePromiseParam->cmdId);
+    }
+    if (result != ERR_OK) {
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    promise = reinterpret_cast<uintptr_t>(rotatePromiseParam->promise);
+}
+
+void AniMechManager::DisconnectDevice(int32_t mechId, uintptr_t &promise)
+{
+    HILOGI("start");
+    promise = 0;
+    if (!IsSystemApp()) {
+        ::taihe::set_business_error(MechNapiErrorCode::PERMISSION_DENIED, "Not system application");
+        return;
+    }
+    auto rotatePromiseParam = std::make_shared<AniRotatePrimiseFulfillmentParam>();
+    if (!InitRotatePrimiseFulfillmentParam(*rotatePromiseParam)) {
+        HILOGE("InitRotatePrimiseFulfillmentParam failed;");
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    if (!InitMechClient() || !RegisterCmdChannel()) {
+        HILOGE("InitMechClient or RegisterCmdChannel failed;");
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(promiseParamsMutex_);
+        promiseParams_[rotatePromiseParam->cmdId] = rotatePromiseParam;
+    }
+    int32_t result = mechClient_->DisconnectDevice(rotatePromiseParam->cmdId, mechId);
+    HILOGI("result code: %{public}d ", result);
+    if (result != ERR_OK) {
+        std::lock_guard<std::mutex> lock(promiseParamsMutex_);
+        promiseParams_.erase(rotatePromiseParam->cmdId);
+    }
+    if (result == MechNapiErrorCode::DEVICE_NOT_CONNECTED) {
+        ::taihe::set_business_error(MechNapiErrorCode::DEVICE_NOT_CONNECTED, "Device not connected");
+        return;
+    }
+    if (result != ERR_OK) {
+        ::taihe::set_business_error(MechNapiErrorCode::SYSTEM_WORK_ABNORMALLY, "System exception");
+        return;
+    }
+    promise = reinterpret_cast<uintptr_t>(rotatePromiseParam->promise);
 }
 
 void AniMechManager::AniAttachStateChangeStubDeathListener::OnRemoteDied(const wptr <IRemoteObject> &object)
