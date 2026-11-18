@@ -2210,7 +2210,7 @@ bool MechManager::GetConnectDeviceParam(napi_env env, napi_callback_info info,
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < PARAM_COUNT_TWO) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
     // Parse AddressInfo
@@ -2261,14 +2261,14 @@ napi_value MechManager::DisconnectDevice(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
     int32_t mechId;
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
 

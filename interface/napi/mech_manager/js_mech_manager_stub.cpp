@@ -148,7 +148,7 @@ void JsMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::ROTATE_CALLBACK] = &JsMechManagerStub::RotatePromiseFulfillment;
     mechManagerFuncMap_[IMechBodyControllerCode::SEARCH_TARGET_CALLBACK] = &JsMechManagerStub::SearchTargetCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &JsMechManagerStub::SubscribeCallback;
-mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
+    mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
         &JsMechManagerStub::BatteryLevelChangeCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_CALLBACK] = &JsMechManagerStub::ConnectCallback;
 }

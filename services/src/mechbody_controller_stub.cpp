@@ -105,7 +105,7 @@ void MechBodyControllerStub::InitFuncsInnerPart2()
             &MechBodyControllerStub::SubscribeCallbackInner;
     funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::UN_SUBSCRIBE_CALLBACK)] =
             &MechBodyControllerStub::UnSubscribeCallbackInner;
-funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::GET_DEVICE_ADSORB_STATE)] =
+    funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::GET_DEVICE_ADSORB_STATE)] =
             &MechBodyControllerStub::GetDeviceAdsorbStateInner;
     funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_ON)] =
             &MechBodyControllerStub::BatteryLevelListenOnInner;

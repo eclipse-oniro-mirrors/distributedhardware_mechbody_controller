@@ -92,7 +92,7 @@ public:
     int32_t DoAction(const int32_t &mechId, std::string &cmdId, ActionType actionType) override;
     int32_t SubscribeCallback(sptr <IRemoteObject> &callback, MechEventType mechEventType) override;
     int32_t UnSubscribeCallback(MechEventType mechEventType) override;
-int32_t GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state) override;
+    int32_t GetDeviceAdsorbState(const int32_t &mechId, AttachmentState &state) override;
  
     int32_t RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId) override;
     int32_t UnRegisterBatteryLevelCallback() override;
@@ -125,7 +125,7 @@ public:
     std::mutex subscribeChannelMutex_;
     std::map<std::pair<uint32_t, MechEventType>, sptr<IRemoteObject>> subscribeChannels_;
     std::shared_ptr<TransportSendAdapter> sendAdapter_;
-std::mutex batteryLevelCallbackMutex_;
+    std::mutex batteryLevelCallbackMutex_;
     std::map<uint32_t, sptr<IRemoteObject>> batteryLevelCallback_;
     std::mutex disconnectRequestMutex_;
     std::map<int32_t, std::pair<uint32_t, std::string>> disconnectRequests_;

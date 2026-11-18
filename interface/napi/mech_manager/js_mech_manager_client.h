@@ -146,7 +146,7 @@ public:
 
     int32_t UnRegisterSubscribeChannel(MechEventType mechEventType);
 
-int32_t RegisterBatteryChannel(sptr<JsMechManagerStub> &stub, int32_t mechId);
+    int32_t RegisterBatteryChannel(sptr<JsMechManagerStub> &stub, int32_t mechId);
  
     int32_t UnRegisterBatteryChannel();
 

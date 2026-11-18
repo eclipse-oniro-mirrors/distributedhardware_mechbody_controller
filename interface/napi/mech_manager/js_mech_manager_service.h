@@ -100,7 +100,7 @@ public:
 
     int32_t SubscribeCallbackInvoke(const int32_t &mechId, const MechEventType &mechEventType);
 
-int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
+    int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
         const bool &isCharging);
     int32_t ConnectCallback(const std::string &cmdId, const AttachmentState &state,
         const std::shared_ptr<MechInfo> &mechInfo);

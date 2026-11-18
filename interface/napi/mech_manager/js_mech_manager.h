@@ -86,7 +86,7 @@ public:
 
     static napi_value UnSubscribe(napi_env env, napi_callback_info info);
 
-static napi_value OnBatteryLevelChange(napi_env env, napi_callback_info info);
+    static napi_value OnBatteryLevelChange(napi_env env, napi_callback_info info);
  
     static napi_value OffBatteryLevelChange(napi_env env, napi_callback_info info);
 
