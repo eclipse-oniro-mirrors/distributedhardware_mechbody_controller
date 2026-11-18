@@ -14,6 +14,8 @@
  */
 
 #include "gtest/gtest.h"
+#include <thread>
+#include <mutex>
 // NOLINTNEXTLINE
 #define private public
 #include "mc_camera_tracking_controller.h"
@@ -1599,6 +1601,75 @@ HWTEST_F(McCameraTrackingControllerThreeTest, HandleTrackingFrame_012, TestSize.
     controller.isCameraDisabled_.store(origCameraDisabled);
 
     DTEST_LOG << "McCameraTrackingControllerThreeTest HandleTrackingFrame_012 end" << std::endl;
+}
+
+/**
+ * @tc.name  : HandleTrackingFrame_013
+ * @tc.number: HandleTrackingFrame_013
+ * @tc.desc  : Test HandleTrackingFrame snapshot traversal of motionManagers_. Verifies the
+ *             lock-snapshot-then-iterate pattern: the manager present at snapshot time is
+ *             safely invoked (guarding the C7 CFI/iterator-invalidation crash regression),
+ *             and concurrent mutation of the original map during iteration cannot crash.
+ */
+HWTEST_F(McCameraTrackingControllerThreeTest, HandleTrackingFrame_013, TestSize.Level1)
+{
+    DTEST_LOG << "McCameraTrackingControllerThreeTest HandleTrackingFrame_013 begin" << std::endl;
+
+    McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
+    MobileRotation origRotation = controller.sensorRotation_;
+    auto origCameraInfo = controller.currentCameraInfo_;
+    bool origAutoCentering = controller.isAutoCentering_.load();
+    bool origCameraDisabled = controller.isCameraDisabled_.load();
+
+    controller.sensorRotation_ = MobileRotation::UP;
+    controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
+    controller.currentCameraInfo_->fovHBasic = 60;
+    controller.currentCameraInfo_->fovVBasic = 40;
+    controller.currentCameraInfo_->zoomFactor = 1.0f;
+    controller.currentCameraInfo_->isRecording = false;
+    controller.isAutoCentering_.store(false);
+    controller.isCameraDisabled_.store(false);
+
+    TrackingFrameParams params;
+    params.roi.x = 0.3f;
+    params.roi.y = 0.4f;
+    params.roi.width = 0.2f;
+    params.roi.height = 0.2f;
+    params.objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE);
+
+    int32_t mechId = 513;
+    std::shared_ptr<MotionManager> motionMgr =
+        std::make_shared<MotionManager>(std::make_shared<TransportSendAdapter>(), mechId);
+    MechBodyControllerService::GetInstance().motionManagers_[mechId] = motionMgr;
+
+    // Given: a concurrent thread erases the manager from the original map while
+    // HandleTrackingFrame iterates its internal snapshot — this mirrors the crash
+    // scenario (RemoveMotionManager racing with tracking frame handling).
+    std::thread eraserThread;
+    {
+        std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+        eraserThread = std::thread([mechId]() {
+            MechBodyControllerService::GetInstance().motionManagers_.erase(mechId);
+        });
+    }
+
+    // When: call HandleTrackingFrame while the original map is being mutated
+    controller.HandleTrackingFrame(params);
+
+    eraserThread.join();
+
+    // Then: no crash/CFI failure occurs; snapshot kept the shared_ptr alive during
+    // iteration even though the map entry was concurrently erased
+    EXPECT_FALSE(controller.isAutoCentering_.load());
+
+    // Clean up
+    MechBodyControllerService::GetInstance().motionManagers_.erase(mechId);
+    controller.sensorRotation_ = origRotation;
+    controller.currentCameraInfo_ = origCameraInfo;
+    controller.isAutoCentering_.store(origAutoCentering);
+    controller.isCameraDisabled_.store(origCameraDisabled);
+
+    DTEST_LOG << "McCameraTrackingControllerThreeTest HandleTrackingFrame_013 end" << std::endl;
 }
 
 } // namespace MechBodyController

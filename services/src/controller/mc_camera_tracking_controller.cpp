@@ -69,6 +69,7 @@ namespace {
     constexpr float MIDDLE_MIN = 0.45f;
     constexpr float FACE_OFFSET = 0.1f;
     constexpr float BODY_OFFSET = 0.1f;
+    constexpr float FACE_PARAM_OFFSET = 0.4f;
     constexpr int16_t STICK_BASE = 300;
     constexpr float UP_LIMIT = 1.2f;
     constexpr float DOWN_LIMIT = 0.2f;
@@ -112,8 +113,6 @@ namespace {
 
     constexpr int32_t MAX_PAUSED_FRAME = 10;
 
-    constexpr float IOU_THRESHOLD = 0.1f;
-    constexpr float IOU_DEFAULT = 0.0f;
     constexpr int32_t META_DATA_SIZE = 2;
 #ifdef MECHBODY_CONTROLLER_EXTENDED
     const std::string PREDICTION_TASK_NAME = "PredictionTaskName";
@@ -151,7 +150,7 @@ void McCameraTrackingController::Init()
         }
         int8_t deviceType = -1;
         {
-            std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+            std::lock_guard<std::mutex> mgrlock(MechBodyControllerService::GetInstance().motionManagersMutex);
             for (const auto &item : MechBodyControllerService::GetInstance().motionManagers_) {
                 int32_t mechId = item.first;
                 auto motionManager = item.second;
@@ -178,7 +177,7 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
 {
     auto params = std::make_shared<TrackingFrameParams>(trackingFrameParams);
     CalcRoiRotate(params, sensorRotation_);
-    BodyRoiOffset(params, sensorRotation_);
+    TargetRoiOffset(params, sensorRotation_);
     params->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
     if (currentCameraInfo_ == nullptr) {
         HILOGW("currentCameraInfo_ is nullptr in HandleTrackingFrame");
@@ -201,11 +200,20 @@ void McCameraTrackingController::HandleTrackingFrame(TrackingFrameParams trackin
             }
         }
     }
+    DispatchTrackingFrameToManagers(params);
+}
 
+void McCameraTrackingController::DispatchTrackingFrameToManagers(
+    std::shared_ptr<TrackingFrameParams> &params)
+{
     CameraInfoParams camInfo{currentCameraInfo_->fovHBasic, currentCameraInfo_->fovVBasic,
         currentCameraInfo_->zoomFactor, currentCameraInfo_->isRecording, CameraType::FRONT};
     ScreenInfoParams screenInfo{.isPortrait = IsVertical(sensorRotation_)};
-    auto& mgrMap = MechBodyControllerService::GetInstance().motionManagers_;
+    std::map<int32_t, std::shared_ptr<MotionManager>> mgrMap;
+    {
+        std::lock_guard<std::mutex> lock(MechBodyControllerService::GetInstance().motionManagersMutex);
+        mgrMap = MechBodyControllerService::GetInstance().motionManagers_;
+    }
  
     for (const auto& item : mgrMap) {
         int32_t mechId = item.first;
@@ -245,14 +253,38 @@ void McCameraTrackingController::CalcRoiRotate(std::shared_ptr<TrackingFramePara
     }
 }
 
-// 人体偏移逻辑原样复制，无修改
-void McCameraTrackingController::BodyRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot)
+// 分发时按设备构造跟踪帧：仅人脸帧 + WHEEL_BASE 且小艺前台时，在独立拷贝上做横竖屏偏移
+std::shared_ptr<TrackingFrameParams> McCameraTrackingController::BuildDeviceTrackingParams(
+    const std::shared_ptr<MotionManager> &motionManager,
+    const std::shared_ptr<TrackingFrameParams> &params)
+{
+    std::shared_ptr<TrackingFrameParams> result = params;
+    bool isFace = params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE);
+    if (isFace && motionManager != nullptr &&
+        motionManager->GetDeviceType() == static_cast<uint8_t>(MechType::WHEEL_BASE) &&
+        motionManager->IsCeliaForeground()) {
+        result = std::make_shared<TrackingFrameParams>(*params);
+        TargetRoiOffset(result, sensorRotation_);
+        setTrackingLimit(result->roi);
+    }
+    result->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
+    return result;
+}
+
+//由于体验问题对相机后台和小艺桌面精灵前台的人脸进行偏移人脸比例的0.4,使人脸和手机横屏/竖屏状态平行
+void McCameraTrackingController::TargetRoiOffset(std::shared_ptr<TrackingFrameParams>& params, MobileRotation rot)
 {
     if (params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY)) {
         if (rot == MobileRotation::UP || rot == MobileRotation::DOWN) {
             params->roi.x = params->roi.x - BODY_OFFSET;
         } else if (rot == MobileRotation::RIGHT || rot == MobileRotation::LEFT) {
             params->roi.y = params->roi.y + BODY_OFFSET;
+        }
+    } else if (params->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE)) {
+        if (rot == MobileRotation::RIGHT) {
+            params->roi.x = params->roi.x + FACE_PARAM_OFFSET*params->roi.width;
+        } else if (rot == MobileRotation::LEFT) {
+            params->roi.x = params->roi.x - FACE_PARAM_OFFSET*params->roi.width;
         }
     }
 }
@@ -722,278 +754,6 @@ std::shared_ptr<TrackingFrameParams> McCameraTrackingController::BuildTrackingPa
     return trackingFrameParams;
 }
 
-int32_t McCameraTrackingController::GetTrackingTarget(CameraStandard::Rect &trackingRegion,
-    std::vector<sptr<CameraStandard::MetadataObject>> &detectedObjects, int32_t trackingObjectId,
-    sptr<CameraStandard::MetadataObject> &targetObject)
-{
-    if (detectedObjects.empty()) {
-        HILOGW("detectedObjects is empty!!!");
-        return DETECTED_OBJECT_IS_EMPTY;
-    }
-    sptr<CameraStandard::MetadataObject> selectedObject = nullptr;
-    if (trackingObjectId >= 0) {
-        for (const auto &item : detectedObjects) {
-            if (item->GetObjectId() == trackingObjectId) {
-                HILOGI("got detected object for id: %{public}d, type: %{public}d",
-                    trackingObjectId, static_cast<int>(item->GetType()));
-                    selectedObject = item;
-                break;
-            }
-        }
-    }
-    if (selectedObject != nullptr) {
-        return ProcessTargetByType(selectedObject, detectedObjects, targetObject);
-    }
-    if (currentCameraInfo_ &&
-        currentCameraInfo_->sessionMode == static_cast<int32_t>(CameraStandard::SceneMode::CINEMATIC_VIDEO) &&
-        trackingObjectId >= 0) {
-        HILOGW("CinematicVideo mode: trackingObjectId %{public}d not found in current frame", trackingObjectId);
-        sptr<CameraStandard::MetadataObject> matchedObj = SelectBestObjectByRegion(trackingRegion, detectedObjects);
-        if (matchedObj != nullptr) {
-            return ProcessTargetByType(matchedObj, detectedObjects, targetObject);
-        }
-    }
-    return GetTrackingTargetFallback(trackingRegion, detectedObjects, targetObject);
-}
-
-sptr<CameraStandard::MetadataObject> McCameraTrackingController::SelectBestObjectByRegion(
-    const CameraStandard::Rect& trackingRegion,
-    const std::vector<sptr<CameraStandard::MetadataObject>>& detectedObjects)
-{
-    sptr<CameraStandard::MetadataObject> bestObject = nullptr;
-    float bestIou = IOU_THRESHOLD;
-    for (const auto& obj : detectedObjects) {
-        auto type = obj->GetType();
-        if (type == CameraStandard::MetadataObjectType::FACE ||
-            type == CameraStandard::MetadataObjectType::BASE_FACE_DETECTION ||
-            type == CameraStandard::MetadataObjectType::HUMAN_HEAD) {
-            float iou = CalculateIOU(trackingRegion, obj->GetBoundingBox());
-            if (iou > bestIou) {
-                bestIou = iou;
-                bestObject = obj;
-            }
-        }
-    }
-    if (bestObject != nullptr) {
-        HILOGI("SelectBestObjectByRegion: found object id=%{public}d, type=%{public}d, IOU=%{public}f",
-               bestObject->GetObjectId(), static_cast<int>(bestObject->GetType()), bestIou);
-    }
-    return bestObject;
-}
-
-int32_t McCameraTrackingController::ProcessTargetByType(
-    const sptr<CameraStandard::MetadataObject> &selectedObject,
-    const std::vector<sptr<CameraStandard::MetadataObject>> &detectedObjects,
-    sptr<CameraStandard::MetadataObject> &targetObject)
-{
-    CameraStandard::MetadataObjectType selectedType = selectedObject->GetType();
-        switch (selectedType) {
-            case CameraStandard::MetadataObjectType::HUMAN_HEAD:
-                targetObject = FindFaceForHead(*selectedObject, detectedObjects);
-                if (targetObject != nullptr) {
-                    HILOGI("Tracking matching face for head.ObjectId:%{public}d ", targetObject->GetObjectId());
-                    return ERR_OK;
-                }
-                targetObject = selectedObject;
-                HILOGI("Tracking head (no matching face found)");
-                return ERR_OK;
-            case CameraStandard::MetadataObjectType::HUMAN_BODY:
-                targetObject = FindBestFaceOrHeadForBody(*selectedObject, detectedObjects);
-                if (targetObject != nullptr) {
-                    HILOGI("Tracking %{public}s for body, objectID:%{public}d",
-                        targetObject->GetType() == (CameraStandard::MetadataObjectType::HUMAN_HEAD)
-                            ? "head"
-                            : "face", targetObject->GetObjectId());
-                    return ERR_OK;
-                }
-                targetObject = selectedObject;
-                HILOGI("No matching face/head found, continue tracking body");
-
-                return ERR_OK;
-            case CameraStandard::MetadataObjectType::SALIENT_DETECTION:
-                if (selectedObject->IsLockFocusTracked()) {
-                    HILOGI("SALIENT_DETECTION with IsLockFocusTracked true, treat as body to find face/head");
-                    targetObject = FindBestFaceOrHeadForBody(*selectedObject, detectedObjects);
-                    if (targetObject != nullptr) {
-                        HILOGI("Tracking %{public}s for salient detection, objectID:%{public}d",
-                            targetObject->GetType() == (CameraStandard::MetadataObjectType::HUMAN_HEAD)
-                                ? "head"
-                                : "face", targetObject->GetObjectId());
-                        return ERR_OK;
-                    }
-                    targetObject = selectedObject;
-                    HILOGI("No matching face/head found for salient detection, continue tracking salient detection");
-                    return ERR_OK;
-                }
-                targetObject = selectedObject;
-                HILOGI("Tracking salient detection (IsLockFocusTracked is false)");
-                return ERR_OK;
-            default:
-                targetObject = selectedObject;
-                HILOGW("Tracking face/unknown type: %{public}d", static_cast<int>(selectedType));
-                return ERR_OK;
-        }
-}
-
-sptr<CameraStandard::MetadataObject> McCameraTrackingController::FindFaceForHead(
-    CameraStandard::MetadataObject& headObject,
-    const std::vector<sptr<CameraStandard::MetadataObject>>& detectedObjects)
-{
-    CameraStandard::Rect headRect = headObject.GetBoundingBox();
-    sptr<CameraStandard::MetadataObject> bestFace = nullptr;
-    float bestIou = 0.0f;
-
-    for (const auto& obj : detectedObjects) {
-        if (obj->GetType() != CameraStandard::MetadataObjectType::FACE &&
-            obj->GetType() != CameraStandard::MetadataObjectType::BASE_FACE_DETECTION) {
-            continue;
-        }
-        float iou = CalculateIOU(headRect, obj->GetBoundingBox());
-        if (iou > bestIou && iou > IOU_THRESHOLD) {
-            bestIou = iou;
-            bestFace = obj;
-            HILOGI("FindFaceForHead objectId:%{public}d,  CalculateIOU %{public}f", obj->GetObjectId(),  iou);
-        }
-    }
-    if (bestFace != nullptr) {
-        HILOGI("Found matching face for head, IOU: %{public}f", bestIou);
-    }
-    return bestFace;
-}
-
-sptr<CameraStandard::MetadataObject> McCameraTrackingController::FindBestFaceOrHeadForBody(
-    CameraStandard::MetadataObject &bodyObject,
-    const std::vector<sptr<CameraStandard::MetadataObject>> &detectedObjects)
-{
-    CameraStandard::Rect bodyRect = bodyObject.GetBoundingBox();
-    std::vector<sptr<CameraStandard::MetadataObject>> faces;
-    std::vector<sptr<CameraStandard::MetadataObject>> heads;
-    for (const auto &obj : detectedObjects) {
-        CameraStandard::MetadataObjectType type = obj->GetType();
-        if (type == CameraStandard::MetadataObjectType::FACE ||
-            type == CameraStandard::MetadataObjectType::BASE_FACE_DETECTION) {
-            faces.push_back(obj);
-        } else if (type == CameraStandard::MetadataObjectType::HUMAN_HEAD) {
-            heads.push_back(obj);
-        }
-    }
-    sptr<CameraStandard::MetadataObject> bestMatch = FindBestMatchForBody(bodyRect, faces);
-    if (bestMatch != nullptr) {
-        HILOGI("Found matching face for body.Face ObjectId:%{public}d", bestMatch->GetObjectId());
-        return bestMatch;
-    }
-    bestMatch = FindBestMatchForBody(bodyRect, heads);
-    if (bestMatch != nullptr) {
-        HILOGI("Found matching head for body.Head ObjectId:%{public}d", bestMatch->GetObjectId());
-        return bestMatch;
-    }
-    return nullptr;
-}
-
-sptr<CameraStandard::MetadataObject> McCameraTrackingController::FindBestMatchForBody(
-    const CameraStandard::Rect &bodyRect, std::vector<sptr<CameraStandard::MetadataObject>> &objectsForBody)
-{
-    sptr<CameraStandard::MetadataObject> bestMatch = nullptr;
-    float bestIou = 0.0f;
-    int matchCount = 0;
-    for (const auto &object : objectsForBody) {
-        float iou = CalculateIOU(bodyRect, object->GetBoundingBox());
-        if (iou > IOU_THRESHOLD) {
-            matchCount++;
-            if (iou > bestIou) {
-                bestIou = iou;
-                bestMatch = object;
-                HILOGI("Find MatchObject IOU For Body. objectId:%{public}d,  CalculateIOU %{public}f",
-                    object->GetObjectId(),
-                    iou);
-            }
-        }
-    }
-    if (matchCount > 1) {
-        HILOGW("Found %{public}d matching object for body, keeping body tracking", matchCount);
-        return nullptr;
-    }
-    return bestMatch;
-}
-
-int32_t McCameraTrackingController::GetTrackingTargetFallback(CameraStandard::Rect &trackingRegion,
-    std::vector<sptr<CameraStandard::MetadataObject>> &detectedObjects,
-    sptr<CameraStandard::MetadataObject> &targetObject)
-{
-    sptr<CameraStandard::MetadataObject> selectedObject = nullptr;
-
-    for (const auto &item : detectedObjects) {
-        if (item->GetType() == CameraStandard::MetadataObjectType::SALIENT_DETECTION && item->IsLockFocusTracked()) {
-            HILOGI("found SALIENT_DETECTION with isLockFocusTracked true");
-            selectedObject = item;
-            isSalientDetectionLocked_.store(true, std::memory_order_relaxed);
-            return ProcessTargetByType(selectedObject, detectedObjects, targetObject);
-        }
-    }
-    isSalientDetectionLocked_.store(false, std::memory_order_relaxed);
-
-    auto lastFrame = std::atomic_load(&lastTrackingFrame_);
-    if (lastFrame != nullptr && lastFrame->targetId >= 0) {
-        for (const auto &item : detectedObjects) {
-            if (item->GetObjectId() == lastFrame->targetId) {
-                HILOGI("got detected object for id: %{public}d", lastFrame->targetId);
-                selectedObject = item;
-                ProcessTargetByType(selectedObject, detectedObjects, targetObject);
-                return ERR_OK;
-            }
-        }
-    }
-
-    for (const auto &item : detectedObjects) {
-        CameraStandard::Rect itemRect = item->GetBoundingBox();
-        if (std::abs(itemRect.topLeftX - trackingRegion.topLeftX) <= TRACKING_LOST_CHECK &&
-            std::abs(itemRect.topLeftY - trackingRegion.topLeftY) <= TRACKING_LOST_CHECK) {
-            HILOGI("got detected object which is same as trackingRegion");
-            selectedObject = item;
-            ProcessTargetByType(selectedObject, detectedObjects, targetObject);
-            return ERR_OK;
-        }
-    }
-
-    HILOGW("use first object as target object.");
-    selectedObject = detectedObjects[0];
-    return ProcessTargetByType(selectedObject, detectedObjects, targetObject);
-}
-
-float McCameraTrackingController::CalculateIOU(const CameraStandard::Rect &rect1, const CameraStandard::Rect &rect2)
-{
-    if (rect1.width <= 0 || rect1.height <= 0 || rect2.width <= 0 || rect2.height <= 0) {
-        return IOU_DEFAULT;
-    }
-    float left1 = rect1.topLeftX;
-    float top1 = rect1.topLeftY;
-    float right1 = rect1.width;
-    float bottom1 = rect1.height;
-
-    float left2 = rect2.topLeftX;
-    float top2 = rect2.topLeftY;
-    float right2 = rect2.width;
-    float bottom2 = rect2.height;
-    if (right1 <= left1 || bottom1 <= top1 || right2 <= left2 || bottom2 <= top2) {
-        return IOU_DEFAULT;
-    }
-    float interLeft = std::max(left1, left2);
-    float interTop = std::max(top1, top2);
-    float interRight = std::min(right1, right2);
-    float interBottom = std::min(bottom1, bottom2);
-    if (interRight <= interLeft || interBottom <= interTop) {
-        return IOU_DEFAULT;
-    }
-    float interArea = (interRight - interLeft) * (interBottom - interTop);
-    float area1 = (right1 - left1) * (bottom1 - top1);
-    float area2 = (right2 - left2) * (bottom2 - top2);
-    float minArea = std::min(area1, area2);
-    if (minArea <= TRACKING_LOST_CHECK || minArea <= 0) {
-        return IOU_DEFAULT;
-    }
-    return interArea / minArea;
-}
-
 int32_t McCameraTrackingController::CinematicVideoModeTrackingTargetFilter(
     CameraStandard::FocusTrackingMetaInfo &info, std::shared_ptr<TrackingFrameParams> &trackingParams)
 {
@@ -1046,18 +806,6 @@ int32_t McCameraTrackingController::CinematicVideoModeTrackingTargetFilter(
     return ERR_OK;
 }
 
-bool McCameraTrackingController::IsAllowedConversion(
-    CameraStandard::Rect &lastTrackingRect, CameraStandard::Rect &trackingRect)
-{
-    float iou = CalculateIOU(lastTrackingRect, trackingRect);
-    if (iou > IOU_THRESHOLD) {
-        HILOGI("Conversion allowed, IOU: %{public}f", iou);
-        return true;
-    } else {
-        HILOGW("Conversion rejected, IOU too low: %{public}f", iou);
-        return false;
-    }
-}
 
 void McCameraTrackingController::UpdateROI(std::shared_ptr<TrackingFrameParams> &trackingFrameParams,
     CameraStandard::Rect &rect)
@@ -1126,8 +874,8 @@ int32_t McCameraTrackingController::UpdateMotionsWithTrackingData(
             HILOGE("MotionManager not exists; mechId: %{public}d", mechId);
             continue;
         }
-
-        int32_t setResult = motionManager->SetMechCameraTrackingFrame(params);
+        int32_t setResult = motionManager->SetMechCameraTrackingFrame(
+            BuildDeviceTrackingParams(motionManager, params));
         HILOGI("Set tracking info for mech id: %{public}d; result: %{public}s; code: %{public}d",
                mechId, setResult == ERR_OK ? "success" : "failed", setResult);
     }
@@ -1292,10 +1040,14 @@ int32_t McCameraTrackingController::UpdateActionControl()
         (std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now())
             .time_since_epoch().count());
     auto lastFrame = std::atomic_load(&lastTrackingFrame_);
+    uint64_t lastTrackingTimeStamp = 0;
+    if (lastFrame != nullptr) {
+        lastTrackingTimeStamp = lastFrame->timeStamp;
+    }
     if (currentCameraInfo_ != nullptr && currentCameraInfo_->trackingTargetNum.load(std::memory_order_relaxed) > 0 &&
-        lastFrame->timeStamp <= currentTime &&
-        currentTime - lastFrame->timeStamp < TRACKING_PARAM_LOST_DELAY &&
-        currentCameraInfo_->currentTrackingEnable.load(std::memory_order_relaxed)) {
+        lastFrame != nullptr && lastTrackingTimeStamp <= currentTime &&
+        currentTime - lastTrackingTimeStamp < TRACKING_PARAM_LOST_DELAY &&
+        IsCurrentTrackingEnabled()) {
         actionControlParam.controlReq = 1;
         actionControlParam.yawControl = 1;
         actionControlParam.pitchControl = 1;
@@ -1755,6 +1507,53 @@ void McCameraTrackingController::AdjustROI(ROI &roi, CameraStandard::Rect &rect,
     }
 }
 
+void McCameraTrackingController::SmoothOffsetValue(float &offset, const float &targetOffset)
+{
+    if (std::abs(targetOffset - offset) <= TRACKING_LOST_CHECK) {
+        return;
+    }
+    if (targetOffset > offset) {
+        offset += OFFSET_VALUE_BASE_1;
+    } else if (targetOffset < offset) {
+        offset -= OFFSET_VALUE_BASE_1;
+    }
+}
+
+void McCameraTrackingController::UpdateStickState()
+{
+    if (isStick_) {
+        return;
+    }
+    auto currentTime = std::chrono::steady_clock::now();
+    auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastStickTime_).count();
+    if (timeDiff > TRACKING_STATE_TIME) {
+        isStick_ = true;
+    }
+}
+
+void McCameraTrackingController::ApplyRoiOffset(ROI &roi, CameraType cameraType, bool isFace, bool isBody)
+{
+    bool isVerticalRotation = sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::DOWN;
+    bool isHorizontalRotation = sensorRotation_ == MobileRotation::LEFT || sensorRotation_ == MobileRotation::RIGHT;
+    if (isStick_) {
+        if (isVerticalRotation) {
+            AddYOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AddYOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        } else if (isHorizontalRotation) {
+            AddXOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AddXOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        }
+    } else {
+        if (isVerticalRotation) {
+            AdjustYOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AdjustYOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        } else if (isHorizontalRotation) {
+            AdjustXOffset(roi, cameraType, vertical_, horizontal_, isFace, isBody);
+            HILOGD("AdjustXOffset atfer ROI: %{public}s", roi.ToString().c_str());
+        }
+    }
+}
+
 void McCameraTrackingController::AdjustOffset(std::shared_ptr<TrackingFrameParams> &trackingParams,
     CameraType cameraType)
 {
@@ -1762,53 +1561,13 @@ void McCameraTrackingController::AdjustOffset(std::shared_ptr<TrackingFrameParam
         HILOGW("trackingParams is nullptr.");
         return;
     }
-    if (std::abs(targetVertical_ - vertical_) > TRACKING_LOST_CHECK) {
-        if (targetVertical_ > vertical_) {
-            vertical_ += OFFSET_VALUE_BASE_1;
-        } else if (targetVertical_ < vertical_) {
-            vertical_ -= OFFSET_VALUE_BASE_1;
-        }
-    }
-
-    if (std::abs(targetHorizontal_ - horizontal_) > TRACKING_LOST_CHECK) {
-        if (targetHorizontal_ > horizontal_) {
-            horizontal_ += OFFSET_VALUE_BASE_1;
-        } else if (targetHorizontal_ < horizontal_) {
-            horizontal_ -= OFFSET_VALUE_BASE_1;
-        }
-    }
-
-    if (!isStick_) {
-        auto currentTime = std::chrono::steady_clock::now();
-        auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastStickTime_).count();
-        if (timeDiff > TRACKING_STATE_TIME) {
-            isStick_ = true;
-        }
-    }
-
+    SmoothOffsetValue(vertical_, targetVertical_);
+    SmoothOffsetValue(horizontal_, targetHorizontal_);
+    UpdateStickState();
     bool isFace = trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_FACE);
     bool isBody = trackingParams->objectType == static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_BODY);
-    if (isStick_) {
-        if (sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::DOWN) {
-            AddYOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AddYOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        } else if (sensorRotation_ == MobileRotation::LEFT || sensorRotation_ == MobileRotation::RIGHT) {
-            AddXOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AddXOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        }
-    } else {
-        if (sensorRotation_ == MobileRotation::UP || sensorRotation_ == MobileRotation::DOWN) {
-            AdjustYOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AdjustYOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        } else if (sensorRotation_ == MobileRotation::LEFT || sensorRotation_ == MobileRotation::RIGHT) {
-            AdjustXOffset(trackingParams->roi, cameraType, vertical_, horizontal_, isFace, isBody);
-            HILOGD("AdjustXOffset atfer ROI: %{public}s", trackingParams->roi.ToString().c_str());
-        }
-    }
-
+    ApplyRoiOffset(trackingParams->roi, cameraType, isFace, isBody);
     setTrackingLimit(trackingParams->roi);
-
-    trackingParams->objectType = static_cast<uint8_t>(TrackingObjectType::MSG_OBJ_OTHER);
 }
 
 void McCameraTrackingController::setTrackingLimit(ROI &roi)

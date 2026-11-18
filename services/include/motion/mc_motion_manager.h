@@ -100,6 +100,7 @@ public:
     int32_t GetCurrentPosition(std::shared_ptr<EulerAngles> &eulerAngles);
     int32_t GetRotationLimit(RotateDegreeLimit &rotationLimit);
     int32_t SetMechCameraTrackingFrame(const std::shared_ptr<TrackingFrameParams> trackingFrameParams);
+    void UpdateTrackingDfxInfo(const std::shared_ptr<TrackingFrameParams> trackingFrameParams);
     void SetAutoCentering(bool isAutoCentering);
     int32_t GetMechCameraTrackingEnabled(bool &isEnabled);
     int32_t SetMechCameraTrackingEnabled(bool &isEnabled);
@@ -154,6 +155,16 @@ public:
     void SetDfxConnectDelay(uint32_t delayTime);
     void UpdateAppForegroundInfo(const AppExecFwk::AppStateData &appStateData);
     void UpdateEndtimeAndCompute();
+
+public:
+    bool IsCeliaForeground() const
+    {
+        return isCeliaForeground_.load();
+    }
+    void SetCeliaForeground(bool isForeground)
+    {
+        isCeliaForeground_.store(isForeground);
+    }
 
 private:
     void MMIKeyEvent(CameraKeyEvent eventType);
@@ -232,6 +243,7 @@ private:
     void MechkitFaultInfoReport(const RotateBySpeedParam& rotateSpeedParam);
     void MechkitIntelligentInfoReport(const CameraInfoParams &mechCameraInfo);
     void InitDfxInfo();
+    void ResetControlInfo();
     void GetDfxDeviceTypeInfo();
     void DfxGetSendCmdInfo(uint16_t cmdType, uint8_t result);
     ExecResult MapDeviceErrorCodeToExecResult(uint16_t cmdType, uint8_t deviceErrorCode);
@@ -292,12 +304,14 @@ private:
     bool deviceBaseInfoReady_ = false;
     bool isFirstConnect_ = false;
     bool isFirstConnectWheelBase_ = false;
+    std::atomic<bool> isCeliaForeground_{false};
     uint32_t deviceIdentifier_ = 0x00000000;
     sptr<AppExecFwk::IApplicationStateObserver> appChangeListener_;
     std::set<AppForegroundInfo> appForegroundInfos_;
     std::mutex appForegroundInfoMutex_;
     uint64_t trackingTime_ = 0;
     MechkitControlInfo controlInfo_ = {0};
+    std::mutex controlInfoMutex_;
     std::vector<SendCmdInfo> sendCmdInfo_;
     std::mutex sendCmdInfoMutex_;
 };

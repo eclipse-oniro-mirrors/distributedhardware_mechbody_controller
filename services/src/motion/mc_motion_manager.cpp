@@ -416,7 +416,10 @@ void MotionManager::MechCliffInfoNotify(const std::shared_ptr<RegisterMechCliffI
 {
     HILOGI("notify");
     MechBodyControllerService::GetInstance().NotifyMechEvent(mechId_, MechEventType::REACH_CLIFF);
-    controlInfo_.cliffNumber = cmd->GetCliffNums();
+    {
+        std::lock_guard<std::mutex> lock(controlInfoMutex_);
+        controlInfo_.cliffNumber = cmd->GetCliffNums();
+    }
     HILOGI("notify end");
 }
 
@@ -424,7 +427,10 @@ void MotionManager::MechObstacleInfoNotify(const std::shared_ptr<RegisterMechObs
 {
     HILOGI("notify");
     MechBodyControllerService::GetInstance().NotifyMechEvent(mechId_, MechEventType::REACH_OBSTACLE);
-    controlInfo_.obstacleNumber = cmd->GetObstacleNums();
+    {
+        std::lock_guard<std::mutex> lock(controlInfoMutex_);
+        controlInfo_.obstacleNumber = cmd->GetObstacleNums();
+    }
     HILOGI("notify end");
 }
 
@@ -606,7 +612,7 @@ void MotionManager::RegisterAbilityStateChangeListener()
         appChangeListener_ = nullptr;
         return;
     }
-
+    isCeliaForeground_.store(MechJudgeCeliaFront());
     HILOGI("RegisterAbilityStateChangeListener success");
 }
 
@@ -935,34 +941,7 @@ void MotionManager::InitDfxInfo()
     HILOGI("InitDfxInfo start.");
     // 连接且吸附初始化DFX
     if (deviceStatus_->stateInfo.isPhoneOn) {
-        controlInfo_.upWard = 0;
-        controlInfo_.downWard = 0;
-        controlInfo_.turnLeft = 0;
-        controlInfo_.turnRight = 0;
-        controlInfo_.fastRotation = 0;
-        controlInfo_.landScapePortrait = 0;
-        controlInfo_.cameraMode = 0;
-        controlInfo_.trackingDuration = 0;
-        controlInfo_.cameraType = 0;
-        controlInfo_.zoomRatio = 0.0f;
-        controlInfo_.obstacleNumber = 0;
-        controlInfo_.cliffNumber = 0;
-        controlInfo_.successNumber = 0;
-        controlInfo_.failNumber = 0;
-        controlInfo_.deviceType = 0;
-        controlInfo_.stickNum = 0;
-        controlInfo_.connectCode = 0;
-        controlInfo_.connectDelay = 0;
-
-        controlInfo_.appName.clear();
-        controlInfo_.appName.resize(MAX_DFX_APP_NUM);
-        controlInfo_.existenceTime.clear();
-        controlInfo_.existenceTime.resize(MAX_DFX_APP_NUM);
-        controlInfo_.cmdWord.clear();
-        controlInfo_.cmdWord.resize(MAX_DFX_APP_NUM);
-        controlInfo_.errorCode.clear();
-        controlInfo_.errorCode.resize(MAX_DFX_APP_NUM);
-        controlInfo_.packageName.clear();
+        ResetControlInfo();
         // 初始化在前台的APP的数据
         auto appManager = GetAppManagerInstance();
         if (appManager == nullptr) {
@@ -983,20 +962,57 @@ void MotionManager::InitDfxInfo()
         }
     }
 }
- 
+
+void MotionManager::ResetControlInfo()
+{
+    std::lock_guard<std::mutex> lock(controlInfoMutex_);
+    controlInfo_.upWard = 0;
+    controlInfo_.downWard = 0;
+    controlInfo_.turnLeft = 0;
+    controlInfo_.turnRight = 0;
+    controlInfo_.fastRotation = 0;
+    controlInfo_.landScapePortrait = 0;
+    controlInfo_.cameraMode = 0;
+    controlInfo_.trackingDuration = 0;
+    controlInfo_.cameraType = 0;
+    controlInfo_.zoomRatio = 0.0f;
+    controlInfo_.obstacleNumber = 0;
+    controlInfo_.cliffNumber = 0;
+    controlInfo_.successNumber = 0;
+    controlInfo_.failNumber = 0;
+    controlInfo_.deviceType = 0;
+    controlInfo_.stickNum = 0;
+    controlInfo_.connectCode = 0;
+    controlInfo_.connectDelay = 0;
+    controlInfo_.cameraStatus = 0;
+
+    controlInfo_.appName.clear();
+    controlInfo_.appName.resize(MAX_DFX_APP_NUM);
+    controlInfo_.existenceTime.clear();
+    controlInfo_.existenceTime.resize(MAX_DFX_APP_NUM);
+    controlInfo_.cmdWord.clear();
+    controlInfo_.cmdWord.resize(MAX_DFX_APP_NUM);
+    controlInfo_.errorCode.clear();
+    controlInfo_.errorCode.resize(MAX_DFX_APP_NUM);
+    controlInfo_.packageName.clear();
+}
+
 MechkitControlInfo MotionManager::GetDfxInfo()
 {
+    std::lock_guard<std::mutex> lock(controlInfoMutex_);
     UpdateSendCmdInfoToDfx();
     return controlInfo_;
 }
 
 void MotionManager::SetDfxConnectDelay(uint32_t delayTime)
 {
+    std::lock_guard<std::mutex> lock(controlInfoMutex_);
     controlInfo_.connectDelay = delayTime;
 }
 
 void MotionManager::GetDfxDeviceTypeInfo()
 {
+    std::lock_guard<std::mutex> lock(controlInfoMutex_);
     if (protocolVer_ == 0x01) {
         controlInfo_.deviceType = static_cast<uint8_t>(MechType::PORTABLE_GIMBAL);
     } else {
@@ -2258,6 +2274,10 @@ void MotionManager::HandleDoActionResponse(uint8_t taskId, ActionType actionType
     std::shared_ptr<CommandBase> command)
 {
     HILOGI("DoAction end, taskId=%{public}d", taskId);
+    if (command == nullptr) {
+        HILOGE("command is nullptr, taskId=%{public}d", taskId);
+        return;
+    }
     std::unique_lock<std::mutex> lock(seqCallbackMutex_);
     auto it = seqCallbacks_.find(taskId);
     if (it == seqCallbacks_.end()) {
@@ -2278,8 +2298,16 @@ void MotionManager::HandleDoActionResponse(uint8_t taskId, ActionType actionType
         auto cmd = static_cast<WheelSetMechMotionControlCmd *>(command.get());
         result = MapDeviceErrorCodeToExecResult(cmd->GetCmdType(), cmd->GetResult());
     } else {
-        result = MapDeviceErrorCodeToExecResult(command->GetCmdType(),
-            static_cast<WheelSetMechSceneControlCmd *>(command.get())->GetResult());
+        uint16_t cmdType = command->GetCmdType();
+        uint16_t wheelCmdType = (static_cast<uint16_t>(WheelSetMechSceneControlCmd::CMD_SET) << BIT_OFFSET_8) |
+            static_cast<uint16_t>(WheelSetMechSceneControlCmd::CMD_ID);
+        if (cmdType != wheelCmdType) {
+            HILOGE("DoAction response command type mismatch, cmdType: 0x%{public}x", cmdType);
+            result = ExecResult::SYSTEM_ERROR;
+        } else {
+            auto wheelCmd = static_cast<WheelSetMechSceneControlCmd *>(command.get());
+            result = MapDeviceErrorCodeToExecResult(cmdType, wheelCmd->GetResult());
+        }
     }
 
     auto cbInfo = it->second;
@@ -2297,6 +2325,10 @@ void MotionManager::HandleDoActionResponse(uint8_t taskId, ActionType actionType
 
 ExecResult MotionManager::ExtractMotionControlResult(std::shared_ptr<CommandBase> command)
 {
+    if (!command) {
+        HILOGE("command is nullptr");
+        return ExecResult::SYSTEM_ERROR;
+    }
     uint8_t cmdResult = 0;
     CommandBase* motionCmd = nullptr;
     if (protocolVer_ == 0x01) {
@@ -2308,7 +2340,10 @@ ExecResult MotionManager::ExtractMotionControlResult(std::shared_ptr<CommandBase
         motionCmd = cmd;
         cmdResult = cmd->GetResult();
     }
-    controlInfo_.landScapePortrait++;
+    {
+        std::lock_guard<std::mutex> lock(controlInfoMutex_);
+        controlInfo_.landScapePortrait++;
+    }
     return MapDeviceErrorCodeToExecResult(motionCmd->GetCmdType(), cmdResult);
 }
 
@@ -2330,6 +2365,10 @@ ExecResult MotionManager::ExtractRotationTraceResult(std::shared_ptr<CommandBase
 
 ExecResult MotionManager::ExtractRotationBySpeedResult(std::shared_ptr<CommandBase> command)
 {
+    if (!command) {
+        HILOGE("command is nullptr");
+        return ExecResult::SYSTEM_ERROR;
+    }
     uint8_t cmdResult = 0;
     CommandBase* motionCmd = nullptr;
     if (protocolVer_ >= 0x02) {
@@ -2377,6 +2416,7 @@ void MotionManager::CreateDoActionTimeoutCallback(uint8_t taskId, bool needResto
 
 void MotionManager::MechkitFaultInfoReport(const RotateBySpeedParam& rotateSpeedParam)
 {
+    std::lock_guard<std::mutex> lock(controlInfoMutex_);
     if (rotateSpeedParam.speed.yawSpeed == DEGREE_CIRCLED_MIN ||
         rotateSpeedParam.speed.yawSpeed == DEGREE_CIRCLED_MAX) {
         controlInfo_.fastRotation++;
@@ -2826,18 +2866,28 @@ int32_t MotionManager::SetMechCameraTrackingFrame(const std::shared_ptr<Tracking
     cameraTrackingFrameCmd->SetTimestamp(nowUs.count());
 
     sendAdapter_->SendCommand(cameraTrackingFrameCmd);
+    UpdateTrackingDfxInfo(trackingFrameParams);
+    return ERR_OK;
+}
+
+void MotionManager::UpdateTrackingDfxInfo(const std::shared_ptr<TrackingFrameParams> trackingFrameParams)
+{
     uint64_t tmpTime = static_cast<uint64_t>(std::chrono::time_point_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now()).time_since_epoch().count());
-    controlInfo_.trackingDuration = static_cast<uint64_t>(trackingFrameParams->timeDelay);
+    uint64_t trackingDuration = static_cast<uint64_t>(trackingFrameParams->timeDelay);
     uint64_t lastTime = McCameraTrackingController::GetInstance().GetPredictDfxCurTime();
-    if (lastTime > 0) {
-        if (tmpTime > lastTime && (tmpTime - lastTime) > PORECAST_MS_TO_S) {
-            controlInfo_.failNumber++;
-        } else {
-            controlInfo_.successNumber++;
+    bool isFail = lastTime > 0 && tmpTime > lastTime && (tmpTime - lastTime) > PORECAST_MS_TO_S;
+    {
+        std::lock_guard<std::mutex> lock(controlInfoMutex_);
+        controlInfo_.trackingDuration = trackingDuration;
+        if (lastTime > 0) {
+            if (isFail) {
+                controlInfo_.failNumber++;
+            } else {
+                controlInfo_.successNumber++;
+            }
         }
     }
-    return ERR_OK;
 }
 
 int32_t MotionManager::GetMechCameraTrackingEnabled(bool &isEnabled)
@@ -2920,11 +2970,18 @@ int32_t MotionManager::GetMechCameraTrackingLayout(std::shared_ptr<LayoutParams>
 void MotionManager::MechkitIntelligentInfoReport(const CameraInfoParams &mechCameraInfo)
 {
     HILOGI("start.");
-    controlInfo_.cameraMode = static_cast<uint8_t>(McCameraTrackingController::GetInstance().GetCamereModeInfo());
+    uint8_t cameraMode = static_cast<uint8_t>(McCameraTrackingController::GetInstance().GetCamereModeInfo());
     uint32_t tokenId = McCameraTrackingController::GetInstance().GetTokenIdOfCurrentCameraInfo();
-    controlInfo_.packageName = MechBodyControllerService::GetAppNameByTokenId(tokenId);
-    controlInfo_.zoomRatio = mechCameraInfo.zoomFactor;
-    controlInfo_.cameraType = static_cast<uint8_t>(mechCameraInfo.cameraType);
+    std::string packageName = MechBodyControllerService::GetAppNameByTokenId(tokenId);
+    float_t zoomRatio = mechCameraInfo.zoomFactor;
+    uint8_t cameraType = static_cast<uint8_t>(mechCameraInfo.cameraType);
+    {
+        std::lock_guard<std::mutex> lock(controlInfoMutex_);
+        controlInfo_.cameraMode = cameraMode;
+        controlInfo_.packageName = packageName;
+        controlInfo_.zoomRatio = zoomRatio;
+        controlInfo_.cameraType = cameraType;
+    }
 }
 
 int32_t MotionManager::SetMechCameraInfo(const CameraInfoParams &mechCameraInfo)
@@ -3299,13 +3356,16 @@ void MotionManager::UpdateEndtimeAndCompute()
             return a.duration > b.duration;
         });
     size_t topCount = std::min(appInfos.size(), static_cast<size_t>(5));
-    // 更新成员变量controlInfo_的appName和existenceTime
-    controlInfo_.appName.clear();
-    controlInfo_.existenceTime.clear();
+    {
+        std::lock_guard<std::mutex> controlInfoLock(controlInfoMutex_);
+        // 更新成员变量controlInfo_的appName和existenceTime
+        controlInfo_.appName.clear();
+        controlInfo_.existenceTime.clear();
     
-    for (size_t i = 0; i < topCount; ++i) {
-        controlInfo_.appName.push_back(appInfos[i].bundleName);
-        controlInfo_.existenceTime.push_back(appInfos[i].duration);
+        for (size_t i = 0; i < topCount; ++i) {
+            controlInfo_.appName.push_back(appInfos[i].bundleName);
+            controlInfo_.existenceTime.push_back(appInfos[i].duration);
+        }
     }
     
     // 清空set中的数据
@@ -3417,6 +3477,10 @@ void AbilityStateListener::OnAppStateChanged(const AppExecFwk::AppStateData &app
     HILOGI("bundleName:%{public}s, state:%{public}d", appStateData.bundleName.c_str(), appStateData.state);
     if (appStateData.bundleName == SCENEBOARD_BUNDLE_NAME) {
         return;
+    }
+    if (appStateData.bundleName == CELIA_BUNDLE_NAME) {
+        motionManager_->SetCeliaForeground(appStateData.state == APP_STATE_FOREGROUND);
+        HILOGI("Celia foreground state: %{public}d", motionManager_->IsCeliaForeground());
     }
     motionManager_->UpdateAppForegroundInfo(appStateData);
 }
