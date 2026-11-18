@@ -115,8 +115,6 @@ void MechBodyControllerStub::InitFuncsInnerPart2()
             &MechBodyControllerStub::ConnectDeviceInner;
     funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::DISCONNECT_DEVICE)] =
             &MechBodyControllerStub::DisconnectDeviceInner;
-    funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::CONNECT_CALLBACK)] =
-            &MechBodyControllerStub::ConnectCallbackInner;
 }
 
 int32_t MechBodyControllerStub::OnRemoteRequest(
