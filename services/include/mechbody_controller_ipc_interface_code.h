@@ -71,7 +71,6 @@ enum class IMechBodyControllerCode : uint32_t {
     BATTERY_LEVEL_CHANGE_CALLBACK = 41,
     CONNECT_DEVICE = 42,
     DISCONNECT_DEVICE = 43,
-    CONNECT_CALLBACK = 44,
 };
 } // namespace MechBodyController
 } // namespace OHOS

@@ -151,7 +151,7 @@ void AniMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &AniMechManagerStub::SubscribeCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
         &AniMechManagerStub::BatteryLevelChangeCallback;
-    mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_CALLBACK] = &AniMechManagerStub::ConnectCallback;
+    mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_DEVICE] = &AniMechManagerStub::ConnectCallback;
 }
 
 AniMechManagerStub::AniMechManagerStub()

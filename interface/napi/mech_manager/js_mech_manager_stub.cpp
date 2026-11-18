@@ -150,7 +150,7 @@ void JsMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &JsMechManagerStub::SubscribeCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
         &JsMechManagerStub::BatteryLevelChangeCallback;
-    mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_CALLBACK] = &JsMechManagerStub::ConnectCallback;
+    mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_DEVICE] = &JsMechManagerStub::ConnectCallback;
 }
 
 JsMechManagerStub::JsMechManagerStub()

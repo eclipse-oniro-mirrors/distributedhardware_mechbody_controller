@@ -782,7 +782,7 @@ int32_t MechBodyControllerService::NotifyConnectResult(const uint32_t &tokenId, 
             return NAPI_SEND_DATA_FAIL;
         }
         int32_t error =
-            callback->SendRequest(static_cast<uint32_t>(IMechBodyControllerCode::CONNECT_CALLBACK),
+            callback->SendRequest(static_cast<uint32_t>(IMechBodyControllerCode::CONNECT_DEVICE),
             data, reply, option);
         HILOGI("Send connect callback data %{public}s", error == ERR_NONE ? "success" : "failed");
     }
