@@ -149,7 +149,7 @@ void AniMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::ROTATE_CALLBACK] = &AniMechManagerStub::RotatePromiseFulfillment;
     mechManagerFuncMap_[IMechBodyControllerCode::SEARCH_TARGET_CALLBACK] = &AniMechManagerStub::SearchTargetCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &AniMechManagerStub::SubscribeCallback;
-mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
+    mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
         &AniMechManagerStub::BatteryLevelChangeCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_CALLBACK] = &AniMechManagerStub::ConnectCallback;
 }
