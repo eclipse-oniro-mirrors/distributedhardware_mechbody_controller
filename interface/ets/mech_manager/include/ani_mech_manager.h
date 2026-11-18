@@ -108,7 +108,7 @@ public:
         const int32_t &result);
     int32_t SearchTargetCallback(std::string &cmdId, const int32_t &targetsNum, const int32_t &result);
     int32_t SubscribeCallback(const int32_t &mechId, const MechEventType &mechEvent);
-int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
+    int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
         const bool &isCharging);
     int32_t ConnectCallback(const std::string &cmdId, const AttachmentState &state,
         const std::shared_ptr<MechInfo> &mechInfo);
@@ -147,7 +147,7 @@ int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &b
     void IsSupportAction(int32_t mechId, const ActionTypeTaihe &actionTypeTaihe, bool &isSupport);
     void DoAction(int32_t mechId, const ActionTypeTaihe &actionTypeTaihe, uintptr_t &promise);
     void Subscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
-void OnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
+    void OnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
     void OffBatteryLevelChange(int32_t mechId, const ::taihe::optional_view<BatteryLevelCBTaihe> &callback);
     void UnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes);
     void IsControlSupported(
@@ -164,7 +164,7 @@ private:
     int32_t ExecuteOnForRotationAxesStatusChange(const RotationAxesCBTaihe &callback);
     int32_t ExecuteOffForRotationAxesStatusChange(const ::taihe::optional_view<RotationAxesCBTaihe> &callback);
     int32_t ExecuteSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes, const SubscribeCBTaihe &callback);
-int32_t ExecuteUnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes);
+    int32_t ExecuteUnSubscribe(::taihe::array_view<MechEventTypeTaihe> mechEventTypes);
     int32_t ExecuteOnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback);
     int32_t ExecuteOffBatteryLevelChange(int32_t mechId, const ::taihe::optional_view<BatteryLevelCBTaihe> &callback);
 
