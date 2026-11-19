@@ -25,8 +25,8 @@ namespace {
 
 SubscribeEventUtils &SubscribeEventUtils::GetInstance()
 {
-    static SubscribeEventUtils instance;
-    return instance;
+    static auto instance = new SubscribeEventUtils();
+    return *instance;
 }
 
 void SubscribeEventUtils::Init()

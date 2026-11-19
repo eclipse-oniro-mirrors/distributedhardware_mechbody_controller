@@ -48,10 +48,11 @@ namespace {
         }
 
         auto cmd = std::make_shared<MockCommand>();
+        int32_t rangeMax = 5;
         cmd->SetCmdSet(provider.ConsumeIntegral<uint8_t>());
         cmd->SetCmdId(provider.ConsumeIntegral<uint8_t>());
         cmd->SetNeedResponse(false);
-        cmd->SetRetryTimes(provider.ConsumeIntegral<int32_t>());
+        cmd->SetRetryTimes(provider.ConsumeIntegralInRange<int32_t>(0, rangeMax));
         cmd->SetTimestamp(provider.ConsumeIntegral<int64_t>());
 
         TransportSendAdapter adapter;
