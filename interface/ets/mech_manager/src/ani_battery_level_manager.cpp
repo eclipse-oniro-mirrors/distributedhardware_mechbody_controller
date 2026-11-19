@@ -30,6 +30,9 @@ namespace {
  
 void AniMechManager::OnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTaihe &callback)
 {
+    if (CheckEmulator()) {
+        return;
+    }
     if (CheckDeviceL1()) {
         return;
     }
@@ -39,6 +42,9 @@ void AniMechManager::OnBatteryLevelChange(int32_t mechId, const BatteryLevelCBTa
  
 void AniMechManager::OffBatteryLevelChange(int32_t mechId, const ::taihe::optional_view<BatteryLevelCBTaihe> &callback)
 {
+    if (CheckEmulator()) {
+        return;
+    }
     if (CheckDeviceL1()) {
         return;
     }

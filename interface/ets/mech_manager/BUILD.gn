@@ -88,6 +88,9 @@ taihe_shared_library("mechanic_manager_ani") {
   if (mechbody_controller_feature_L1) {
     cflags += [ "-DMECHBODY_CONTROLLER_L1" ]
   }
+  if (is_emulator) {
+    cflags += [ "-DMECHBODY_CONTROLLER_EMULATOR" ]
+  }
   if (target_cpu == "arm") {
     cflags += [ "-DBINDER_IPC_32BIT" ]
   }
