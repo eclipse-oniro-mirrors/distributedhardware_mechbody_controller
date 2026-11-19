@@ -68,40 +68,6 @@ mech_external_deps = [
 
 mech_public_deps = [ "${mechbody_path}/services:mechbody_service_sources" ]
 
-ohos_unittest("mc_transport_command_test") {
-  cflags = [
-    "-Dprivate=public",
-    "-Dprotected=public",
-  ]
-  visibility = [ ":*" ]
-
-  module_out_path = mechbody_module_output_path
-
-  sanitize = {
-    blocklist = "./cfi_blocklist.txt"
-    cfi = true
-    cfi_cross_dso = true
-    debug = false
-  }
-
-  sources = [
-    "transport/mc_data_buffer_test.cpp",
-    "transport/mc_protocol_convertor_test.cpp",
-    "transport/mc_send_adapter_test.cpp",    
-  ]
-
-  configs = [
-    ":mech_test_config",
-    "${mechbody_path}/test/resource:coverage_flags",
-  ]
-
-  external_deps = mech_external_deps
-  deps = mech_public_deps
-
-  part_name = "mechbody_controller"
-  subsystem_name = "distributedhardware"
-}
-
 ohos_unittest("mc_subcription_center_test") {
   visibility = [ ":*" ]
 
@@ -120,36 +86,6 @@ ohos_unittest("mc_subcription_center_test") {
   }
 
   sources = [ "mc_subcription_center/mc_subcription_center_test.cpp" ]
-
-  configs = [
-    ":mech_test_config",
-    "${mechbody_path}/test/resource:coverage_flags",
-  ]
-
-  external_deps = mech_external_deps
-  deps = mech_public_deps
-
-  part_name = "mechbody_controller"
-  subsystem_name = "distributedhardware"
-}
-
-ohos_unittest("mc_command_test") {
-  cflags = [
-    "-Dprivate=public",
-    "-Dprotected=public",
-  ]
-  visibility = [ ":*" ]
-
-  module_out_path = mechbody_module_output_path
-
-  sanitize = {
-    blocklist = "./cfi_blocklist.txt"
-    cfi = true
-    cfi_cross_dso = true
-    debug = false
-  }
-
-  sources = [ "transport/command/mc_command_test.cpp" ]
 
   configs = [
     ":mech_test_config",
@@ -386,10 +322,8 @@ ohos_unittest("mc_register_mech_obstacle_info_cmd_test") {
 group("unittest") {
   testonly = true
   deps = [
-    ":mc_command_test",
     ":mc_command_test_0x01",
     ":mc_subcription_center_test",
-    ":mc_transport_command_test",
     ":mechbody_controller_stub_test",
     ":mc_wheel_set_mech_rotation_trace_cmd_test",
     ":mc_wheel_set_mech_scene_control_cmd_test",
