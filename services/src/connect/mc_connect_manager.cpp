@@ -308,6 +308,12 @@ std::set<MechInfo> MechConnectManager::GetMechInfos()
     return mechInfos_;
 }
 
+std::set<MechInfo> MechConnectManager::GetMechInfosSnapshot()
+{
+    std::lock_guard<std::mutex> autoLock(mechInfosMutex_);
+    return mechInfos_;
+}
+
 int32_t MechConnectManager::GetMechInfo(std::string &mac, MechInfo &mechInfo)
 {
     std::lock_guard<std::mutex> autoLock(mechInfosMutex_);

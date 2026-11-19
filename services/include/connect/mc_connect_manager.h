@@ -67,6 +67,7 @@ public:
     int32_t CleanMechInfo();
     int32_t GetMechInfo(std::string &mac, MechInfo &mechInfo);
     std::set<MechInfo> GetMechInfos();
+    std::set<MechInfo> GetMechInfosSnapshot();
     int32_t SetMechanicGattState(std::string &mac, bool state);
     int32_t GetMechanicGattState(std::string &mac, bool &state);
     int32_t SetMechanicPairState(std::string &mac, bool state);

@@ -22,6 +22,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <atomic>
 #include <condition_variable>
 #include <cstdint>
 
@@ -71,9 +72,11 @@ public:
     void OnCharacteristicChanged(const OHOS::Bluetooth::GattCharacteristic &characteristic);
     const std::string &getMac() const;
     void setMac(const std::string &mac);
+    void setRequestId(uint64_t requestId);
     void OnMtuUpdate(int mtu, int ret);
 private:
     std::string mac;
+    uint64_t requestId_ = 0;
 };
 
 class RemoteDeviceObserver : public OHOS::Bluetooth::BluetoothRemoteDeviceObserver {
@@ -172,22 +175,22 @@ public:
 
     int32_t SendData(uint8_t *data, uint32_t dataLen);
     int32_t OnReceive(uint8_t *data, size_t size);
-    void OnConnectionStateChanged(int connectionState, int ret, MechInfo &mechInfo);
+    void OnConnectionStateChanged(int connectionState, int ret, MechInfo &mechInfo, uint64_t requestId = 0);
     void OnPairStateChanged(int pairState, int cause, MechInfo &mechInfo);
     void OnHidStateChanged(int hidState, int cause, MechInfo &mechInfo);
     bool CheckGattcIsReady();
     int32_t RegisterTransportSendAdapter(const std::shared_ptr<BleReceviceListener> listener);
     int32_t UnRegisterTransportSendAdapter(const std::shared_ptr<BleReceviceListener> listener);
-    int32_t OnGattReady(MechInfo &mechInfo);
+    int32_t OnGattReady(MechInfo &mechInfo, uint64_t requestId = 0);
     void OnGattDisconnect(MechInfo &mechInfo);
     int32_t MechbodyConnect(std::string mac, std::string deviceName, uint32_t deviceIdentifier);
-    int32_t MechbodyGattcConnect(std::string mac, std::string deviceName);
-    int32_t MechbodyPair(std::string &mac, std::string &deviceName);
-    int32_t MechbodyHidConnect(std::string &mac, std::string &deviceName);
-    int32_t MechbodyDisConnect(MechInfo &mechInfo);
-    int32_t MechbodyDisConnectSync(MechInfo &mechInfo);
-    int32_t MechbodyGattcDisconnect(MechInfo mechInfo);
-    int32_t MechbodyHidDisconnect(MechInfo &mechInfo);
+    int32_t MechbodyGattcConnect(std::string mac, std::string deviceName, uint64_t requestId = 0);
+    int32_t MechbodyPair(std::string &mac, std::string &deviceName, uint64_t requestId = 0);
+    int32_t MechbodyHidConnect(std::string &mac, std::string &deviceName, uint64_t requestId = 0);
+    int32_t MechbodyDisConnect(MechInfo &mechInfo, bool abortIfSuperseded = false);
+    int32_t MechbodyDisConnectSync(MechInfo &mechInfo, uint64_t requestId = 0);
+    int32_t MechbodyGattcDisconnect(MechInfo mechInfo, uint64_t requestId = 0);
+    int32_t MechbodyHidDisconnect(MechInfo &mechInfo, uint64_t requestId = 0);
     int32_t MechbodyDisConnectForMechbotyStart(MechInfo &mechInfo);
     int32_t MechbodyDisConnectSyncForMechbotyStart(MechInfo &mechInfo);
     int32_t MechbodyGattcDisconnectForMechbotyStart(MechInfo mechInfo);
@@ -195,6 +198,8 @@ public:
 
     void SetBluetoothServiceStoped(bool status);
     bool HasBluetoothServiceStoped();
+    void MarkGattAbort(const std::string &mac, uint64_t requestId);
+    bool IsGattCallbackStale(uint64_t requestId);
 
     void GetRealName(MechInfo &mechInfo);
     void NotifyGetRealName();
@@ -206,7 +211,6 @@ public:
     bool isGattReady_ = false;
     std::mutex isGattReadyMtx_;
 
-    std::mutex gattClientMutex_;
     std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient_ {nullptr};
     std::shared_ptr<BleGattClientCallback> bleGattClientCallBack_ {nullptr};
     /* write Character record */
@@ -225,8 +229,33 @@ private:
 
     // send
     int32_t MechbodyGattcWriteCharacteristic(uint8_t *data, uint32_t dataLen);
-    void ConnectMechbodyInternal(std::string mac, std::string deviceName, uint32_t deviceIdentifier);
-    int32_t DisConnectOldDevice();
+    void ConnectMechbodyInternal(std::string mac, std::string deviceName, uint32_t deviceIdentifier,
+        uint64_t requestId);
+    int32_t DisConnectOldDevice(uint64_t requestId = 0);
+    bool IsStale(uint64_t requestId) const;
+    std::shared_ptr<OHOS::Bluetooth::GattClient> GetGattClient();
+    void ReleaseGattClientIfOwnedBy(const std::string &mac);
+    void FinishAttempt(uint64_t requestId);
+    void CleanupStaleAttempt(MechInfo &mechInfo);
+    void WakeAllWaiters();
+    void HandleGattConnected(MechInfo &mechInfo);
+    void HandleGattDisconnected(MechInfo &mechInfo, uint64_t requestId);
+    bool PrepareMechInfoForConnect(const std::string &mac, const std::string &deviceName,
+        uint32_t deviceIdentifier, uint64_t requestId, MechInfo &mechInfo);
+    bool HandleExistingConnectionBeforeConnect(std::string &mac, uint32_t deviceIdentifier,
+        uint64_t requestId);
+    bool IsMechFullyConnected(MechInfo &mechInfo);
+    bool RunConnectAttempt(MechInfo &mechInfo, uint64_t requestId);
+    bool ConnectPairAndHid(MechInfo &mechInfo, uint64_t requestId);
+    int32_t StartGattConnect(const std::string &mac, uint64_t requestId);
+    int32_t WaitGattConnected(std::string &mac, uint64_t requestId);
+    int32_t StartPairProcess(std::string &mac, uint64_t requestId);
+    int32_t WaitPairResult(std::string &mac, std::string &deviceName, uint64_t requestId);
+    bool ShouldSkipStaleDisconnect(MechInfo &mechInfo, bool abortIfSuperseded);
+    void ExecuteDisconnectTask(MechInfo &mechInfo, bool abortIfSuperseded);
+    void ReportDisconnectDfx(int32_t mechId);
+    int32_t WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::GattClient> &client, uint64_t requestId);
+    void InitBatteryManager(MechInfo &mechInfo);
 
 private:
     std::shared_ptr<Bluetooth::BleCentralManager> bleCentralManager_ = nullptr;
@@ -260,7 +289,14 @@ private:
     std::condition_variable initCv_;
     std::mutex getRealNameMutex_;
     std::condition_variable getRealNameCv_;
-    std::atomic<bool> connectFailed_{false};
+    std::atomic<uint64_t> activeRequestId_{0};
+    std::string gattAbortMac_;
+    uint64_t gattAbortRequestId_ = 0;
+    std::mutex attemptMutex_;
+    uint64_t inFlightRequestId_ = 0;
+    std::string inFlightMac_;
+    std::string gattClientMac_;
+    uint64_t gattClientRequestId_ = 0;
     std::unique_ptr<McBatteryManager> batteryManager_;
 };
 
