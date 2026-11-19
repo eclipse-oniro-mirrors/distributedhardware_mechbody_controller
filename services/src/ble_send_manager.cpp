@@ -1135,17 +1135,17 @@ int32_t BleSendManager::StartGattConnect(const std::string &mac, uint64_t reques
 int32_t BleSendManager::WaitGattConnected(std::string &mac, uint64_t requestId)
 {
     std::unique_lock<std::mutex> lock(gattMutex_);
-    auto isGattConnected = [this, mac, requestId]() mutable {
-        if (IsStale(requestId)) {
-            return true;
-        }
-        bool gattState = false;
-        MechConnectManager::GetInstance().GetMechanicGattState(mac, gattState);
-        bool aborted = (requestId != 0) ? (gattAbortRequestId_ == requestId) :
-            (gattAbortMac_ == mac);
-        return gattState || aborted;
-    };
-    bool connected = gattCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND), isGattConnected);
+    bool connected = gattCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
+        [this, mac, requestId]() mutable {
+            if (IsStale(requestId)) {
+                return true;
+            }
+            bool gattState = false;
+            MechConnectManager::GetInstance().GetMechanicGattState(mac, gattState);
+            bool aborted = (requestId != 0) ? (gattAbortRequestId_ == requestId) :
+                (gattAbortMac_ == mac);
+            return gattState || aborted;
+        });
     bool gattState = false;
     MechConnectManager::GetInstance().GetMechanicGattState(mac, gattState);
     if (IsStale(requestId)) {
@@ -1403,15 +1403,15 @@ int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo, uint64_t requ
     }
 
     std::unique_lock<std::mutex> lock(gattDisconnMutex_);
-    auto isGattDisconnected = [this, mechInfo, requestId]() mutable {
-        if (IsStale(requestId)) {
-            return true;
-        }
-        bool gattState = true;
-        MechConnectManager::GetInstance().GetMechanicGattState(mechInfo.mac, gattState);
-        return !gattState;
-    };
-    if (!gattDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND), isGattDisconnected)) {
+    if (!gattDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
+        [this, mechInfo, requestId]() mutable {
+            if (IsStale(requestId)) {
+                return true;
+            }
+            bool gattState = true;
+            MechConnectManager::GetInstance().GetMechanicGattState(mechInfo.mac, gattState);
+            return !gattState;
+        })) {
         HILOGE("MECHBODY_EXEC_DISCONNECT wait for gatt connect timeout");
         return MECHBODY_GATT_CONNECT_FAILED;
     }
@@ -1430,15 +1430,15 @@ int32_t BleSendManager::MechbodyHidDisconnect(MechInfo &mechInfo, uint64_t reque
         return MECH_DISCONNECT_FAILED;
     }
     std::unique_lock<std::mutex> lock(hidDisconnMutex_);
-    auto isHidDisconnected = [this, mechInfo, requestId]() mutable {
-        if (IsStale(requestId)) {
-            return true;
-        }
-        bool hidState = true;
-        MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState);
-        return !hidState;
-    };
-    if (!hidDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND), isHidDisconnected)) {
+    if (!hidDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
+        [this, mechInfo, requestId]() mutable {
+            if (IsStale(requestId)) {
+                return true;
+            }
+            bool hidState = true;
+            MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState);
+            return !hidState;
+        })) {
         HILOGE("MECHBODY_EXEC_DISCONNECT wait for hid disconnect timeout");
         return ERR_OK;
     }
