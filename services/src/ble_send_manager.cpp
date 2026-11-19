@@ -110,8 +110,6 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
         return;
     }
     if (bleSendManager.IsGattCallbackStale(requestId_)) {
-        HILOGI("MECHBODY_EXEC_CONNECT drop stale services discovered callback, requestId: %{public}" PRIu64,
-            requestId_);
         return;
     }
     std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
