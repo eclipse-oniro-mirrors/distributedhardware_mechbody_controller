@@ -1408,9 +1408,9 @@ int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo, uint64_t requ
             if (IsStale(requestId)) {
                 return true;
             }
-                bool gattState = true;
-                MechConnectManager::GetInstance().GetMechanicGattState(mechInfo.mac, gattState);
-                return !gattState;
+            bool gattState = true;
+            MechConnectManager::GetInstance().GetMechanicGattState(mechInfo.mac, gattState);
+            return !gattState;
         })) {
         HILOGE("MECHBODY_EXEC_DISCONNECT wait for gatt connect timeout");
         return MECHBODY_GATT_CONNECT_FAILED;
@@ -1435,9 +1435,9 @@ int32_t BleSendManager::MechbodyHidDisconnect(MechInfo &mechInfo, uint64_t reque
             if (IsStale(requestId)) {
                 return true;
             }
-                bool hidState = true;
-                MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState);
-                return !hidState;
+            bool hidState = true;
+            MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState);
+            return !hidState;
         })) {
         HILOGE("MECHBODY_EXEC_DISCONNECT wait for hid disconnect timeout");
         return ERR_OK;
