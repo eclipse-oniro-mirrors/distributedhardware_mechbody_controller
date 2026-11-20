@@ -1418,7 +1418,7 @@ int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo, uint64_t requ
     std::unique_lock<std::mutex> lock(gattDisconnMutex_);
     if (!gattDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
         [this, mechInfo, requestId]() mutable {
-                        bool gattState = true;
+            bool gattState = true;
             MechConnectManager::GetInstance().GetMechanicGattState(mechInfo.mac, gattState);
             return IsStale(requestId) || !gattState;
         })) {
@@ -1442,7 +1442,7 @@ int32_t BleSendManager::MechbodyHidDisconnect(MechInfo &mechInfo, uint64_t reque
     std::unique_lock<std::mutex> lock(hidDisconnMutex_);
     if (!hidDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
         [this, mechInfo, requestId]() mutable {
-                        bool hidState = true;
+            bool hidState = true;
             MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState);
             return IsStale(requestId) || !hidState;
         })) {
