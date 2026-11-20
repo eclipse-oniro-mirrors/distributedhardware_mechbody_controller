@@ -32,13 +32,6 @@ using namespace OHOS;
 namespace OHOS {
 namespace MechBodyController {
 
-static AttachmentStateMap g_mockMechState = AttachmentStateMap::DETACHED;
-
-AttachmentStateMap MechConnectManager::GetMechState(int32_t mechId)
-{
-    return g_mockMechState;
-}
-
 void McCameraTrackingControllerTwoTest::SetUpTestCase()
 {
     DTEST_LOG << "McCameraTrackingControllerTwoTest::SetUpTestCase" << std::endl;
@@ -1317,7 +1310,12 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SetTrackingLayout_003, TestSize.Leve
 {
     DTEST_LOG << "McCameraTrackingControllerTwoTest SetTrackingLayout_003 begin" << std::endl;
 
-    g_mockMechState = AttachmentStateMap::ATTACHED;
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechInfo mechInfo;
+    mechInfo.mechId = 100;
+    mechInfo.mac = "00:11:22:33:44:03";
+    mechInfo.state = AttachmentState::ATTACHED;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
 
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     controller.sensorRotation_ = MobileRotation::UP;
@@ -1332,6 +1330,11 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SetTrackingLayout_003, TestSize.Leve
     int32_t result = controller.SetTrackingLayout(cameraTrackingLayout);
     EXPECT_EQ(result, ERR_OK);
 
+    // Clean up
+    MechBodyControllerService::GetInstance().motionManagers_.erase(mechId);
+    std::string mockMac = "00:11:22:33:44:03";
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(mockMac);
+
     DTEST_LOG << "McCameraTrackingControllerTwoTest SetTrackingLayout_003 end" << std::endl;
 }
 
@@ -1344,7 +1347,12 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SetTrackingLayout_004, TestSize.Leve
 {
     DTEST_LOG << "McCameraTrackingControllerTwoTest SetTrackingLayout_004 begin" << std::endl;
 
-    g_mockMechState = AttachmentStateMap::ATTACHED;
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechInfo mechInfo;
+    mechInfo.mechId = 100;
+    mechInfo.mac = "00:11:22:33:44:04";
+    mechInfo.state = AttachmentState::ATTACHED;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
 
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     controller.sensorRotation_ = MobileRotation::UP;
@@ -1359,6 +1367,11 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SetTrackingLayout_004, TestSize.Leve
     int32_t result = controller.SetTrackingLayout(cameraTrackingLayout);
     EXPECT_EQ(result, ERR_OK);
 
+    // Clean up
+    MechBodyControllerService::GetInstance().motionManagers_.erase(mechId);
+    std::string mockMac = "00:11:22:33:44:04";
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(mockMac);
+
     DTEST_LOG << "McCameraTrackingControllerTwoTest SetTrackingLayout_004 end" << std::endl;
 }
 
@@ -1370,22 +1383,32 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SetTrackingLayout_004, TestSize.Leve
 HWTEST_F(McCameraTrackingControllerTwoTest, SetTrackingLayout_005, TestSize.Level1)
 {
     DTEST_LOG << "McCameraTrackingControllerTwoTest SetTrackingLayout_005 begin" << std::endl;
-
-    g_mockMechState = AttachmentStateMap::ATTACHED;
-
+ 
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechInfo mechInfo;
+    mechInfo.mechId = 100;
+    mechInfo.mac = "00:11:22:33:44:05";
+    mechInfo.state = AttachmentState::ATTACHED;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
+ 
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     controller.sensorRotation_ = MobileRotation::UP;
     controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
     CameraTrackingLayout cameraTrackingLayout = CameraTrackingLayout::DEFAULT;
-
+ 
     int32_t mechId = 100;
     std::shared_ptr<MotionManager> motionMgr =
         std::make_shared<MotionManager>(std::make_shared<TransportSendAdapter>(), mechId);
     MechBodyControllerService::GetInstance().motionManagers_[mechId] = motionMgr;
-
+ 
     int32_t result = controller.SetTrackingLayout(cameraTrackingLayout);
     EXPECT_EQ(result, ERR_OK);
-
+ 
+    // Clean up
+    MechBodyControllerService::GetInstance().motionManagers_.erase(mechId);
+    std::string mockMac = "00:11:22:33:44:05";
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(mockMac);
+ 
     DTEST_LOG << "McCameraTrackingControllerTwoTest SetTrackingLayout_005 end" << std::endl;
 }
 
@@ -1440,7 +1463,7 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SearchTarget_003, TestSize.Level1)
 {
     DTEST_LOG << "McCameraTrackingControllerTwoTest SearchTarget_003 begin" << std::endl;
 
-    g_mockMechState = AttachmentStateMap::DETACHED;
+    MechConnectManager::GetInstance().CleanMechInfo();
 
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     std::shared_ptr<TargetInfo> targetInfo = std::make_shared<TargetInfo>();
