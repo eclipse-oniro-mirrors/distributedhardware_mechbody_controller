@@ -236,7 +236,7 @@ private:
     std::shared_ptr<OHOS::Bluetooth::GattClient> GetGattClient();
     void ReleaseGattClientIfOwnedBy(const std::string &mac);
     void FinishAttempt(uint64_t requestId);
-    void CleanupStaleAttempt(MechInfo &mechInfo);
+    void CleanupStaleAttempt(MechInfo &mechInfo, uint64_t requestId);
     void WakeAllWaiters();
     void HandleGattConnected(MechInfo &mechInfo);
     void HandleGattDisconnected(MechInfo &mechInfo, uint64_t requestId);

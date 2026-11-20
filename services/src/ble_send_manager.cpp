@@ -386,7 +386,7 @@ void BleSendManager::OnConnectionStateChanged(int connectionState, int ret, Mech
     }
     if (connectionState == (int)BTConnectState::DISCONNECTED) {
         std::lock_guard<std::mutex> lock(handleMutex_);
-        if (requestId != 0 && requestId != gattClientRequestId_) {
+        if (requestId != 0 && gattClientRequestId_ != 0 && requestId != gattClientRequestId_) {
             HILOGI("MECHBODY_EXEC_CONNECT drop stale disconnected callback, requestId: %{public}" PRIu64,
                 requestId);
             return;
@@ -615,13 +615,18 @@ int32_t BleSendManager::OnGattReady(MechInfo &mechInfo, uint64_t requestId)
         MarkGattAbort(mechInfo.mac, requestId);
         return MECH_CONNECT_FAILED;
     }
+    if (WaitMtuUpdated(client, requestId) != ERR_OK) {
+        if (!IsStale(requestId)) {
+            HILOGE("MECHBODY_EXEC_CONNECT mtu negotiation failed, abort connect, requestId: %{public}" PRIu64,
+                requestId);
+            MarkGattAbort(mechInfo.mac, requestId);
+        }
+        return MECH_CONNECT_FAILED;
+    }
     {
         std::unique_lock<std::mutex> lock(gattMutex_);
         MechConnectManager::GetInstance().SetMechanicGattState(mechInfo.mac, true);
         gattCv_.notify_all();
-    }
-    if (WaitMtuUpdated(client, requestId) != ERR_OK) {
-        return MECH_CONNECT_FAILED;
     }
     int32_t result = MechConnectManager::GetInstance().NotifyMechConnect(mechInfo);
     if (result == MECH_CONNECT_FAILED) {
@@ -855,10 +860,18 @@ std::shared_ptr<OHOS::Bluetooth::GattClient> BleSendManager::GetGattClient()
     return gattClient_;
 }
 
-void BleSendManager::CleanupStaleAttempt(MechInfo &mechInfo)
+void BleSendManager::CleanupStaleAttempt(MechInfo &mechInfo, uint64_t requestId)
 {
     if (mechInfo.gattCoonectState) {
         return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(attemptMutex_);
+        if (inFlightRequestId_ != requestId || inFlightMac_ != mechInfo.mac) {
+            HILOGI("MECHBODY_EXEC_CONNECT skip stale cleanup, attempt replaced, mac: %{public}s",
+                GetAnonymStr(mechInfo.mac).c_str());
+            return;
+        }
     }
     HILOGI("MECHBODY_EXEC_CONNECT cleanup stale attempt for mac: %{public}s",
         GetAnonymStr(mechInfo.mac).c_str());
@@ -1008,7 +1021,7 @@ bool BleSendManager::RunConnectAttempt(MechInfo &mechInfo, uint64_t requestId)
         if (gattRet != ERR_OK) {
             if (gattRet == MECHBODY_CONNECT_ABORTED) {
                 HILOGI("MECHBODY_EXEC_CONNECT attempt aborted by newer request");
-                CleanupStaleAttempt(mechInfo);
+                CleanupStaleAttempt(mechInfo, requestId);
                 FinishAttempt(requestId);
                 return false;
             }
@@ -1021,7 +1034,7 @@ bool BleSendManager::RunConnectAttempt(MechInfo &mechInfo, uint64_t requestId)
     }
     if (IsStale(requestId)) {
         HILOGI("MECHBODY_EXEC_CONNECT stale task exit before pair, requestId: %{public}" PRIu64, requestId);
-        CleanupStaleAttempt(mechInfo);
+        CleanupStaleAttempt(mechInfo, requestId);
         FinishAttempt(requestId);
         return false;
     }
@@ -1405,7 +1418,7 @@ int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo, uint64_t requ
     std::unique_lock<std::mutex> lock(gattDisconnMutex_);
     if (!gattDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
         [this, mechInfo, requestId]() mutable {
-            bool gattState = true;
+                        bool gattState = true;
             MechConnectManager::GetInstance().GetMechanicGattState(mechInfo.mac, gattState);
             return IsStale(requestId) || !gattState;
         })) {
@@ -1429,7 +1442,7 @@ int32_t BleSendManager::MechbodyHidDisconnect(MechInfo &mechInfo, uint64_t reque
     std::unique_lock<std::mutex> lock(hidDisconnMutex_);
     if (!hidDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
         [this, mechInfo, requestId]() mutable {
-            bool hidState = true;
+                        bool hidState = true;
             MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState);
             return IsStale(requestId) || !hidState;
         })) {
