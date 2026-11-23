@@ -132,11 +132,34 @@ void MechbodyGattcConnectFuzzTest(const uint8_t *data, size_t size)
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    /* Run your code on data */
-    OHOS::MechbodyGattcWriteCharacteristicFuzzTest(data, size);
-    OHOS::SendDataFuzzTest(data, size);
-    OHOS::OnScanCallbackBleCentralManagerCallbackImplFuzzTest(data, size);
-    OHOS::OnGattDisconnectFuzzTest(data, size);
-    OHOS::MechbodyGattcConnectFuzzTest(data, size);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint8_t choice = fdp.ConsumeIntegral<uint8_t>() % 5;
+    auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
+    const uint8_t *actionData = remaining.data();
+    size_t actionSize = remaining.size();
+
+    switch (choice) {
+        case 0:
+            OHOS::MechbodyGattcWriteCharacteristicFuzzTest(actionData, actionSize);
+            break;
+        case 1:
+            OHOS::SendDataFuzzTest(actionData, actionSize);
+            break;
+        case 2:
+            OHOS::OnScanCallbackBleCentralManagerCallbackImplFuzzTest(actionData, actionSize);
+            break;
+        case 3:
+            OHOS::OnGattDisconnectFuzzTest(actionData, actionSize);
+            break;
+        case 4:
+            OHOS::MechbodyGattcConnectFuzzTest(actionData, actionSize);
+            break;
+        default:
+            break;
+    }
     return 0;
 }

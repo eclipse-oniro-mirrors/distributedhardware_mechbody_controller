@@ -153,7 +153,7 @@ void FuzzGetResult(FuzzedDataProvider &provider)
 
 void FuzzTriggerResponseWithFuzzData(FuzzedDataProvider &provider)
 {
-    uint8_t actionValue = provider.ConsumeIntegral<uint8_t>();
+    int32_t actionValue = provider.ConsumeIntegral<int32_t>();
     ActionType actionType = static_cast<ActionType>(actionValue);
     WheelSetMechSceneControlCmd cmd(actionType);
 

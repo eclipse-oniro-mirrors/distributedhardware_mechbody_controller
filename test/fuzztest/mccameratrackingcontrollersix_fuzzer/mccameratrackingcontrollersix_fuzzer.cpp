@@ -20,6 +20,7 @@
 #include "mechbody_controller_types.h"
 #include "mechbody_controller_enums.h"
 #include "camera_metadata_info.h"
+#include <cstdlib>
 #include <memory>
 #include <iremote_object.h>
 #include "event_handler.h"
@@ -42,6 +43,18 @@ constexpr int32_t MIN_SCENE_MODE = 0;
 constexpr int32_t MAX_SCENE_MODE = 24;
 
 McCameraTrackingController* g_cameraTrackingController = nullptr;
+
+void CleanupCameraTrackingController()
+{
+    // Ensure all pending tasks posted to eventHandler_ (e.g. SEARCH_TARGET_TASK_NAME,
+    // PREDICTION_TASK_NAME) are removed before the singleton is destructed.
+    // Without this, the background EventRunner may execute lambdas capturing `this`
+    // after currentCameraInfo_/lastTrackingFrame_ have been freed, causing heap-use-after-free.
+    if (g_cameraTrackingController != nullptr) {
+        g_cameraTrackingController->UnInit();
+        g_cameraTrackingController = nullptr;
+    }
+}
 
 void InitCameraTrackingController()
 {
@@ -638,6 +651,16 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
 }
 
 } // namespace
+
+extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv)
+{
+    // Register cleanup hook so that when the fuzz process exits, all pending
+    // tasks on eventHandler_ are removed before the McCameraTrackingController
+    // singleton is destructed. This prevents heap-use-after-free when the
+    // background EventRunner tries to execute lambdas that capture `this`.
+    (void)std::atexit(CleanupCameraTrackingController);
+    return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {

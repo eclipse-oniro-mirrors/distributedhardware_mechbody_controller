@@ -27,6 +27,7 @@
 #undef private
 #undef protected
 #include "ipc_skeleton.h"
+#include "ipc_object_stub.h"
 #include "securec.h"
 #include "accesstoken_kit.h"
 #include "token_setproc.h"
@@ -495,6 +496,86 @@ void OnRotationAxesStatusChangeFuzzTest(const uint8_t *data, size_t size)
     service.OnRotationAxesStatusChange(mechId, axesStatus);
 }
 
+void RegisterAttachStateChangeCallbackFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.RegisterAttachStateChangeCallback(callback);
+}
+
+void RegisterTrackingEventCallbackFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.RegisterTrackingEventCallback(callback);
+}
+
+void UnRegisterTrackingEventCallbackFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.UnRegisterTrackingEventCallback();
+}
+
+void RegisterCmdChannelFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.RegisterCmdChannel(callback);
+}
+
+void RegisterRotationAxesStatusChangeCallbackFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.RegisterRotationAxesStatusChangeCallback(callback);
+}
+
+void UnRegisterRotationAxesStatusChangeCallbackFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.UnRegisterRotationAxesStatusChangeCallback();
+}
+
 } // namespace OHOS
 
 /* Fuzzer entry point */
@@ -506,7 +587,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     OHOS::g_isSystemApp = fdp.ConsumeBool();
 
-    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % 28;
+    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % 34;
     auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
     const uint8_t *actionData = remaining.data();
     size_t actionSize = remaining.size();
@@ -595,6 +676,24 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             break;
         case 27:
             OHOS::OnRotationAxesStatusChangeFuzzTest(actionData, actionSize);
+            break;
+        case 28:
+            OHOS::RegisterAttachStateChangeCallbackFuzzTest(actionData, actionSize);
+            break;
+        case 29:
+            OHOS::RegisterTrackingEventCallbackFuzzTest(actionData, actionSize);
+            break;
+        case 30:
+            OHOS::UnRegisterTrackingEventCallbackFuzzTest(actionData, actionSize);
+            break;
+        case 31:
+            OHOS::RegisterCmdChannelFuzzTest(actionData, actionSize);
+            break;
+        case 32:
+            OHOS::RegisterRotationAxesStatusChangeCallbackFuzzTest(actionData, actionSize);
+            break;
+        case 33:
+            OHOS::UnRegisterRotationAxesStatusChangeCallbackFuzzTest(actionData, actionSize);
             break;
         default:
             break;

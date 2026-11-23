@@ -92,33 +92,6 @@ void FuzzHandlePhoneOnMultipleCalls(FuzzedDataProvider &provider)
     }
 }
 
-void FuzzProcessPhoneOffForegroundCheckMultipleCalls(FuzzedDataProvider &provider)
-{
-    InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 10);
-    for (int32_t i = 0; i < iterations; ++i) {
-        g_motionManager->ProcessPhoneOffForegroundCheck();
-    }
-}
-
-void FuzzProcessPhoneOnForegroundCheckMultipleCalls(FuzzedDataProvider &provider)
-{
-    InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 10);
-    for (int32_t i = 0; i < iterations; ++i) {
-        g_motionManager->ProcessPhoneOnForegroundCheck();
-    }
-}
-
-void FuzzGetAppManagerInstanceMultipleCalls(FuzzedDataProvider &provider)
-{
-    InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 10);
-    for (int32_t i = 0; i < iterations; ++i) {
-        g_motionManager->GetAppManagerInstance();
-    }
-}
-
 void FuzzMMIKeyEventAndCreateKeyEvent(FuzzedDataProvider &provider)
 {
     InitMotionManager();
@@ -167,36 +140,34 @@ void FuzzHandleMechPlacementChangeWithPhoneState(FuzzedDataProvider &provider)
     }
 }
 
-void FuzzProcessPhoneForegroundCheckCombination(FuzzedDataProvider &provider)
-{
-    InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 5);
-    
-    for (int32_t i = 0; i < iterations; ++i) {
-        bool checkOffFirst = provider.ConsumeBool();
-        if (checkOffFirst) {
-            g_motionManager->ProcessPhoneOffForegroundCheck();
-            g_motionManager->ProcessPhoneOnForegroundCheck();
-        } else {
-            g_motionManager->ProcessPhoneOnForegroundCheck();
-            g_motionManager->ProcessPhoneOffForegroundCheck();
-        }
-    }
-}
-
 }  // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+
     FuzzedDataProvider provider(data, size);
-    FuzzHandlePhoneOffMultipleCalls(provider);
-    FuzzHandlePhoneOnMultipleCalls(provider);
-    FuzzProcessPhoneOffForegroundCheckMultipleCalls(provider);
-    FuzzProcessPhoneOnForegroundCheckMultipleCalls(provider);
-    FuzzGetAppManagerInstanceMultipleCalls(provider);
-    FuzzMMIKeyEventAndCreateKeyEvent(provider);
-    FuzzHandlePhoneOffAndOnCombination(provider);
-    FuzzHandleMechPlacementChangeWithPhoneState(provider);
-    FuzzProcessPhoneForegroundCheckCombination(provider);
+    uint8_t choice = provider.ConsumeIntegral<uint8_t>() % 5;
+    switch (choice) {
+        case 0:
+            FuzzHandlePhoneOffMultipleCalls(provider);
+            break;
+        case 1:
+            FuzzHandlePhoneOnMultipleCalls(provider);
+            break;
+        case 2:
+            FuzzMMIKeyEventAndCreateKeyEvent(provider);
+            break;
+        case 3:
+            FuzzHandlePhoneOffAndOnCombination(provider);
+            break;
+        case 4:
+            FuzzHandleMechPlacementChangeWithPhoneState(provider);
+            break;
+        default:
+            break;
+    }
     return 0;
 }

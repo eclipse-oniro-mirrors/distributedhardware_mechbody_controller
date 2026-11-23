@@ -25,7 +25,6 @@
 
 namespace OHOS {
 namespace MechBodyController {
-static constexpr uint32_t OPT_SIZE = 80;
 void RegisterMechCameraKeyEventCmdWithAllEventsFuzzTest(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider provider(data, size);
@@ -77,9 +76,9 @@ void RegisterMechCameraKeyEventCmdWithAllEventsFuzzTest(const uint8_t *data, siz
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    size_t optSize = std::min(size, static_cast<size_t>(OHOS::MechBodyController::OPT_SIZE));
-    FuzzedDataProvider fdp(data + size - optSize, optSize);
-    OHOS::MechBodyController::RegisterMechCameraKeyEventCmdWithAllEventsFuzzTest(
-        data, size - optSize);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+    OHOS::MechBodyController::RegisterMechCameraKeyEventCmdWithAllEventsFuzzTest(data, size);
     return 0;
 }
