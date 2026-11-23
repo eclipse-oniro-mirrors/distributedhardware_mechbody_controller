@@ -28,6 +28,7 @@ group("fuzztest") {
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollerfour_fuzzer:McCameraTrackingControllerFourFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollerfive_fuzzer:McCameraTrackingControllerFiveFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollersix_fuzzer:McCameraTrackingControllerSixFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollerseven_fuzzer:McCameraTrackingControllerSevenFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerserviceone_fuzzer:MechBodyControllerServiceOneFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerservicetwo_fuzzer:MechBodyControllerServiceTwoFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerservicethree_fuzzer:MechBodyControllerServiceThreeFuzzTest",
@@ -93,6 +94,7 @@ group("fuzztest") {
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagernineteen_fuzzer:McMotionManagerNineteenFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagertwenty_fuzzer:McMotionManagerTwentyFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagertwentyone_fuzzer:McMotionManagerTwentyOneFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagertwentytwo_fuzzer:McMotionManagerTwentyTwoFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerserviceseven_fuzzer:MechBodyControllerServiceSevenFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcwheelgetmechmovementcapabilitycmd_fuzzer:McWheelGetMechMovementCapabilityCmdFuzzTest",
   ]
