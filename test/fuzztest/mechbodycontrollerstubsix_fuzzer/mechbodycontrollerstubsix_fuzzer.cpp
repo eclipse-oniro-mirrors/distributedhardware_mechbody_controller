@@ -314,11 +314,11 @@ void BatteryLevelListenOffInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> 
 } // namespace OHOS
 
 /* Fuzzer entry point */
-using FuzzFunc = void (*)(const std::shared_ptr<OHOS::MechBodyControllerService> &, FuzzedDataProvider &);
+using FuzzFunc = void (*)(std::shared_ptr<MechBodyControllerStub>, FuzzedDataProvider &);
 const FuzzFunc FUZZ_FUNCS[] = {
-    GetDeviceAdsorbStateInnerFuzzTest,
-    BatteryLevelListenOnInnerFuzzTest,
-    BatteryLevelListenOffInnerFuzzTest,
+    OHOS::GetDeviceAdsorbStateInnerFuzzTest,
+    OHOS::BatteryLevelListenOnInnerFuzzTest,
+    OHOS::BatteryLevelListenOffInnerFuzzTest,
 };
 constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
 
