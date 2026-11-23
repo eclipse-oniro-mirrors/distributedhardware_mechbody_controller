@@ -39,6 +39,8 @@ group("fuzztest") {
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerstubthree_fuzzer:MechBodyControllerStubThreeFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerstubfour_fuzzer:MechBodyControllerStubFourFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerstubfive_fuzzer:MechBodyControllerStubFiveFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerstubsix_fuzzer:MechBodyControllerStubSixFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcbatterymanager_fuzzer:McBatteryManagerFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerutils_fuzzer:MechBodyControllerUtilsFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcconnectmanagerone_fuzzer:McConnectManagerOneFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcconnectmanagertwo_fuzzer:McConnectManagerTwoFuzzTest",

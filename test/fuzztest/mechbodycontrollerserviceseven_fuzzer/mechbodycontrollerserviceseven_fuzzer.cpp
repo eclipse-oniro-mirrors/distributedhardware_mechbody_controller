@@ -532,7 +532,16 @@ void UnRegisterTrackingEventCallbackFuzzTest(const uint8_t *data, size_t size)
         return;
     }
 
+    FuzzedDataProvider fdp(data, size);
+    bool shouldRegisterFirst = fdp.ConsumeBool();
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    if (shouldRegisterFirst) {
+        service.RegisterTrackingEventCallback(callback);
+    }
     service.UnRegisterTrackingEventCallback();
 }
 
@@ -572,8 +581,200 @@ void UnRegisterRotationAxesStatusChangeCallbackFuzzTest(const uint8_t *data, siz
         return;
     }
 
+    FuzzedDataProvider fdp(data, size);
+    bool isSystemApp = fdp.ConsumeBool();
+    bool shouldRegisterFirst = fdp.ConsumeBool();
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+
+    OHOS::g_isSystemApp = isSystemApp;
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    if (shouldRegisterFirst) {
+        service.RegisterRotationAxesStatusChangeCallback(callback);
+    }
     service.UnRegisterRotationAxesStatusChangeCallback();
+}
+
+void GetDeviceAdsorbStateFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    AttachmentState state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.GetDeviceAdsorbState(mechId, state);
+}
+
+void RegisterBatteryLevelCallbackFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    bool useCallback = fdp.ConsumeBool();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.RegisterBatteryLevelCallback(callback, mechId);
+}
+
+void UnRegisterBatteryLevelCallbackFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    bool shouldRegisterFirst = fdp.ConsumeBool();
+    bool useCallback = fdp.ConsumeBool();
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    sptr<IRemoteObject> callback = useCallback
+        ? new IPCObjectStub(u"test.callback") : nullptr;
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    if (shouldRegisterFirst) {
+        service.RegisterBatteryLevelCallback(callback, mechId);
+    }
+    service.UnRegisterBatteryLevelCallback();
+}
+
+void NotifyBatteryLevelChangeFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    int32_t mechId = fdp.ConsumeIntegral<int32_t>();
+    int32_t batteryLevel = fdp.ConsumeIntegral<int32_t>();
+    bool isCharging = fdp.ConsumeBool();
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.NotifyBatteryLevelChange(mechId, batteryLevel, isCharging);
+}
+
+void CleanMotionManagersFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint32_t cleanCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    for (uint32_t i = 0; i < cleanCount; i++) {
+        service.CleanMotionManagers();
+    }
+}
+
+void GetAttachedDevicesFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    for (uint32_t i = 0; i < queryCount; i++) {
+        std::set<MechInfo> mechInfo;
+        service.GetAttachedDevices(mechInfo);
+    }
+}
+
+void GetTrackingEnabledFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    for (uint32_t i = 0; i < queryCount; i++) {
+        bool isEnabled = false;
+        service.GetTrackingEnabled(isEnabled);
+    }
+}
+
+void GetTrackingLayoutFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    for (uint32_t i = 0; i < queryCount; i++) {
+        CameraTrackingLayout layout;
+        service.GetTrackingLayout(layout);
+    }
+}
+
+void SearchTargetEndFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
+    std::string napiCmdId = fdp.ConsumeRandomLengthString();
+    int32_t targetNum = fdp.ConsumeIntegral<int32_t>();
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.SearchTargetEnd(tokenId, napiCmdId, targetNum);
+}
+
+void GetTrackingEnabledDeviceFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    for (uint32_t i = 0; i < queryCount; i++) {
+        bool isEnabled = false;
+        service.GetTrackingEnabledDevice(isEnabled);
+    }
+}
+
+void OnAttachStateChangeFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    AttachmentState attachmentState = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+    MechInfo mechInfo;
+    mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
+    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegral<int32_t>());
+    mechInfo.mechName = fdp.ConsumeRandomLengthString();
+    mechInfo.mac = fdp.ConsumeRandomLengthString();
+    mechInfo.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+    mechInfo.gattCoonectState = fdp.ConsumeBool();
+    mechInfo.pairState = fdp.ConsumeBool();
+    mechInfo.hidState = fdp.ConsumeBool();
+
+    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
+    service.OnAttachStateChange(attachmentState, mechInfo);
 }
 
 } // namespace OHOS
@@ -587,7 +788,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     OHOS::g_isSystemApp = fdp.ConsumeBool();
 
-    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % 34;
+    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % 45;
     auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
     const uint8_t *actionData = remaining.data();
     size_t actionSize = remaining.size();
@@ -694,6 +895,39 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             break;
         case 33:
             OHOS::UnRegisterRotationAxesStatusChangeCallbackFuzzTest(actionData, actionSize);
+            break;
+        case 34:
+            OHOS::GetDeviceAdsorbStateFuzzTest(actionData, actionSize);
+            break;
+        case 35:
+            OHOS::RegisterBatteryLevelCallbackFuzzTest(actionData, actionSize);
+            break;
+        case 36:
+            OHOS::UnRegisterBatteryLevelCallbackFuzzTest(actionData, actionSize);
+            break;
+        case 37:
+            OHOS::NotifyBatteryLevelChangeFuzzTest(actionData, actionSize);
+            break;
+        case 38:
+            OHOS::CleanMotionManagersFuzzTest(actionData, actionSize);
+            break;
+        case 39:
+            OHOS::GetAttachedDevicesFuzzTest(actionData, actionSize);
+            break;
+        case 40:
+            OHOS::GetTrackingEnabledFuzzTest(actionData, actionSize);
+            break;
+        case 41:
+            OHOS::GetTrackingLayoutFuzzTest(actionData, actionSize);
+            break;
+        case 42:
+            OHOS::SearchTargetEndFuzzTest(actionData, actionSize);
+            break;
+        case 43:
+            OHOS::GetTrackingEnabledDeviceFuzzTest(actionData, actionSize);
+            break;
+        case 44:
+            OHOS::OnAttachStateChangeFuzzTest(actionData, actionSize);
             break;
         default:
             break;
