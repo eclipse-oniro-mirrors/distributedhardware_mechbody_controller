@@ -235,6 +235,18 @@ int32_t MechBodyControllerService::UnRegisterBatteryLevelCallback()
     return 0;
 }
 
+int32_t MechBodyControllerService::ConnectDevice(std::string &cmdId,
+    const std::shared_ptr<AddressInfo> &addrInfo,
+    const std::shared_ptr<ConnectParam> &params)
+{
+    return 0;
+}
+
+int32_t MechBodyControllerService::DisconnectDevice(std::string &cmdId, int32_t mechId)
+{
+    return 0;
+}
+
 } // namespace MechBodyController
 } // namespace OHOS
 #endif // MECHBODY_CONTROLLER_STUB_TEST_H

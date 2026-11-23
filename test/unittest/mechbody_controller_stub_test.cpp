@@ -230,6 +230,16 @@ int32_t TurnBySpeed(const int32_t &mechId, std::string &cmdId,
     {
         return ERR_OK;
     }
+    int32_t ConnectDevice(std::string &cmdId,
+                          const std::shared_ptr<AddressInfo> &addrInfo,
+                          const std::shared_ptr<ConnectParam> &params) override
+    {
+        return ERR_OK;
+    }
+    int32_t DisconnectDevice(std::string &cmdId, int32_t mechId) override
+    {
+        return ERR_OK;
+    }
 };
 
 void MechBodyControllerStubTest::SetUpTestCase()
