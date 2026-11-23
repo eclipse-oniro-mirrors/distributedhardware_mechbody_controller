@@ -261,7 +261,7 @@ int32_t MechBodyControllerService::DisconnectDevice(std::string &cmdId, int32_t 
 }
 
 void GetDeviceAdsorbStateInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                      FuzzedDataProvider &fdp)
+    FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::GET_DEVICE_ADSORB_STATE);
     MessageParcel datas;
@@ -275,7 +275,7 @@ void GetDeviceAdsorbStateInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> m
 }
 
 void BatteryLevelListenOnInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                      FuzzedDataProvider &fdp)
+    FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_ON);
     MessageParcel datas;
@@ -293,7 +293,7 @@ void BatteryLevelListenOnInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> m
 }
 
 void BatteryLevelListenOffInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyControllerStubPtr,
-                                       FuzzedDataProvider &fdp)
+    FuzzedDataProvider &fdp)
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_OFF);
     MessageParcel datas;

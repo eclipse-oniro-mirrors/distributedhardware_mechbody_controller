@@ -139,6 +139,14 @@ void SetMechanicStatesFuzzTest(const uint8_t *data, size_t size)
 }
 
 /* Fuzzer entry point */
+using FuzzFunc = void (*)(const uint8_t *, size_t);
+const FuzzFunc FUZZ_FUNCS[] = {
+    OHOS::UpdateBleStatusFuzzTest,
+    OHOS::NotifyMechStateFuzzTest,
+    OHOS::SetMechanicStatesFuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
@@ -146,23 +154,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 3;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
     auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
     const uint8_t *funcData = remaining.data();
     size_t funcSize = remaining.size();
 
-    switch (funcIndex) {
-        case 0:
-            OHOS::UpdateBleStatusFuzzTest(funcData, funcSize);
-            break;
-        case 1:
-            OHOS::NotifyMechStateFuzzTest(funcData, funcSize);
-            break;
-        case 2:
-            OHOS::SetMechanicStatesFuzzTest(funcData, funcSize);
-            break;
-        default:
-            break;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](funcData, funcSize);
     }
     return 0;
 }

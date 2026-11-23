@@ -37,6 +37,16 @@ constexpr int LAST_BIT_OFFSET = 7;
 constexpr int SHIFT_ONE_BYTE = 8;
 constexpr int SHIFT_TWO_BYTES = 16;
 constexpr int SHIFT_THREE_BYTES = 24;
+constexpr size_t SEG_NUM_INDEX = 0;
+constexpr size_t START_BYTE0_INDEX = 1;
+constexpr size_t START_BYTE1_INDEX = 2;
+constexpr size_t START_BYTE2_INDEX = 3;
+constexpr size_t START_BYTE3_INDEX = 4;
+constexpr size_t LEN_INDEX = 5;
+constexpr uint8_t MIN_INVALID_LEN = 33;
+constexpr uint8_t MAX_LEN_BYTE = 255;
+constexpr size_t DATA_RECEIVE_OFFSET = 3;
+constexpr size_t MAX_EXTRA_DATA_BYTES = 10;
 
 void FuzzSetCapability(FuzzedDataProvider &fdp)
 {
@@ -130,13 +140,13 @@ void FuzzOnDataReceiveInvalidLen(FuzzedDataProvider &fdp)
 
     /* Construct buffer with valid segNum but invalid len > 32 */
     uint8_t buf[6];
-    buf[0] = 1; /* segNum = 1 */
+    buf[SEG_NUM_INDEX] = 1; /* segNum = 1 */
     uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CAPABILITY_BIT - 1);
-    buf[1] = static_cast<uint8_t>(start & 0xFF);
-    buf[2] = static_cast<uint8_t>((start >> SHIFT_ONE_BYTE) & 0xFF);
-    buf[3] = static_cast<uint8_t>((start >> SHIFT_TWO_BYTES) & 0xFF);
-    buf[4] = static_cast<uint8_t>((start >> SHIFT_THREE_BYTES) & 0xFF);
-    buf[5] = fdp.ConsumeIntegralInRange<uint8_t>(33, 255); /* Invalid len > 32 */
+    buf[START_BYTE0_INDEX] = static_cast<uint8_t>(start & 0xFF);
+    buf[START_BYTE1_INDEX] = static_cast<uint8_t>((start >> SHIFT_ONE_BYTE) & 0xFF);
+    buf[START_BYTE2_INDEX] = static_cast<uint8_t>((start >> SHIFT_TWO_BYTES) & 0xFF);
+    buf[START_BYTE3_INDEX] = static_cast<uint8_t>((start >> SHIFT_THREE_BYTES) & 0xFF);
+    buf[LEN_INDEX] = fdp.ConsumeIntegralInRange<uint8_t>(MIN_INVALID_LEN, MAX_LEN_BYTE); /* Invalid len > 32 */
     cmd.OnDataReceive(buf);
 }
 
@@ -183,7 +193,7 @@ void FuzzTriggerResponseWithCallback(FuzzedDataProvider &fdp)
     /* result_ byte at offset 2 */
     dataBuffer->AppendUint8(fdp.ConsumeIntegral<uint8_t>());
     /* OnDataReceive data starts at offset 3 */
-    for (size_t i = 3; i < dataSize + 10; i++) {
+    for (size_t i = DATA_RECEIVE_OFFSET; i < dataSize + MAX_EXTRA_DATA_BYTES; i++) {
         dataBuffer->AppendUint8(fdp.ConsumeIntegral<uint8_t>());
     }
 

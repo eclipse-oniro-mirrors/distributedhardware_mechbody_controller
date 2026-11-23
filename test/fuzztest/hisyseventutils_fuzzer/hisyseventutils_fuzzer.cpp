@@ -96,25 +96,23 @@ void FuzzDoReportMechkitControlStatisticEvent(FuzzedDataProvider &fdp)
 }
 } // namespace
 
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    FuzzDotReportFocustrackingStartEvent,
+    FuzzDotReportMechKitStartEvent,
+    FuzzDoReportMechkitControlStatisticEvent,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
         return 0;
     }
     FuzzedDataProvider fdp(data, size);
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 3;
-    switch (funcIndex) {
-        case 0:
-            FuzzDotReportFocustrackingStartEvent(fdp);
-            break;
-        case 1:
-            FuzzDotReportMechKitStartEvent(fdp);
-            break;
-        case 2:
-            FuzzDoReportMechkitControlStatisticEvent(fdp);
-            break;
-        default:
-            break;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](fdp);
     }
     return 0;
 }

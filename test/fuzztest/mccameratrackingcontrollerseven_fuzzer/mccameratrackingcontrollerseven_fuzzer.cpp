@@ -113,7 +113,7 @@ struct ControllerCleaner {
         CleanupCameraTrackingController();
     }
 };
-const ControllerCleaner g_controllerCleaner;
+const ControllerCleaner CONTROLLER_CLEANER;
 } // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
