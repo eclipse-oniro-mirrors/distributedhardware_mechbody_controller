@@ -50,84 +50,84 @@ void InitCameraTrackingController()
     }
 }
 
-CameraStandard::Rect GenerateRandomRect(FuzzedDataProvider &provider)
+CameraStandard::Rect GenerateRandomRect(FuzzedDataProvider &fdp)
 {
     CameraStandard::Rect rect;
-    rect.topLeftX = provider.ConsumeFloatingPointInRange<double>(0.0, 1.0);
-    rect.topLeftY = provider.ConsumeFloatingPointInRange<double>(0.0, 1.0);
-    rect.width = provider.ConsumeFloatingPointInRange<double>(0.0, 2.0);
-    rect.height = provider.ConsumeFloatingPointInRange<double>(0.0, 2.0);
+    rect.topLeftX = fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
+    rect.topLeftY = fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
+    rect.width = fdp.ConsumeFloatingPointInRange<double>(0.0, 2.0);
+    rect.height = fdp.ConsumeFloatingPointInRange<double>(0.0, 2.0);
     return rect;
 }
 
 sptr<CameraStandard::MetadataObject> CreateMetadataObject(
-    FuzzedDataProvider &provider, int32_t objectId)
+    FuzzedDataProvider &fdp, int32_t objectId)
 {
-    CameraStandard::Rect box = GenerateRandomRect(provider);
-    int32_t objType = provider.ConsumeIntegralInRange<int32_t>(MIN_OBJECT_TYPE, MAX_OBJECT_TYPE);
+    CameraStandard::Rect box = GenerateRandomRect(fdp);
+    int32_t objType = fdp.ConsumeIntegralInRange<int32_t>(MIN_OBJECT_TYPE, MAX_OBJECT_TYPE);
     CameraStandard::MetadataObjectType type =
         static_cast<CameraStandard::MetadataObjectType>(objType);
-    int32_t confidence = provider.ConsumeIntegralInRange<int32_t>(0, 100);
-    bool isLockFocusTracked = provider.ConsumeBool();
+    int32_t confidence = fdp.ConsumeIntegralInRange<int32_t>(0, 100);
+    bool isLockFocusTracked = fdp.ConsumeBool();
 
     auto factory = std::make_unique<CameraStandard::MetadataObjectFactory>();
     factory->SetBox(box);
     factory->SetObjectId(objectId);
     factory->SetConfidence(confidence);
     factory->SetIsLockFocusTracked(isLockFocusTracked);
-    factory->SetTimestamp(provider.ConsumeIntegral<int64_t>());
+    factory->SetTimestamp(fdp.ConsumeIntegral<int64_t>());
 
     // Set face-specific fields when type is face-related
     if (type == CameraStandard::MetadataObjectType::FACE ||
         type == CameraStandard::MetadataObjectType::BASE_FACE_DETECTION) {
-        CameraStandard::Rect leftEye = GenerateRandomRect(provider);
-        CameraStandard::Rect rightEye = GenerateRandomRect(provider);
+        CameraStandard::Rect leftEye = GenerateRandomRect(fdp);
+        CameraStandard::Rect rightEye = GenerateRandomRect(fdp);
         factory->SetLeftEyeBoundingBox(leftEye);
         factory->SetRightEyeBoundingBoxd(rightEye);
-        factory->SetEmotion(static_cast<CameraStandard::Emotion>(provider.ConsumeIntegralInRange<int32_t>(0, 3)));
-        factory->SetEmotionConfidence(provider.ConsumeIntegral<int32_t>());
-        factory->SetPitchAngle(provider.ConsumeIntegral<int32_t>());
-        factory->SetYawAngle(provider.ConsumeIntegral<int32_t>());
-        factory->SetRollAngle(provider.ConsumeIntegral<int32_t>());
+        factory->SetEmotion(static_cast<CameraStandard::Emotion>(fdp.ConsumeIntegralInRange<int32_t>(0, 3)));
+        factory->SetEmotionConfidence(fdp.ConsumeIntegral<int32_t>());
+        factory->SetPitchAngle(fdp.ConsumeIntegral<int32_t>());
+        factory->SetYawAngle(fdp.ConsumeIntegral<int32_t>());
+        factory->SetRollAngle(fdp.ConsumeIntegral<int32_t>());
     }
 
     return factory->createMetadataObject(type);
 }
 
-std::vector<sptr<CameraStandard::MetadataObject>> GenerateDetectedObjects(FuzzedDataProvider &provider)
+std::vector<sptr<CameraStandard::MetadataObject>> GenerateDetectedObjects(FuzzedDataProvider &fdp)
 {
     std::vector<sptr<CameraStandard::MetadataObject>> objects;
-    size_t count = provider.ConsumeIntegralInRange<size_t>(0, MAX_DETECTED_OBJECTS);
+    size_t count = fdp.ConsumeIntegralInRange<size_t>(0, MAX_DETECTED_OBJECTS);
     for (size_t i = 0; i < count; i++) {
-        objects.push_back(CreateMetadataObject(provider, static_cast<int32_t>(i)));
+        objects.push_back(CreateMetadataObject(fdp, static_cast<int32_t>(i)));
     }
     return objects;
 }
 
-void SetupCaptureSessionInfo(FuzzedDataProvider &provider, int32_t sessionMode)
+void SetupCaptureSessionInfo(FuzzedDataProvider &fdp, int32_t sessionMode)
 {
     CameraStandard::CaptureSessionInfo captureSessionInfo;
     CameraStandard::OutputInfo videoOutputInfo;
     videoOutputInfo.type = CameraStandard::OutputType::VIDEO;
-    videoOutputInfo.width = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
-    videoOutputInfo.height = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
+    videoOutputInfo.width = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
+    videoOutputInfo.height = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
     captureSessionInfo.outputInfos.push_back(videoOutputInfo);
 
     CameraStandard::OutputInfo previewOutputInfo;
     previewOutputInfo.type = CameraStandard::OutputType::PREVIEW;
-    previewOutputInfo.width = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
-    previewOutputInfo.height = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
+    previewOutputInfo.width = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
+    previewOutputInfo.height = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
     captureSessionInfo.outputInfos.push_back(previewOutputInfo);
 
-    captureSessionInfo.callerTokenId = provider.ConsumeIntegralInRange<int32_t>(1, 100);
+    captureSessionInfo.callerTokenId = fdp.ConsumeIntegralInRange<int32_t>(1, 100);
     captureSessionInfo.sessionMode = sessionMode;
-    captureSessionInfo.sessionId = provider.ConsumeIntegral<int32_t>();
-    captureSessionInfo.position = provider.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
-    captureSessionInfo.zoomInfo.zoomValue = provider.ConsumeFloatingPointInRange<float>(0.5f, 10.0f);
-    captureSessionInfo.zoomInfo.equivalentFocus = provider.ConsumeIntegralInRange<int32_t>(10, 200);
-    captureSessionInfo.zoomInfo.videoStabilizationMode = provider.ConsumeIntegral<int32_t>();
-    captureSessionInfo.zoomInfo.focusMode = provider.ConsumeIntegral<int32_t>();
-    captureSessionInfo.sessionStatus = provider.ConsumeBool();
+    captureSessionInfo.sessionId = fdp.ConsumeIntegral<int32_t>();
+    captureSessionInfo.position = fdp.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
+    captureSessionInfo.zoomInfo.zoomValue = fdp.ConsumeFloatingPointInRange<float>(0.5f, 10.0f);
+    captureSessionInfo.zoomInfo.equivalentFocus = fdp.ConsumeIntegralInRange<int32_t>(10, 200);
+    captureSessionInfo.zoomInfo.videoStabilizationMode = fdp.ConsumeIntegral<int32_t>();
+    captureSessionInfo.zoomInfo.focusMode = fdp.ConsumeIntegral<int32_t>();
+    captureSessionInfo.sessionStatus = fdp.ConsumeBool();
 
     g_cameraTrackingController->OnCaptureSessionConfiged(captureSessionInfo);
 }
@@ -135,24 +135,24 @@ void SetupCaptureSessionInfo(FuzzedDataProvider &provider, int32_t sessionMode)
 // Fuzz OnFocusTracking with fully populated FocusTrackingMetaInfo including detected objects
 void FuzzOnFocusTrackingWithObjects(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     // Setup camera session first to initialize currentCameraInfo_
-    int32_t sessionMode = provider.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
-    SetupCaptureSessionInfo(provider, sessionMode);
+    int32_t sessionMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
+    SetupCaptureSessionInfo(fdp, sessionMode);
 
     CameraStandard::FocusTrackingMetaInfo info;
-    info.SetTrackingObjectId(provider.ConsumeIntegral<int32_t>());
+    info.SetTrackingObjectId(fdp.ConsumeIntegral<int32_t>());
 
-    CameraStandard::Rect trackingRegion = GenerateRandomRect(provider);
+    CameraStandard::Rect trackingRegion = GenerateRandomRect(fdp);
     info.SetTrackingRegion(trackingRegion);
 
-    int32_t trackingMode = provider.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
+    int32_t trackingMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
     info.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(trackingMode));
 
     // Populate detected objects with various types to exercise GetTrackingTarget/ProcessTargetByType
-    auto detectedObjects = GenerateDetectedObjects(provider);
+    auto detectedObjects = GenerateDetectedObjects(fdp);
     info.SetDetectedObjects(detectedObjects);
 
     g_cameraTrackingController->OnFocusTracking(info);
@@ -163,24 +163,24 @@ void FuzzOnFocusTrackingWithObjects(const uint8_t *data, size_t size)
 // FindFaceForHead, FindBestFaceOrHeadForBody, FindBestMatchForBody
 void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     // Setup camera session with CINEMATIC_VIDEO mode to hit SelectBestObjectByRegion path
-    bool useCinematicMode = provider.ConsumeBool();
+    bool useCinematicMode = fdp.ConsumeBool();
     int32_t sessionMode = useCinematicMode
         ? static_cast<int32_t>(CameraStandard::SceneMode::CINEMATIC_VIDEO)
         : static_cast<int32_t>(CameraStandard::SceneMode::NORMAL);
-    SetupCaptureSessionInfo(provider, sessionMode);
+    SetupCaptureSessionInfo(fdp, sessionMode);
 
     CameraStandard::FocusTrackingMetaInfo info;
-    int32_t trackingObjectId = provider.ConsumeIntegral<int32_t>();
+    int32_t trackingObjectId = fdp.ConsumeIntegral<int32_t>();
     info.SetTrackingObjectId(trackingObjectId);
 
-    CameraStandard::Rect trackingRegion = GenerateRandomRect(provider);
+    CameraStandard::Rect trackingRegion = GenerateRandomRect(fdp);
     info.SetTrackingRegion(trackingRegion);
 
-    int32_t trackingMode = provider.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
+    int32_t trackingMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
     info.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(trackingMode));
 
     // Build detected objects with overlapping bounding boxes for IOU calculation paths
@@ -188,11 +188,11 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
 
     // Create a body object
     auto bodyFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
-    CameraStandard::Rect bodyRect = GenerateRandomRect(provider);
+    CameraStandard::Rect bodyRect = GenerateRandomRect(fdp);
     bodyFactory->SetBox(bodyRect);
     bodyFactory->SetObjectId(0);
     bodyFactory->SetConfidence(90);
-    bodyFactory->SetIsLockFocusTracked(provider.ConsumeBool());
+    bodyFactory->SetIsLockFocusTracked(fdp.ConsumeBool());
     bodyFactory->SetTimestamp(0);
     objects.push_back(bodyFactory->createMetadataObject(CameraStandard::MetadataObjectType::HUMAN_BODY));
 
@@ -200,26 +200,26 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
     auto faceFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
     CameraStandard::Rect faceRect;
     // Use similar region to body to produce non-zero IOU
-    faceRect.topLeftX = provider.ConsumeBool() ? bodyRect.topLeftX : provider.ConsumeFloatingPointInRange<double>(0.0, 1.0);
-    faceRect.topLeftY = provider.ConsumeBool() ? bodyRect.topLeftY : provider.ConsumeFloatingPointInRange<double>(0.0, 1.0);
-    faceRect.width = provider.ConsumeBool() ? bodyRect.width : provider.ConsumeFloatingPointInRange<double>(0.0, 2.0);
-    faceRect.height = provider.ConsumeBool() ? bodyRect.height : provider.ConsumeFloatingPointInRange<double>(0.0, 2.0);
+    faceRect.topLeftX = fdp.ConsumeBool() ? bodyRect.topLeftX : fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
+    faceRect.topLeftY = fdp.ConsumeBool() ? bodyRect.topLeftY : fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
+    faceRect.width = fdp.ConsumeBool() ? bodyRect.width : fdp.ConsumeFloatingPointInRange<double>(0.0, 2.0);
+    faceRect.height = fdp.ConsumeBool() ? bodyRect.height : fdp.ConsumeFloatingPointInRange<double>(0.0, 2.0);
     faceFactory->SetBox(faceRect);
     faceFactory->SetObjectId(1);
     faceFactory->SetConfidence(80);
     faceFactory->SetIsLockFocusTracked(false);
     faceFactory->SetTimestamp(0);
-    faceFactory->SetLeftEyeBoundingBox(GenerateRandomRect(provider));
-    faceFactory->SetRightEyeBoundingBoxd(GenerateRandomRect(provider));
+    faceFactory->SetLeftEyeBoundingBox(GenerateRandomRect(fdp));
+    faceFactory->SetRightEyeBoundingBoxd(GenerateRandomRect(fdp));
     objects.push_back(faceFactory->createMetadataObject(CameraStandard::MetadataObjectType::FACE));
 
     // Create a head object near the body for FindFaceForHead path
     auto headFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
     CameraStandard::Rect headRect;
-    headRect.topLeftX = provider.ConsumeBool() ? bodyRect.topLeftX : provider.ConsumeFloatingPointInRange<double>(0.0, 1.0);
-    headRect.topLeftY = provider.ConsumeBool() ? bodyRect.topLeftY : provider.ConsumeFloatingPointInRange<double>(0.0, 1.0);
-    headRect.width = provider.ConsumeBool() ? bodyRect.width : provider.ConsumeFloatingPointInRange<double>(0.0, 2.0);
-    headRect.height = provider.ConsumeBool() ? bodyRect.height : provider.ConsumeFloatingPointInRange<double>(0.0, 2.0);
+    headRect.topLeftX = fdp.ConsumeBool() ? bodyRect.topLeftX : fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
+    headRect.topLeftY = fdp.ConsumeBool() ? bodyRect.topLeftY : fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
+    headRect.width = fdp.ConsumeBool() ? bodyRect.width : fdp.ConsumeFloatingPointInRange<double>(0.0, 2.0);
+    headRect.height = fdp.ConsumeBool() ? bodyRect.height : fdp.ConsumeFloatingPointInRange<double>(0.0, 2.0);
     headFactory->SetBox(headRect);
     headFactory->SetObjectId(2);
     headFactory->SetConfidence(85);
@@ -228,29 +228,29 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
     objects.push_back(headFactory->createMetadataObject(CameraStandard::MetadataObjectType::HUMAN_HEAD));
 
     // Optionally add a SALIENT_DETECTION object with isLockFocusTracked
-    if (provider.ConsumeBool()) {
+    if (fdp.ConsumeBool()) {
         auto salientFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
-        CameraStandard::Rect salientRect = GenerateRandomRect(provider);
+        CameraStandard::Rect salientRect = GenerateRandomRect(fdp);
         salientFactory->SetBox(salientRect);
         salientFactory->SetObjectId(3);
         salientFactory->SetConfidence(70);
-        salientFactory->SetIsLockFocusTracked(provider.ConsumeBool());
+        salientFactory->SetIsLockFocusTracked(fdp.ConsumeBool());
         salientFactory->SetTimestamp(0);
         objects.push_back(
             salientFactory->createMetadataObject(CameraStandard::MetadataObjectType::SALIENT_DETECTION));
     }
 
     // Optionally add a BASE_FACE_DETECTION object
-    if (provider.ConsumeBool()) {
+    if (fdp.ConsumeBool()) {
         auto baseFaceFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
-        CameraStandard::Rect baseFaceRect = GenerateRandomRect(provider);
+        CameraStandard::Rect baseFaceRect = GenerateRandomRect(fdp);
         baseFaceFactory->SetBox(baseFaceRect);
         baseFaceFactory->SetObjectId(4);
         baseFaceFactory->SetConfidence(75);
         baseFaceFactory->SetIsLockFocusTracked(false);
         baseFaceFactory->SetTimestamp(0);
-        baseFaceFactory->SetLeftEyeBoundingBox(GenerateRandomRect(provider));
-        baseFaceFactory->SetRightEyeBoundingBoxd(GenerateRandomRect(provider));
+        baseFaceFactory->SetLeftEyeBoundingBox(GenerateRandomRect(fdp));
+        baseFaceFactory->SetRightEyeBoundingBoxd(GenerateRandomRect(fdp));
         objects.push_back(
             baseFaceFactory->createMetadataObject(CameraStandard::MetadataObjectType::BASE_FACE_DETECTION));
     }
@@ -258,7 +258,7 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
     info.SetDetectedObjects(objects);
 
     // Call OnFocusTracking multiple times to exercise lastTrackingFrame_ and trackingRect_ paths
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 4);
+    int32_t iterations = fdp.ConsumeIntegralInRange<int32_t>(1, 4);
     for (int32_t i = 0; i < iterations; i++) {
         g_cameraTrackingController->OnFocusTracking(info);
     }
@@ -268,37 +268,37 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
 // and negative trackingObjectId to exercise fallback paths
 void FuzzBuildTrackingParamsFallback(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
-    int32_t sessionMode = provider.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
-    SetupCaptureSessionInfo(provider, sessionMode);
+    int32_t sessionMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
+    SetupCaptureSessionInfo(fdp, sessionMode);
 
     CameraStandard::FocusTrackingMetaInfo info;
     // Use negative trackingObjectId to exercise fallback paths in GetTrackingTarget
-    info.SetTrackingObjectId(provider.ConsumeIntegralInRange<int32_t>(-10, -1));
+    info.SetTrackingObjectId(fdp.ConsumeIntegralInRange<int32_t>(-10, -1));
 
-    CameraStandard::Rect trackingRegion = GenerateRandomRect(provider);
+    CameraStandard::Rect trackingRegion = GenerateRandomRect(fdp);
     info.SetTrackingRegion(trackingRegion);
 
-    int32_t trackingMode = provider.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
+    int32_t trackingMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
     info.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(trackingMode));
 
     // Empty detected objects - exercise the empty path
-    if (provider.ConsumeBool()) {
+    if (fdp.ConsumeBool()) {
         std::vector<sptr<CameraStandard::MetadataObject>> emptyObjects;
         info.SetDetectedObjects(emptyObjects);
     } else {
         // Objects without matching ID - exercise GetTrackingTargetFallback
         std::vector<sptr<CameraStandard::MetadataObject>> objects;
         auto factory = std::make_unique<CameraStandard::MetadataObjectFactory>();
-        CameraStandard::Rect box = GenerateRandomRect(provider);
+        CameraStandard::Rect box = GenerateRandomRect(fdp);
         factory->SetBox(box);
-        factory->SetObjectId(provider.ConsumeIntegralInRange<int32_t>(100, 200));
-        factory->SetConfidence(provider.ConsumeIntegral<int32_t>());
-        factory->SetIsLockFocusTracked(provider.ConsumeBool());
+        factory->SetObjectId(fdp.ConsumeIntegralInRange<int32_t>(100, 200));
+        factory->SetConfidence(fdp.ConsumeIntegral<int32_t>());
+        factory->SetIsLockFocusTracked(fdp.ConsumeBool());
         factory->SetTimestamp(0);
-        int32_t objType = provider.ConsumeIntegralInRange<int32_t>(MIN_OBJECT_TYPE, MAX_OBJECT_TYPE);
+        int32_t objType = fdp.ConsumeIntegralInRange<int32_t>(MIN_OBJECT_TYPE, MAX_OBJECT_TYPE);
         objects.push_back(
             factory->createMetadataObject(static_cast<CameraStandard::MetadataObjectType>(objType)));
         info.SetDetectedObjects(objects);
@@ -310,28 +310,28 @@ void FuzzBuildTrackingParamsFallback(const uint8_t *data, size_t size)
 // Fuzz OnMetadataInfo with CameraMetadata containing FOV tag
 void FuzzOnMetadataInfoWithFov(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     // Setup camera session first
-    SetupCaptureSessionInfo(provider, static_cast<int32_t>(CameraStandard::SceneMode::NORMAL));
+    SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::NORMAL));
 
-    bool passNull = provider.ConsumeBool();
+    bool passNull = fdp.ConsumeBool();
     if (passNull) {
         g_cameraTrackingController->OnMetadataInfo(nullptr);
         return;
     }
 
-    size_t itemCapacity = provider.ConsumeIntegralInRange<size_t>(MIN_ITEM_CAPACITY, MAX_ITEM_CAPACITY);
-    size_t dataCapacity = provider.ConsumeIntegralInRange<size_t>(MIN_DATA_CAPACITY, MAX_DATA_CAPACITY);
+    size_t itemCapacity = fdp.ConsumeIntegralInRange<size_t>(MIN_ITEM_CAPACITY, MAX_ITEM_CAPACITY);
+    size_t dataCapacity = fdp.ConsumeIntegralInRange<size_t>(MIN_DATA_CAPACITY, MAX_DATA_CAPACITY);
     auto metadata = std::make_shared<OHOS::Camera::CameraMetadata>(itemCapacity, dataCapacity);
 
-    bool addFovTag = provider.ConsumeBool();
+    bool addFovTag = fdp.ConsumeBool();
     if (addFovTag) {
         // Add FOV info tag with 2 float values to exercise the FOV extraction path
         float fovData[2] = {
-            provider.ConsumeFloatingPoint<float>(),
-            provider.ConsumeFloatingPoint<float>()
+            fdp.ConsumeFloatingPoint<float>(),
+            fdp.ConsumeFloatingPoint<float>()
         };
         metadata->addEntry(OHOS_STATUS_FOV_INFOS, fovData, 2);
     }
@@ -342,18 +342,18 @@ void FuzzOnMetadataInfoWithFov(const uint8_t *data, size_t size)
 // Fuzz OnZoomInfoChange with valid zoom values
 void FuzzOnZoomInfoChangeWithSession(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     // Setup camera session first so currentCameraInfo_ has valid tokenId
-    SetupCaptureSessionInfo(provider, static_cast<int32_t>(CameraStandard::SceneMode::VIDEO));
+    SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::VIDEO));
 
-    int32_t sessionid = provider.ConsumeIntegral<int32_t>();
+    int32_t sessionid = fdp.ConsumeIntegral<int32_t>();
     CameraStandard::ZoomInfo zoomInfo;
-    zoomInfo.zoomValue = provider.ConsumeFloatingPointInRange<float>(0.1f, 20.0f);
-    zoomInfo.equivalentFocus = provider.ConsumeIntegralInRange<int32_t>(10, 200);
-    zoomInfo.videoStabilizationMode = provider.ConsumeIntegralInRange<int32_t>(0, 4);
-    zoomInfo.focusMode = provider.ConsumeIntegralInRange<int32_t>(-1, 10);
+    zoomInfo.zoomValue = fdp.ConsumeFloatingPointInRange<float>(0.1f, 20.0f);
+    zoomInfo.equivalentFocus = fdp.ConsumeIntegralInRange<int32_t>(10, 200);
+    zoomInfo.videoStabilizationMode = fdp.ConsumeIntegralInRange<int32_t>(0, 4);
+    zoomInfo.focusMode = fdp.ConsumeIntegralInRange<int32_t>(-1, 10);
 
     g_cameraTrackingController->OnZoomInfoChange(sessionid, zoomInfo);
 }
@@ -361,18 +361,18 @@ void FuzzOnZoomInfoChangeWithSession(const uint8_t *data, size_t size)
 // Fuzz OnSessionStatusChange with both true and false status
 void FuzzOnSessionStatusChangeWithSession(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     // Setup camera session first
-    SetupCaptureSessionInfo(provider, static_cast<int32_t>(CameraStandard::SceneMode::VIDEO));
+    SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::VIDEO));
 
-    int32_t sessionid = provider.ConsumeIntegral<int32_t>();
-    bool status = provider.ConsumeBool();
+    int32_t sessionid = fdp.ConsumeIntegral<int32_t>();
+    bool status = fdp.ConsumeBool();
     g_cameraTrackingController->OnSessionStatusChange(sessionid, status);
 
     // Toggle to exercise both branches (status true then false)
-    if (provider.ConsumeBool()) {
+    if (fdp.ConsumeBool()) {
         g_cameraTrackingController->OnSessionStatusChange(sessionid, !status);
     }
 }
@@ -381,7 +381,7 @@ void FuzzOnSessionStatusChangeWithSession(const uint8_t *data, size_t size)
 // with different positions (front/back camera) and session modes
 void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     CameraStandard::CaptureSessionInfo captureSessionInfo;
@@ -389,14 +389,14 @@ void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
     // Build output infos
     CameraStandard::OutputInfo videoOutputInfo;
     videoOutputInfo.type = CameraStandard::OutputType::VIDEO;
-    videoOutputInfo.width = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
-    videoOutputInfo.height = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
+    videoOutputInfo.width = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
+    videoOutputInfo.height = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
     captureSessionInfo.outputInfos.push_back(videoOutputInfo);
 
     CameraStandard::OutputInfo previewOutputInfo;
     previewOutputInfo.type = CameraStandard::OutputType::PREVIEW;
-    previewOutputInfo.width = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
-    previewOutputInfo.height = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
+    previewOutputInfo.width = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
+    previewOutputInfo.height = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
     captureSessionInfo.outputInfos.push_back(previewOutputInfo);
 
     // Use specific scene modes for different sessionMode paths
@@ -407,24 +407,24 @@ void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
         static_cast<int32_t>(CameraStandard::SceneMode::PORTRAIT),
         static_cast<int32_t>(CameraStandard::SceneMode::CINEMATIC_VIDEO),
     };
-    int32_t modeIndex = provider.ConsumeIntegralInRange<int32_t>(0, 4);
+    int32_t modeIndex = fdp.ConsumeIntegralInRange<int32_t>(0, 4);
     captureSessionInfo.sessionMode = sceneModes[modeIndex];
 
-    captureSessionInfo.callerTokenId = provider.ConsumeIntegralInRange<int32_t>(1, 100);
-    captureSessionInfo.sessionId = provider.ConsumeIntegral<int32_t>();
-    captureSessionInfo.position = provider.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
-    captureSessionInfo.zoomInfo.zoomValue = provider.ConsumeFloatingPointInRange<float>(0.5f, 10.0f);
-    captureSessionInfo.zoomInfo.equivalentFocus = provider.ConsumeIntegralInRange<int32_t>(10, 200);
-    captureSessionInfo.zoomInfo.videoStabilizationMode = provider.ConsumeIntegralInRange<int32_t>(0, 4);
-    captureSessionInfo.zoomInfo.focusMode = provider.ConsumeIntegral<int32_t>();
-    captureSessionInfo.sessionStatus = provider.ConsumeBool();
+    captureSessionInfo.callerTokenId = fdp.ConsumeIntegralInRange<int32_t>(1, 100);
+    captureSessionInfo.sessionId = fdp.ConsumeIntegral<int32_t>();
+    captureSessionInfo.position = fdp.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
+    captureSessionInfo.zoomInfo.zoomValue = fdp.ConsumeFloatingPointInRange<float>(0.5f, 10.0f);
+    captureSessionInfo.zoomInfo.equivalentFocus = fdp.ConsumeIntegralInRange<int32_t>(10, 200);
+    captureSessionInfo.zoomInfo.videoStabilizationMode = fdp.ConsumeIntegralInRange<int32_t>(0, 4);
+    captureSessionInfo.zoomInfo.focusMode = fdp.ConsumeIntegral<int32_t>();
+    captureSessionInfo.sessionStatus = fdp.ConsumeBool();
 
     g_cameraTrackingController->OnCaptureSessionConfiged(captureSessionInfo);
 
     // Call again with different camera position to trigger front/back switch
-    if (provider.ConsumeBool()) {
+    if (fdp.ConsumeBool()) {
         captureSessionInfo.position = (captureSessionInfo.position == REAR_MOUNTED_LENS) ? 0 : REAR_MOUNTED_LENS;
-        captureSessionInfo.sessionMode = sceneModes[provider.ConsumeIntegralInRange<int32_t>(0, 4)];
+        captureSessionInfo.sessionMode = sceneModes[fdp.ConsumeIntegralInRange<int32_t>(0, 4)];
         g_cameraTrackingController->OnCaptureSessionConfiged(captureSessionInfo);
     }
 }
@@ -432,7 +432,7 @@ void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
 // Fuzz ComputeFov indirectly by varying zoom and video stabilization modes
 void FuzzComputeFovVariants(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     // Test different video stabilization modes to exercise SensorCutForVideoMode branches
@@ -447,22 +447,22 @@ void FuzzComputeFovVariants(const uint8_t *data, size_t size)
     CameraStandard::CaptureSessionInfo captureSessionInfo;
     CameraStandard::OutputInfo videoOutputInfo;
     videoOutputInfo.type = CameraStandard::OutputType::VIDEO;
-    videoOutputInfo.width = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
-    videoOutputInfo.height = provider.ConsumeIntegralInRange<int32_t>(100, 4000);
+    videoOutputInfo.width = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
+    videoOutputInfo.height = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
     captureSessionInfo.outputInfos.push_back(videoOutputInfo);
 
-    captureSessionInfo.callerTokenId = provider.ConsumeIntegralInRange<int32_t>(1, 100);
-    captureSessionInfo.sessionId = provider.ConsumeIntegral<int32_t>();
-    captureSessionInfo.position = provider.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
+    captureSessionInfo.callerTokenId = fdp.ConsumeIntegralInRange<int32_t>(1, 100);
+    captureSessionInfo.sessionId = fdp.ConsumeIntegral<int32_t>();
+    captureSessionInfo.position = fdp.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
 
-    int32_t modeIndex = provider.ConsumeIntegralInRange<int32_t>(0, 4);
+    int32_t modeIndex = fdp.ConsumeIntegralInRange<int32_t>(0, 4);
     captureSessionInfo.sessionMode = (modeIndex <= 1)
         ? static_cast<int32_t>(CameraStandard::SceneMode::VIDEO)
         : static_cast<int32_t>(CameraStandard::SceneMode::CINEMATIC_VIDEO);
 
-    int32_t stabIndex = provider.ConsumeIntegralInRange<int32_t>(0, 4);
-    captureSessionInfo.zoomInfo.zoomValue = provider.ConsumeFloatingPointInRange<float>(0.5f, 10.0f);
-    captureSessionInfo.zoomInfo.equivalentFocus = provider.ConsumeIntegralInRange<int32_t>(10, 200);
+    int32_t stabIndex = fdp.ConsumeIntegralInRange<int32_t>(0, 4);
+    captureSessionInfo.zoomInfo.zoomValue = fdp.ConsumeFloatingPointInRange<float>(0.5f, 10.0f);
+    captureSessionInfo.zoomInfo.equivalentFocus = fdp.ConsumeIntegralInRange<int32_t>(10, 200);
     captureSessionInfo.zoomInfo.videoStabilizationMode = stabModes[stabIndex];
     captureSessionInfo.zoomInfo.focusMode = 1;
     captureSessionInfo.sessionStatus = true;
@@ -473,27 +473,27 @@ void FuzzComputeFovVariants(const uint8_t *data, size_t size)
 // Fuzz CalculateIOU indirectly through OnFocusTracking with overlapping rects
 void FuzzCalculateIOUViaTracking(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
-    int32_t sessionMode = provider.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
-    SetupCaptureSessionInfo(provider, sessionMode);
+    int32_t sessionMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
+    SetupCaptureSessionInfo(fdp, sessionMode);
 
     // Create two FocusTrackingMetaInfo calls with overlapping rects to exercise
     // IOU calculation in IsAllowedConversion and CalculateIOU
     for (int32_t iter = 0; iter < 2; iter++) {
         CameraStandard::FocusTrackingMetaInfo info;
-        info.SetTrackingObjectId(provider.ConsumeIntegralInRange<int32_t>(0, 5));
+        info.SetTrackingObjectId(fdp.ConsumeIntegralInRange<int32_t>(0, 5));
 
-        CameraStandard::Rect trackingRegion = GenerateRandomRect(provider);
+        CameraStandard::Rect trackingRegion = GenerateRandomRect(fdp);
         info.SetTrackingRegion(trackingRegion);
 
-        int32_t trackingMode = provider.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
+        int32_t trackingMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
         info.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(trackingMode));
 
         // Create overlapping objects to exercise CalculateIOU paths
         std::vector<sptr<CameraStandard::MetadataObject>> objects;
-        CameraStandard::Rect baseRect = GenerateRandomRect(provider);
+        CameraStandard::Rect baseRect = GenerateRandomRect(fdp);
 
         // Create a face object with the base rect
         auto faceFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
@@ -505,14 +505,14 @@ void FuzzCalculateIOUViaTracking(const uint8_t *data, size_t size)
         objects.push_back(faceFactory->createMetadataObject(CameraStandard::MetadataObjectType::FACE));
 
         // Create another face with overlapping rect for IOU > threshold
-        if (provider.ConsumeBool()) {
+        if (fdp.ConsumeBool()) {
             auto faceFactory2 = std::make_unique<CameraStandard::MetadataObjectFactory>();
             CameraStandard::Rect overlapRect;
             // Make overlapping rect by using similar coordinates
-            overlapRect.topLeftX = baseRect.topLeftX + provider.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
-            overlapRect.topLeftY = baseRect.topLeftY + provider.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
-            overlapRect.width = baseRect.width + provider.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
-            overlapRect.height = baseRect.height + provider.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
+            overlapRect.topLeftX = baseRect.topLeftX + fdp.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
+            overlapRect.topLeftY = baseRect.topLeftY + fdp.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
+            overlapRect.width = baseRect.width + fdp.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
+            overlapRect.height = baseRect.height + fdp.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
             faceFactory2->SetBox(overlapRect);
             faceFactory2->SetObjectId(1);
             faceFactory2->SetConfidence(80);
@@ -530,22 +530,22 @@ void FuzzCalculateIOUViaTracking(const uint8_t *data, size_t size)
 // in CINEMATIC_VIDEO mode with isSalientDetectionLocked scenarios
 void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
 {
-    FuzzedDataProvider provider(data, size);
+    FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
 
     // Must use CINEMATIC_VIDEO mode
-    SetupCaptureSessionInfo(provider, static_cast<int32_t>(CameraStandard::SceneMode::CINEMATIC_VIDEO));
+    SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::CINEMATIC_VIDEO));
 
     // First call with SALIENT_DETECTION + isLockFocusTracked=true to set isSalientDetectionLocked_
     CameraStandard::FocusTrackingMetaInfo info1;
-    info1.SetTrackingObjectId(provider.ConsumeIntegralInRange<int32_t>(0, 5));
-    CameraStandard::Rect region1 = GenerateRandomRect(provider);
+    info1.SetTrackingObjectId(fdp.ConsumeIntegralInRange<int32_t>(0, 5));
+    CameraStandard::Rect region1 = GenerateRandomRect(fdp);
     info1.SetTrackingRegion(region1);
     info1.SetTrackingMode(CameraStandard::FocusTrackingMode::FOCUS_TRACKING_MODE_AUTO);
 
     std::vector<sptr<CameraStandard::MetadataObject>> objects1;
     auto salientFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
-    salientFactory->SetBox(GenerateRandomRect(provider));
+    salientFactory->SetBox(GenerateRandomRect(fdp));
     salientFactory->SetObjectId(0);
     salientFactory->SetConfidence(80);
     salientFactory->SetIsLockFocusTracked(true); // Set lock focus tracked
@@ -558,16 +558,16 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
 
     // Second call with different target to exercise CinematicVideoModeTrackingTargetFilter
     CameraStandard::FocusTrackingMetaInfo info2;
-    info2.SetTrackingObjectId(provider.ConsumeIntegralInRange<int32_t>(0, 5));
-    CameraStandard::Rect region2 = GenerateRandomRect(provider);
+    info2.SetTrackingObjectId(fdp.ConsumeIntegralInRange<int32_t>(0, 5));
+    CameraStandard::Rect region2 = GenerateRandomRect(fdp);
     info2.SetTrackingRegion(region2);
     info2.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(
-        provider.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE)));
+        fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE)));
 
     std::vector<sptr<CameraStandard::MetadataObject>> objects2;
     // Create a body object
     auto bodyFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
-    bodyFactory->SetBox(GenerateRandomRect(provider));
+    bodyFactory->SetBox(GenerateRandomRect(fdp));
     bodyFactory->SetObjectId(1);
     bodyFactory->SetConfidence(85);
     bodyFactory->SetIsLockFocusTracked(false);
@@ -576,19 +576,19 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
 
     // Create a face object near the body
     auto faceFactory2 = std::make_unique<CameraStandard::MetadataObjectFactory>();
-    CameraStandard::Rect faceRect2 = GenerateRandomRect(provider);
+    CameraStandard::Rect faceRect2 = GenerateRandomRect(fdp);
     faceFactory2->SetBox(faceRect2);
     faceFactory2->SetObjectId(2);
     faceFactory2->SetConfidence(80);
     faceFactory2->SetIsLockFocusTracked(false);
     faceFactory2->SetTimestamp(0);
-    faceFactory2->SetLeftEyeBoundingBox(GenerateRandomRect(provider));
-    faceFactory2->SetRightEyeBoundingBoxd(GenerateRandomRect(provider));
+    faceFactory2->SetLeftEyeBoundingBox(GenerateRandomRect(fdp));
+    faceFactory2->SetRightEyeBoundingBoxd(GenerateRandomRect(fdp));
     objects2.push_back(faceFactory2->createMetadataObject(CameraStandard::MetadataObjectType::FACE));
 
     // Create a head object
     auto headFactory2 = std::make_unique<CameraStandard::MetadataObjectFactory>();
-    headFactory2->SetBox(GenerateRandomRect(provider));
+    headFactory2->SetBox(GenerateRandomRect(fdp));
     headFactory2->SetObjectId(3);
     headFactory2->SetConfidence(75);
     headFactory2->SetIsLockFocusTracked(false);
@@ -603,15 +603,48 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    FuzzOnFocusTrackingWithObjects(data, size);
-    FuzzOnFocusTrackingSpecificTypes(data, size);
-    FuzzBuildTrackingParamsFallback(data, size);
-    FuzzOnMetadataInfoWithFov(data, size);
-    FuzzOnZoomInfoChangeWithSession(data, size);
-    FuzzOnSessionStatusChangeWithSession(data, size);
-    FuzzUpdateCurrentCameraInfo(data, size);
-    FuzzComputeFovVariants(data, size);
-    FuzzCalculateIOUViaTracking(data, size);
-    FuzzCinematicVideoFilter(data, size);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+    FuzzedDataProvider fdp(data, size);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 10;
+    auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
+    const uint8_t *funcData = remaining.data();
+    size_t funcSize = remaining.size();
+
+    switch (funcIndex) {
+        case 0:
+            FuzzOnFocusTrackingWithObjects(funcData, funcSize);
+            break;
+        case 1:
+            FuzzOnFocusTrackingSpecificTypes(funcData, funcSize);
+            break;
+        case 2:
+            FuzzBuildTrackingParamsFallback(funcData, funcSize);
+            break;
+        case 3:
+            FuzzOnMetadataInfoWithFov(funcData, funcSize);
+            break;
+        case 4:
+            FuzzOnZoomInfoChangeWithSession(funcData, funcSize);
+            break;
+        case 5:
+            FuzzOnSessionStatusChangeWithSession(funcData, funcSize);
+            break;
+        case 6:
+            FuzzUpdateCurrentCameraInfo(funcData, funcSize);
+            break;
+        case 7:
+            FuzzComputeFovVariants(funcData, funcSize);
+            break;
+        case 8:
+            FuzzCalculateIOUViaTracking(funcData, funcSize);
+            break;
+        case 9:
+            FuzzCinematicVideoFilter(funcData, funcSize);
+            break;
+        default:
+            break;
+    }
     return 0;
 }

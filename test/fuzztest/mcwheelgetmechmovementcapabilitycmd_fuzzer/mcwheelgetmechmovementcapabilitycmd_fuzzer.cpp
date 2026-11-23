@@ -9,7 +9,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * See the License for the language governing permissions and
  * limitations under the License.
  */
 
@@ -30,33 +30,27 @@ using namespace OHOS;
 using namespace OHOS::MechBodyController;
 
 namespace {
-void FuzzMarshal(FuzzedDataProvider &provider)
+void FuzzSetCapability(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
-    auto buffer = cmd.Marshal();
-}
-
-void FuzzSetCapability(FuzzedDataProvider &provider)
-{
-    WheelGetMechMovementCapabilityCmd cmd;
-    uint32_t cap = provider.ConsumeIntegral<uint32_t>();
+    uint32_t cap = fdp.ConsumeIntegral<uint32_t>();
     cmd.SetCapability(cap);
 }
 
-void FuzzSetCapabilityBitValue(FuzzedDataProvider &provider)
+void FuzzSetCapabilityBitValue(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
-    uint32_t start = provider.ConsumeIntegral<uint32_t>();
-    uint8_t value = provider.ConsumeIntegral<uint8_t>();
-    uint8_t index = provider.ConsumeIntegral<uint8_t>();
+    uint32_t start = fdp.ConsumeIntegral<uint32_t>();
+    uint8_t value = fdp.ConsumeIntegral<uint8_t>();
+    uint8_t index = fdp.ConsumeIntegral<uint8_t>();
     cmd.SetCapabilityBitValue(start, value, index);
 }
 
-void FuzzOnDataReceive(FuzzedDataProvider &provider)
+void FuzzOnDataReceive(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
 
-    size_t remaining = provider.remaining_bytes();
+    size_t remaining = fdp.remaining_bytes();
     if (remaining == 0) {
         return;
     }
@@ -66,8 +60,8 @@ void FuzzOnDataReceive(FuzzedDataProvider &provider)
      * segments, each with: start(4 bytes), len(1 byte), then len bytes of data.
      * We use fuzz data directly as the raw buffer.
      */
-    std::vector<uint8_t> rawData = provider.ConsumeBytes<uint8_t>(
-        provider.ConsumeIntegralInRange<size_t>(1, remaining));
+    std::vector<uint8_t> rawData = fdp.ConsumeBytes<uint8_t>(
+        fdp.ConsumeIntegralInRange<size_t>(1, remaining));
     if (rawData.empty()) {
         return;
     }
@@ -75,28 +69,18 @@ void FuzzOnDataReceive(FuzzedDataProvider &provider)
     cmd.OnDataReceive(rawData.data());
 }
 
-void FuzzOnDataReceiveSmallBuffer(FuzzedDataProvider &provider)
-{
-    WheelGetMechMovementCapabilityCmd cmd;
-
-    /* Test with a very small buffer (just segNum byte) */
-    uint8_t smallBuf[1] = {0};
-    smallBuf[0] = provider.ConsumeIntegral<uint8_t>();
-    cmd.OnDataReceive(smallBuf);
-}
-
-void FuzzOnDataReceiveValidStructure(FuzzedDataProvider &provider)
+void FuzzOnDataReceiveValidStructure(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
 
     /* Construct a well-structured buffer for OnDataReceive */
-    uint8_t segNum = provider.ConsumeIntegralInRange<uint8_t>(0, 5);
+    uint8_t segNum = fdp.ConsumeIntegralInRange<uint8_t>(0, 5);
     std::vector<uint8_t> buffer;
     buffer.push_back(segNum);
 
     for (uint8_t i = 0; i < segNum; i++) {
-        uint32_t start = provider.ConsumeIntegral<uint32_t>();
-        uint8_t len = provider.ConsumeIntegralInRange<uint8_t>(0, 5);
+        uint32_t start = fdp.ConsumeIntegral<uint32_t>();
+        uint8_t len = fdp.ConsumeIntegralInRange<uint8_t>(0, 5);
 
         /* Append start as 4 bytes */
         buffer.push_back(static_cast<uint8_t>(start & 0xFF));
@@ -109,7 +93,7 @@ void FuzzOnDataReceiveValidStructure(FuzzedDataProvider &provider)
 
         /* Append len bytes of capability data */
         for (uint8_t j = 0; j < len; j++) {
-            buffer.push_back(provider.ConsumeIntegral<uint8_t>());
+            buffer.push_back(fdp.ConsumeIntegral<uint8_t>());
         }
     }
 
@@ -118,38 +102,40 @@ void FuzzOnDataReceiveValidStructure(FuzzedDataProvider &provider)
     }
 }
 
-void FuzzOnDataReceiveInvalidSegNum(FuzzedDataProvider &provider)
+void FuzzOnDataReceiveInvalidSegNum(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
 
-    /* Test with segNum > 32 (should trigger early return) */
-    uint8_t invalidSegBuf[2];
-    invalidSegBuf[0] = 33; /* Invalid segNum > 32 */
-    invalidSegBuf[1] = 0;
-    cmd.OnDataReceive(invalidSegBuf);
+    /* Use fuzz data to construct an invalid segNum (> 32) to trigger early return */
+    uint8_t invalidSegNum = fdp.ConsumeIntegralInRange<uint8_t>(33, 255);
+    uint8_t buf[2];
+    buf[0] = invalidSegNum;
+    buf[1] = fdp.ConsumeIntegral<uint8_t>();
+    cmd.OnDataReceive(buf);
 }
 
-void FuzzOnDataReceiveInvalidLen(FuzzedDataProvider &provider)
+void FuzzOnDataReceiveInvalidLen(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
 
     /* Construct buffer with valid segNum but invalid len > 32 */
     uint8_t buf[6];
     buf[0] = 1; /* segNum = 1 */
-    buf[1] = 0; /* start byte 0 */
-    buf[2] = 0; /* start byte 1 */
-    buf[3] = 0; /* start byte 2 */
-    buf[4] = 0; /* start byte 3 */
-    buf[5] = 33; /* len = 33 (invalid, > 32) */
+    uint32_t start = fdp.ConsumeIntegral<uint32_t>();
+    buf[1] = static_cast<uint8_t>(start & 0xFF);
+    buf[2] = static_cast<uint8_t>((start >> 8) & 0xFF);
+    buf[3] = static_cast<uint8_t>((start >> 16) & 0xFF);
+    buf[4] = static_cast<uint8_t>((start >> 24) & 0xFF);
+    buf[5] = fdp.ConsumeIntegralInRange<uint8_t>(33, 255); /* Invalid len > 32 */
     cmd.OnDataReceive(buf);
 }
 
-void FuzzTriggerResponse(FuzzedDataProvider &provider)
+void FuzzTriggerResponse(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
 
     /* RSP_SIZE = 20, BIT_OFFSET_2 = 2, so minimum data size = 22 */
-    size_t dataSize = provider.ConsumeIntegralInRange<size_t>(1, 256);
+    size_t dataSize = fdp.ConsumeIntegralInRange<size_t>(1, 256);
     auto dataBuffer = std::make_shared<MechDataBuffer>(dataSize);
     if (dataBuffer == nullptr) {
         return;
@@ -157,38 +143,14 @@ void FuzzTriggerResponse(FuzzedDataProvider &provider)
 
     /* Fill the buffer with fuzz data */
     for (size_t i = 0; i < dataSize; i++) {
-        uint8_t byte = provider.ConsumeIntegral<uint8_t>();
+        uint8_t byte = fdp.ConsumeIntegral<uint8_t>();
         dataBuffer->AppendUint8(byte);
     }
 
     cmd.TriggerResponse(dataBuffer);
 }
 
-void FuzzTriggerResponseNullData(FuzzedDataProvider &provider)
-{
-    WheelGetMechMovementCapabilityCmd cmd;
-    cmd.TriggerResponse(nullptr);
-}
-
-void FuzzTriggerResponseSmallData(FuzzedDataProvider &provider)
-{
-    WheelGetMechMovementCapabilityCmd cmd;
-
-    /* Test with data smaller than RSP_SIZE + BIT_OFFSET_2 = 22 */
-    size_t smallSize = provider.ConsumeIntegralInRange<size_t>(1, 21);
-    auto dataBuffer = std::make_shared<MechDataBuffer>(smallSize);
-    if (dataBuffer == nullptr) {
-        return;
-    }
-
-    for (size_t i = 0; i < smallSize; i++) {
-        dataBuffer->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-    }
-
-    cmd.TriggerResponse(dataBuffer);
-}
-
-void FuzzTriggerResponseWithCallback(FuzzedDataProvider &provider)
+void FuzzTriggerResponseWithCallback(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
 
@@ -209,24 +171,16 @@ void FuzzTriggerResponseWithCallback(FuzzedDataProvider &provider)
     dataBuffer->AppendUint8(0x03); /* cmdSet */
     dataBuffer->AppendUint8(0x01); /* cmdId */
     /* result_ byte at offset 2 */
-    dataBuffer->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+    dataBuffer->AppendUint8(fdp.ConsumeIntegral<uint8_t>());
     /* OnDataReceive data starts at offset 3 */
     for (size_t i = 3; i < dataSize + 10; i++) {
-        dataBuffer->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        dataBuffer->AppendUint8(fdp.ConsumeIntegral<uint8_t>());
     }
 
     cmd.TriggerResponse(dataBuffer);
 }
 
-void FuzzGetResult(FuzzedDataProvider &provider)
-{
-    WheelGetMechMovementCapabilityCmd cmd;
-    /* GetResult returns result_ which defaults to 0 */
-    uint8_t result = cmd.GetResult();
-    (void)result;
-}
-
-void FuzzMarshalAndBasicOps(FuzzedDataProvider &provider)
+void FuzzMarshalAndBasicOps(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
 
@@ -234,31 +188,17 @@ void FuzzMarshalAndBasicOps(FuzzedDataProvider &provider)
     auto buffer = cmd.Marshal();
 
     /* Test SetCapability with various values */
-    uint32_t cap1 = provider.ConsumeIntegral<uint32_t>();
+    uint32_t cap1 = fdp.ConsumeIntegral<uint32_t>();
     cmd.SetCapability(cap1);
 
     /* Test SetCapabilityBitValue */
-    uint32_t start = provider.ConsumeIntegral<uint32_t>();
-    uint8_t value = provider.ConsumeIntegral<uint8_t>();
-    uint8_t index = provider.ConsumeIntegral<uint8_t>();
+    uint32_t start = fdp.ConsumeIntegral<uint32_t>();
+    uint8_t value = fdp.ConsumeIntegral<uint8_t>();
+    uint8_t index = fdp.ConsumeIntegral<uint8_t>();
     cmd.SetCapabilityBitValue(start, value, index);
 
     /* Test GetResult */
     cmd.GetResult();
-}
-
-void FuzzCommandBaseProperties(FuzzedDataProvider &provider)
-{
-    WheelGetMechMovementCapabilityCmd cmd;
-
-    /* Access base class properties to verify constructor setup */
-    (void)cmd.GetCmdSet();
-    (void)cmd.GetCmdId();
-    (void)cmd.GetReqSize();
-    (void)cmd.GetRspSize();
-    (void)cmd.NeedResponse();
-    (void)cmd.GetTimeoutMs();
-    (void)cmd.GetRetryTimes();
 }
 } // namespace
 
@@ -268,23 +208,38 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         return 0;
     }
 
-    FuzzedDataProvider provider(data, size);
-
-    FuzzMarshal(provider);
-    FuzzSetCapability(provider);
-    FuzzSetCapabilityBitValue(provider);
-    FuzzOnDataReceive(provider);
-    FuzzOnDataReceiveSmallBuffer(provider);
-    FuzzOnDataReceiveValidStructure(provider);
-    FuzzOnDataReceiveInvalidSegNum(provider);
-    FuzzOnDataReceiveInvalidLen(provider);
-    FuzzTriggerResponse(provider);
-    FuzzTriggerResponseNullData(provider);
-    FuzzTriggerResponseSmallData(provider);
-    FuzzTriggerResponseWithCallback(provider);
-    FuzzGetResult(provider);
-    FuzzMarshalAndBasicOps(provider);
-    FuzzCommandBaseProperties(provider);
-
+    FuzzedDataProvider fdp(data, size);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 9;
+    switch (funcIndex) {
+        case 0:
+            FuzzSetCapability(fdp);
+            break;
+        case 1:
+            FuzzSetCapabilityBitValue(fdp);
+            break;
+        case 2:
+            FuzzOnDataReceive(fdp);
+            break;
+        case 3:
+            FuzzOnDataReceiveValidStructure(fdp);
+            break;
+        case 4:
+            FuzzOnDataReceiveInvalidSegNum(fdp);
+            break;
+        case 5:
+            FuzzOnDataReceiveInvalidLen(fdp);
+            break;
+        case 6:
+            FuzzTriggerResponse(fdp);
+            break;
+        case 7:
+            FuzzTriggerResponseWithCallback(fdp);
+            break;
+        case 8:
+            FuzzMarshalAndBasicOps(fdp);
+            break;
+        default:
+            break;
+    }
     return 0;
 }

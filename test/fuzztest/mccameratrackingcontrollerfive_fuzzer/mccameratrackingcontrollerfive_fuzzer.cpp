@@ -56,91 +56,85 @@ CameraStandard::Rect GenerateRandomRect(FuzzedDataProvider &provider)
     return rect;
 }
 
-void FuzzOnFocusTrackingInfo(const uint8_t *data, size_t size)
+void FuzzOnFocusTrackingInfo(FuzzedDataProvider &fdp)
 {
-    FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
     CameraStandard::FocusTrackingMetaInfo info;
-    info.SetTrackingObjectId(provider.ConsumeIntegral<int32_t>());
+    info.SetTrackingObjectId(fdp.ConsumeIntegral<int32_t>());
 
-    CameraStandard::Rect trackingRegion = GenerateRandomRect(provider);
+    CameraStandard::Rect trackingRegion = GenerateRandomRect(fdp);
     info.SetTrackingRegion(trackingRegion);
 
-    int32_t trackingMode = provider.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
+    int32_t trackingMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE);
     info.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(trackingMode));
     g_cameraTrackingController->OnFocusTracking(info);
 }
 
-void FuzzOnCaptureSessionConfiged(const uint8_t *data, size_t size)
+void FuzzOnCaptureSessionConfiged(FuzzedDataProvider &fdp)
 {
-    FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
     CameraStandard::CaptureSessionInfo captureSessionInfo;
 
     CameraStandard::OutputInfo videoOutputInfo;
     videoOutputInfo.type = CameraStandard::OutputType::VIDEO;
-    videoOutputInfo.width = provider.ConsumeIntegral<int32_t>();
-    videoOutputInfo.height = provider.ConsumeIntegral<int32_t>();
+    videoOutputInfo.width = fdp.ConsumeIntegral<int32_t>();
+    videoOutputInfo.height = fdp.ConsumeIntegral<int32_t>();
     captureSessionInfo.outputInfos.push_back(videoOutputInfo);
 
     CameraStandard::OutputInfo previewOutputInfo;
     previewOutputInfo.type = CameraStandard::OutputType::PREVIEW;
-    previewOutputInfo.width = provider.ConsumeIntegral<int32_t>();
-    previewOutputInfo.height = provider.ConsumeIntegral<int32_t>();
+    previewOutputInfo.width = fdp.ConsumeIntegral<int32_t>();
+    previewOutputInfo.height = fdp.ConsumeIntegral<int32_t>();
     captureSessionInfo.outputInfos.push_back(previewOutputInfo);
 
     int32_t dataRangeMin = 1;
     int32_t dataRangeMax = 6;
-    captureSessionInfo.callerTokenId = provider.ConsumeIntegralInRange<int32_t>(dataRangeMin, dataRangeMax);
+    captureSessionInfo.callerTokenId = fdp.ConsumeIntegralInRange<int32_t>(dataRangeMin, dataRangeMax);
     captureSessionInfo.sessionMode = CameraStandard::SceneMode::CINEMATIC_VIDEO;
-    captureSessionInfo.sessionId = provider.ConsumeIntegral<int32_t>();
+    captureSessionInfo.sessionId = fdp.ConsumeIntegral<int32_t>();
     g_cameraTrackingController->OnCaptureSessionConfiged(captureSessionInfo);
 }
 
-void FuzzOnZoomInfoChange(const uint8_t *data, size_t size)
+void FuzzOnZoomInfoChange(FuzzedDataProvider &fdp)
 {
-    FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
-    int32_t sessionid = provider.ConsumeIntegral<int32_t>();
+    int32_t sessionid = fdp.ConsumeIntegral<int32_t>();
     CameraStandard::ZoomInfo zoomInfo;
-    zoomInfo.zoomValue = provider.ConsumeFloatingPoint<float>();
-    zoomInfo.equivalentFocus = provider.ConsumeIntegral<int32_t>();
-    zoomInfo.videoStabilizationMode = provider.ConsumeIntegral<int32_t>();
-    zoomInfo.focusMode = provider.ConsumeIntegral<int32_t>();
+    zoomInfo.zoomValue = fdp.ConsumeFloatingPoint<float>();
+    zoomInfo.equivalentFocus = fdp.ConsumeIntegral<int32_t>();
+    zoomInfo.videoStabilizationMode = fdp.ConsumeIntegral<int32_t>();
+    zoomInfo.focusMode = fdp.ConsumeIntegral<int32_t>();
     g_cameraTrackingController->OnZoomInfoChange(sessionid, zoomInfo);
 }
 
-void FuzzOnSessionStatusChange(const uint8_t *data, size_t size)
+void FuzzOnSessionStatusChange(FuzzedDataProvider &fdp)
 {
-    FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
-    int32_t sessionid = provider.ConsumeIntegral<int32_t>();
-    bool status = provider.ConsumeBool();
+    int32_t sessionid = fdp.ConsumeIntegral<int32_t>();
+    bool status = fdp.ConsumeBool();
     g_cameraTrackingController->OnSessionStatusChange(sessionid, status);
 }
 
-void FuzzOnMetadataInfo(const uint8_t *data, size_t size)
+void FuzzOnMetadataInfo(FuzzedDataProvider &fdp)
 {
-    FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
-    bool passNull = provider.ConsumeBool();
+    bool passNull = fdp.ConsumeBool();
     if (passNull) {
         g_cameraTrackingController->OnMetadataInfo(nullptr);
     } else {
-        size_t itemCapacity = provider.ConsumeIntegralInRange<size_t>(MIN_ITEM_CAPACITY, MAX_ITEM_CAPACITY);
-        size_t dataCapacity = provider.ConsumeIntegralInRange<size_t>(MIN_DATA_CAPACITY, MAX_DATA_CAPACITY);
+        size_t itemCapacity = fdp.ConsumeIntegralInRange<size_t>(MIN_ITEM_CAPACITY, MAX_ITEM_CAPACITY);
+        size_t dataCapacity = fdp.ConsumeIntegralInRange<size_t>(MIN_DATA_CAPACITY, MAX_DATA_CAPACITY);
         auto metadata = std::make_shared<OHOS::Camera::CameraMetadata>(itemCapacity, dataCapacity);
         g_cameraTrackingController->OnMetadataInfo(metadata);
     }
 }
 
-void FuzzOnReceiveEvent(const uint8_t *data, size_t size)
+void FuzzOnReceiveEvent(FuzzedDataProvider &fdp)
 {
-    FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
-    std::string action = provider.ConsumeRandomLengthString(MAX_ACTION_STRING_LENGTH);
+    std::string action = fdp.ConsumeRandomLengthString(MAX_ACTION_STRING_LENGTH);
     CommonEventData eventData;
-    eventData.SetCode(provider.ConsumeIntegral<int32_t>());
+    eventData.SetCode(fdp.ConsumeIntegral<int32_t>());
     MechBodyEventBaseService::GetInstance().OnReceiveEvent(action, eventData);
 }
 
@@ -148,11 +142,32 @@ void FuzzOnReceiveEvent(const uint8_t *data, size_t size)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    FuzzOnFocusTrackingInfo(data, size);
-    FuzzOnCaptureSessionConfiged(data, size);
-    FuzzOnZoomInfoChange(data, size);
-    FuzzOnSessionStatusChange(data, size);
-    FuzzOnMetadataInfo(data, size);
-    FuzzOnReceiveEvent(data, size);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+    FuzzedDataProvider fdp(data, size);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 6;
+    switch (funcIndex) {
+        case 0:
+            FuzzOnFocusTrackingInfo(fdp);
+            break;
+        case 1:
+            FuzzOnCaptureSessionConfiged(fdp);
+            break;
+        case 2:
+            FuzzOnZoomInfoChange(fdp);
+            break;
+        case 3:
+            FuzzOnSessionStatusChange(fdp);
+            break;
+        case 4:
+            FuzzOnMetadataInfo(fdp);
+            break;
+        case 5:
+            FuzzOnReceiveEvent(fdp);
+            break;
+        default:
+            break;
+    }
     return 0;
 }

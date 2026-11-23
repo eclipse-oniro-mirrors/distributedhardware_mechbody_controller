@@ -41,13 +41,8 @@ bool Security::AccessToken::TokenIdKit::IsSystemAppByFullTokenID(uint64_t tokenI
     return g_isSystemApp;
 }
 
-void UnRegisterAttachStateChangeCallbackFuzzTest(const uint8_t *data, size_t size)
+void UnRegisterAttachStateChangeCallbackFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
     const sptr<OHOS::IRemoteObject> callback;
 
@@ -57,16 +52,11 @@ void UnRegisterAttachStateChangeCallbackFuzzTest(const uint8_t *data, size_t siz
     mechBodyControllerService.UnRegisterAttachStateChangeCallback();
 }
 
-void OnAttachStateChangeFuzzTest(const uint8_t *data, size_t size)
+void OnAttachStateChangeFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     std::string mechName = fdp.ConsumeRandomLengthString();
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
-    uint32_t enumIdx = fdp.ConsumeIntegral<uint32_t>() % 2;
+    uint8_t enumIdx = fdp.ConsumeIntegral<uint8_t>() % 2;
     AttachmentState attachmentState = static_cast<AttachmentState>(enumIdx);
     AttachmentState state = static_cast<AttachmentState>(enumIdx);
     const sptr<OHOS::IRemoteObject> callback;
@@ -79,13 +69,8 @@ void OnAttachStateChangeFuzzTest(const uint8_t *data, size_t size)
     mechBodyControllerService.OnAttachStateChange(attachmentState, mechInfo);
 }
 
-void OnDeviceConnectedFuzzTest(const uint8_t *data, size_t size)
+void OnDeviceConnectedFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size < (sizeof(uint32_t)))) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
     bool isFirstConnect = fdp.ConsumeBool();
     uint32_t identifier = fdp.ConsumeIntegral<uint32_t>();
@@ -94,15 +79,10 @@ void OnDeviceConnectedFuzzTest(const uint8_t *data, size_t size)
     mechBodyControllerService.OnDeviceConnected(mechId, isFirstConnect, identifier);
 }
 
-void GetAttachedDevicesFuzzTest(const uint8_t *data, size_t size)
+void GetAttachedDevicesFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
     std::set<MechInfo> mechInfos;
     MechInfo mechInfo;
-    FuzzedDataProvider fdp(data, size);
     std::string macHash = fdp.ConsumeRandomLengthString();
     std::string mechName = fdp.ConsumeRandomLengthString();
     mechInfo.mechName = mechName;
@@ -112,52 +92,32 @@ void GetAttachedDevicesFuzzTest(const uint8_t *data, size_t size)
     mechBodyControllerService.GetAttachedDevices(mechInfos);
 }
 
-void SetTrackingEnabledFuzzTest(const uint8_t *data, size_t size)
+void SetTrackingEnabledFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     bool isEnabled = fdp.ConsumeIntegral<bool>();
 
     MechBodyControllerService& mechBodyControllerService = MechBodyControllerService::GetInstance();
     mechBodyControllerService.SetTrackingEnabled(isEnabled);
 }
 
-void GetAppNameByTokenIdFuzzTest(const uint8_t *data, size_t size)
+void GetAppNameByTokenIdFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size < sizeof(uint32_t))) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
 
     MechBodyControllerService& mechBodyControllerService = MechBodyControllerService::GetInstance();
     mechBodyControllerService.GetAppNameByTokenId(tokenId);
 }
 
-void JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest(const uint8_t *data, size_t size)
+void JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size < sizeof(uint32_t))) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
 
     MechBodyControllerService& mechBodyControllerService = MechBodyControllerService::GetInstance();
     mechBodyControllerService.JudgeDeviceEnableSwitchAndReportFocustrackingStartEvent(tokenId);
 }
 
-void JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(const uint8_t *data, size_t size)
+void JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size < sizeof(uint32_t))) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
 
     MechBodyControllerService& mechBodyControllerService = MechBodyControllerService::GetInstance();
@@ -172,17 +132,36 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if ((data == nullptr) || (size == 0)) {
         return 0;
     }
-    /* Use ConsumeBool to decide whether IsSystemAppByFullTokenID returns true or false */
     FuzzedDataProvider fdp(data, size);
     OHOS::g_isSystemApp = fdp.ConsumeBool();
-    /* Run your code on remaining data */
-    OHOS::UnRegisterAttachStateChangeCallbackFuzzTest(data + 1, size - 1);
-    OHOS::OnAttachStateChangeFuzzTest(data + 1, size - 1);
-    OHOS::OnDeviceConnectedFuzzTest(data + 1, size - 1);
-    OHOS::GetAttachedDevicesFuzzTest(data + 1, size - 1);
-    OHOS::SetTrackingEnabledFuzzTest(data + 1, size - 1);
-    OHOS::GetAppNameByTokenIdFuzzTest(data + 1, size - 1);
-    OHOS::JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest(data + 1, size - 1);
-    OHOS::JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(data + 1, size - 1);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 8;
+    switch (funcIndex) {
+        case 0:
+            OHOS::UnRegisterAttachStateChangeCallbackFuzzTest(fdp);
+            break;
+        case 1:
+            OHOS::OnAttachStateChangeFuzzTest(fdp);
+            break;
+        case 2:
+            OHOS::OnDeviceConnectedFuzzTest(fdp);
+            break;
+        case 3:
+            OHOS::GetAttachedDevicesFuzzTest(fdp);
+            break;
+        case 4:
+            OHOS::SetTrackingEnabledFuzzTest(fdp);
+            break;
+        case 5:
+            OHOS::GetAppNameByTokenIdFuzzTest(fdp);
+            break;
+        case 6:
+            OHOS::JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest(fdp);
+            break;
+        case 7:
+            OHOS::JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(fdp);
+            break;
+        default:
+            break;
+    }
     return 0;
 }

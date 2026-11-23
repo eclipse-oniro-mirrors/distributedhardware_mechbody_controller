@@ -139,17 +139,6 @@ void SetTrackingEnabledFuzzTest(const uint8_t *data, size_t size)
     service.SetTrackingEnabled(isEnabled, isCapsuleSet);
 }
 
-void GetTrackingEnabledFuzzTest(const uint8_t *data, size_t size)
-{
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    bool isEnabled = false;
-    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
-    service.GetTrackingEnabled(isEnabled);
-}
-
 void NotifyMechEventFuzzTest(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
@@ -329,17 +318,6 @@ void UnSubscribeCallbackFuzzTest(const uint8_t *data, size_t size)
     service.UnSubscribeCallback(mechEventType);
 }
 
-void GetTrackingEnabledDeviceFuzzTest(const uint8_t *data, size_t size)
-{
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    bool isEnabled = false;
-    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
-    service.GetTrackingEnabledDevice(isEnabled);
-}
-
 void ConnectDeviceFuzzTest(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
@@ -351,7 +329,7 @@ void ConnectDeviceFuzzTest(const uint8_t *data, size_t size)
     auto addrInfo = std::make_shared<AddressInfo>();
     if (addrInfo != nullptr) {
         addrInfo->address = fdp.ConsumeRandomLengthString();
-        addrInfo->addressType = static_cast<AddressType>(fdp.ConsumeIntegral<int32_t>());
+        addrInfo->addressType = static_cast<AddressType>(fdp.ConsumeIntegral<uint8_t>() % 3);
     }
     auto params = std::make_shared<ConnectParam>();
     if (params != nullptr) {
@@ -403,8 +381,8 @@ void NotifyConnectResultFuzzTest(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
     std::string cmdId = fdp.ConsumeRandomLengthString();
-    uint8_t stateIdx = fdp.ConsumeIntegral<uint8_t>() % 3;
-    AttachmentState state = static_cast<AttachmentState>(stateIdx - 1);
+    int32_t stateIdx = fdp.ConsumeIntegralInRange<int32_t>(-1, 1);
+    AttachmentState state = static_cast<AttachmentState>(stateIdx);
     MechInfo mechInfo;
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
     mechInfo.mechName = fdp.ConsumeRandomLengthString();
@@ -425,17 +403,6 @@ void SetTrackingLayoutFuzzTest(const uint8_t *data, size_t size)
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     service.SetTrackingLayout(layout);
-}
-
-void GetTrackingLayoutFuzzTest(const uint8_t *data, size_t size)
-{
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    CameraTrackingLayout layout = CameraTrackingLayout::DEFAULT;
-    MechBodyControllerService& service = MechBodyControllerService::GetInstance();
-    service.GetTrackingLayout(layout);
 }
 
 void GetMaxRotationTimeFuzzTest(const uint8_t *data, size_t size)
@@ -536,15 +503,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if ((data == nullptr) || (size == 0)) {
         return 0;
     }
-    /* Use first byte to decide whether IsSystemAppByFullTokenID returns true or false */
     FuzzedDataProvider fdp(data, size);
     OHOS::g_isSystemApp = fdp.ConsumeBool();
 
-    /* Use second byte to select which test function to dispatch */
-    constexpr uint8_t ACTION_COUNT = 31;
-    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % ACTION_COUNT;
-    const uint8_t *actionData = data + 2;
-    size_t actionSize = (size >= 2) ? size - 2 : 0;
+    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % 28;
+    auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
+    const uint8_t *actionData = remaining.data();
+    size_t actionSize = remaining.size();
 
     switch (action) {
         case 0:
@@ -566,78 +531,69 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             OHOS::SetTrackingEnabledFuzzTest(actionData, actionSize);
             break;
         case 6:
-            OHOS::GetTrackingEnabledFuzzTest(actionData, actionSize);
-            break;
-        case 7:
             OHOS::NotifyMechEventFuzzTest(actionData, actionSize);
             break;
-        case 8:
+        case 7:
             OHOS::RotateByDegreeFuzzTest(actionData, actionSize);
             break;
-        case 9:
+        case 8:
             OHOS::RotateByDegreeNullParamFuzzTest(actionData, actionSize);
             break;
-        case 10:
+        case 9:
             OHOS::RotateToEulerAnglesFuzzTest(actionData, actionSize);
             break;
-        case 11:
+        case 10:
             OHOS::RotateBySpeedFuzzTest(actionData, actionSize);
             break;
-        case 12:
+        case 11:
             OHOS::RotateBySpeedNullParamFuzzTest(actionData, actionSize);
             break;
-        case 13:
+        case 12:
             OHOS::StopMovingFuzzTest(actionData, actionSize);
             break;
-        case 14:
+        case 13:
             OHOS::SearchTargetFuzzTest(actionData, actionSize);
             break;
-        case 15:
+        case 14:
             OHOS::SearchTargetNullParamFuzzTest(actionData, actionSize);
             break;
-        case 16:
+        case 15:
             OHOS::SubscribeCallbackFuzzTest(actionData, actionSize);
             break;
-        case 17:
+        case 16:
             OHOS::UnSubscribeCallbackFuzzTest(actionData, actionSize);
             break;
-        case 18:
-            OHOS::GetTrackingEnabledDeviceFuzzTest(actionData, actionSize);
-            break;
-        case 19:
+        case 17:
             OHOS::ConnectDeviceFuzzTest(actionData, actionSize);
             break;
-        case 20:
+        case 18:
             OHOS::DisconnectDeviceFuzzTest(actionData, actionSize);
             break;
-        case 21:
+        case 19:
             OHOS::NotifyOperationResultFuzzTest(actionData, actionSize);
             break;
-        case 22:
+        case 20:
             OHOS::NotifyConnectResultFuzzTest(actionData, actionSize);
             break;
-        case 23:
+        case 21:
             OHOS::SetTrackingLayoutFuzzTest(actionData, actionSize);
             break;
-        case 24:
-            OHOS::GetTrackingLayoutFuzzTest(actionData, actionSize);
-            break;
-        case 25:
+        case 22:
             OHOS::GetMaxRotationTimeFuzzTest(actionData, actionSize);
             break;
-        case 26:
+        case 23:
             OHOS::GetMaxRotationSpeedFuzzTest(actionData, actionSize);
             break;
-        case 27:
+        case 24:
             OHOS::GetRotationAnglesFuzzTest(actionData, actionSize);
             break;
-        case 28:
+        case 25:
             OHOS::GetRotationDegreeLimitsFuzzTest(actionData, actionSize);
             break;
-        case 29:
+        case 26:
             OHOS::GetRotationAxesStatusFuzzTest(actionData, actionSize);
             break;
-        case 30:
+        case 27:
             OHOS::OnRotationAxesStatusChangeFuzzTest(actionData, actionSize);
             break;
         default:

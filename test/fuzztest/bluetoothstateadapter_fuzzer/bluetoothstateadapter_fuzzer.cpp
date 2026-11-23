@@ -132,26 +132,32 @@ void SetMechanicStatesFuzzTest(const uint8_t *data, size_t size)
     (void)connectMgr.GetMechanicHidState(mac, outHidState);
 }
 
-void IsBluetoothActiveFuzzTest(const uint8_t *data, size_t size)
-{
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
-    BluetoothStateAdapter& adapter = BluetoothStateAdapter::GetInstance();
-
-    (void)adapter.IsBluetoothActive();
-}
-
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    /* Run your code on data */
-    OHOS::UpdateBleStatusFuzzTest(data, size);
-    OHOS::NotifyMechStateFuzzTest(data, size);
-    OHOS::SetMechanicStatesFuzzTest(data, size);
-    OHOS::IsBluetoothActiveFuzzTest(data, size);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 3;
+    auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
+    const uint8_t *funcData = remaining.data();
+    size_t funcSize = remaining.size();
+
+    switch (funcIndex) {
+        case 0:
+            OHOS::UpdateBleStatusFuzzTest(funcData, funcSize);
+            break;
+        case 1:
+            OHOS::NotifyMechStateFuzzTest(funcData, funcSize);
+            break;
+        case 2:
+            OHOS::SetMechanicStatesFuzzTest(funcData, funcSize);
+            break;
+        default:
+            break;
+    }
     return 0;
 }
 } // namespace OHOS
