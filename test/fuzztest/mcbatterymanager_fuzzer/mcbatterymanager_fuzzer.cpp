@@ -67,9 +67,12 @@ void UnInitWithoutInitFuzzTest(const uint8_t *data, size_t size)
         return;
     }
 
+    FuzzedDataProvider fdp(data, size);
+    uint8_t callCount = fdp.ConsumeIntegralInRange<uint8_t>(1, 5);
     McBatteryManager manager;
-    manager.UnInit();
-    manager.UnInit();
+    for (uint8_t i = 0; i < callCount; i++) {
+        manager.UnInit();
+    }
 }
 
 void SetIsChargingFuzzTest(const uint8_t *data, size_t size)

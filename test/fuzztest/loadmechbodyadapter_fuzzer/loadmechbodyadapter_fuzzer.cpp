@@ -391,5 +391,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             RunFuzzTest(provider, testFunctionId);
             break;
     }
+    MechbodyAdapterUtils::UnRegisterBackgroundTracking();
+    MechbodyAdapterUtils::Clear();
     return 0;
 }

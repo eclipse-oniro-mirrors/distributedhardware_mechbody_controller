@@ -263,7 +263,14 @@ void RotationAxesStatusChangeListenOffInnerFuzzTest(std::shared_ptr<MechBodyCont
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::ROTATION_AXES_STATUS_CHANGE_LISTEN_OFF);
     MessageParcel datas;
-    datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
+    bool useValidToken = fdp.ConsumeBool();
+    std::u16string token = useValidToken
+        ? MECH_SERVICE_IPC_TOKEN
+        : u"invalid.fuzz.token";
+    datas.WriteInterfaceToken(token);
+    if (fdp.ConsumeBool()) {
+        datas.WriteInt32(fdp.ConsumeIntegral<int32_t>());
+    }
     MessageParcel reply;
     MessageOption option;
 

@@ -49,6 +49,10 @@ enum InnerFuzzTestIndex : uint8_t {
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
+namespace {
+constexpr int32_t MIN_MECH_EVENT_TYPE = static_cast<int32_t>(MechEventType::DEVICE_ADSORBED);
+constexpr int32_t MAX_MECH_EVENT_TYPE = static_cast<int32_t>(MechEventType::LOW_POWER);
+} // namespace
 
 MechBodyControllerService& MechBodyControllerService::GetInstance()
 {
@@ -380,7 +384,7 @@ void UnSubscribeCallbackInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> me
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::UN_SUBSCRIBE_CALLBACK);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    int32_t mechEventType = static_cast<int32_t>(fdp.ConsumeIntegral<uint8_t>());
+    int32_t mechEventType = fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_EVENT_TYPE, MAX_MECH_EVENT_TYPE);
     datas.WriteInt32(mechEventType);
     MessageParcel reply;
     MessageOption option;

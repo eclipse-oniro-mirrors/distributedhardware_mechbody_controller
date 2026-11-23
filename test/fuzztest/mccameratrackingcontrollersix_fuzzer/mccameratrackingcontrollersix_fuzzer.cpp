@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <memory>
 #include <iremote_object.h>
+#include "refbase.h"
 #include "event_handler.h"
 
 using namespace OHOS;
@@ -88,7 +89,7 @@ sptr<CameraStandard::MetadataObject> CreateMetadataObject(
     int32_t confidence = fdp.ConsumeIntegralInRange<int32_t>(0, 100);
     bool isLockFocusTracked = fdp.ConsumeBool();
 
-    auto factory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto factory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     factory->SetBox(box);
     factory->SetObjectId(objectId);
     factory->SetConfidence(confidence);
@@ -214,7 +215,7 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
     std::vector<sptr<CameraStandard::MetadataObject>> objects;
 
     // Create a body object
-    auto bodyFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto bodyFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     CameraStandard::Rect bodyRect = GenerateRandomRect(fdp);
     bodyFactory->SetBox(bodyRect);
     bodyFactory->SetObjectId(0);
@@ -224,7 +225,7 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
     objects.push_back(bodyFactory->createMetadataObject(CameraStandard::MetadataObjectType::HUMAN_BODY));
 
     // Create a face object near the body for FindBestFaceOrHeadForBody path
-    auto faceFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto faceFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     CameraStandard::Rect faceRect;
     // Use similar region to body to produce non-zero IOU
     faceRect.topLeftX = fdp.ConsumeBool() ? bodyRect.topLeftX : fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
@@ -241,7 +242,7 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
     objects.push_back(faceFactory->createMetadataObject(CameraStandard::MetadataObjectType::FACE));
 
     // Create a head object near the body for FindFaceForHead path
-    auto headFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto headFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     CameraStandard::Rect headRect;
     headRect.topLeftX = fdp.ConsumeBool() ? bodyRect.topLeftX : fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
     headRect.topLeftY = fdp.ConsumeBool() ? bodyRect.topLeftY : fdp.ConsumeFloatingPointInRange<double>(0.0, 1.0);
@@ -256,7 +257,7 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
 
     // Optionally add a SALIENT_DETECTION object with isLockFocusTracked
     if (fdp.ConsumeBool()) {
-        auto salientFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+        auto salientFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
         CameraStandard::Rect salientRect = GenerateRandomRect(fdp);
         salientFactory->SetBox(salientRect);
         salientFactory->SetObjectId(3);
@@ -269,7 +270,7 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
 
     // Optionally add a BASE_FACE_DETECTION object
     if (fdp.ConsumeBool()) {
-        auto baseFaceFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+        auto baseFaceFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
         CameraStandard::Rect baseFaceRect = GenerateRandomRect(fdp);
         baseFaceFactory->SetBox(baseFaceRect);
         baseFaceFactory->SetObjectId(4);
@@ -321,7 +322,12 @@ void FuzzBuildTrackingParamsFallback(const uint8_t *data, size_t size)
     } else {
         // Objects without matching ID - exercise GetTrackingTargetFallback
         std::vector<sptr<CameraStandard::MetadataObject>> objects;
-        auto factory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+        // MetadataObjectFactory derives from RefBase; its SetXxx() methods return
+        // sptr<MetadataObjectFactory>(this). Holding the factory via std::unique_ptr
+        // would let the temporary sptr returned by the first setter drop the
+        // refcount to 0 and delete the object, leaving the unique_ptr dangling.
+        // Use sptr to share the refcount so the object stays alive across setters.
+        auto factory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
         CameraStandard::Rect box = GenerateRandomRect(fdp);
         factory->SetBox(box);
         factory->SetObjectId(fdp.ConsumeIntegralInRange<int32_t>(100, 200));
@@ -544,7 +550,7 @@ void FuzzCalculateIOUViaTracking(const uint8_t *data, size_t size)
         CameraStandard::Rect baseRect = GenerateRandomRect(fdp);
 
         // Create a face object with the base rect
-        auto faceFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+        auto faceFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
         faceFactory->SetBox(baseRect);
         faceFactory->SetObjectId(0);
         faceFactory->SetConfidence(90);
@@ -554,7 +560,7 @@ void FuzzCalculateIOUViaTracking(const uint8_t *data, size_t size)
 
         // Create another face with overlapping rect for IOU > threshold
         if (fdp.ConsumeBool()) {
-            auto faceFactory2 = std::make_unique<CameraStandard::MetadataObjectFactory>();
+            auto faceFactory2 = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
             CameraStandard::Rect overlapRect;
             // Make overlapping rect by using similar coordinates
             overlapRect.topLeftX = baseRect.topLeftX + fdp.ConsumeFloatingPointInRange<double>(-0.1, 0.1);
@@ -595,7 +601,7 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
     info1.SetTrackingMode(CameraStandard::FocusTrackingMode::FOCUS_TRACKING_MODE_AUTO);
 
     std::vector<sptr<CameraStandard::MetadataObject>> objects1;
-    auto salientFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto salientFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     salientFactory->SetBox(GenerateRandomRect(fdp));
     salientFactory->SetObjectId(0);
     salientFactory->SetConfidence(80);
@@ -617,7 +623,7 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
 
     std::vector<sptr<CameraStandard::MetadataObject>> objects2;
     // Create a body object
-    auto bodyFactory = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto bodyFactory = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     bodyFactory->SetBox(GenerateRandomRect(fdp));
     bodyFactory->SetObjectId(1);
     bodyFactory->SetConfidence(85);
@@ -626,7 +632,7 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
     objects2.push_back(bodyFactory->createMetadataObject(CameraStandard::MetadataObjectType::HUMAN_BODY));
 
     // Create a face object near the body
-    auto faceFactory2 = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto faceFactory2 = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     CameraStandard::Rect faceRect2 = GenerateRandomRect(fdp);
     faceFactory2->SetBox(faceRect2);
     faceFactory2->SetObjectId(2);
@@ -638,7 +644,7 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
     objects2.push_back(faceFactory2->createMetadataObject(CameraStandard::MetadataObjectType::FACE));
 
     // Create a head object
-    auto headFactory2 = std::make_unique<CameraStandard::MetadataObjectFactory>();
+    auto headFactory2 = OHOS::sptr<CameraStandard::MetadataObjectFactory>(new CameraStandard::MetadataObjectFactory());
     headFactory2->SetBox(GenerateRandomRect(fdp));
     headFactory2->SetObjectId(3);
     headFactory2->SetConfidence(75);

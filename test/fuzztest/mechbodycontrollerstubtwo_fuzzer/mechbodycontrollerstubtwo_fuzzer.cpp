@@ -271,7 +271,14 @@ void GetCameraTrackingEnabledInnerFuzzTest(std::shared_ptr<MechBodyControllerStu
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::GET_CAMERA_TRACKING_ENABLED);
     MessageParcel datas;
-    datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
+    bool useValidToken = fdp.ConsumeBool();
+    std::u16string token = useValidToken
+        ? MECH_SERVICE_IPC_TOKEN
+        : u"invalid.fuzz.token";
+    datas.WriteInterfaceToken(token);
+    if (fdp.ConsumeBool()) {
+        datas.WriteInt32(fdp.ConsumeIntegral<int32_t>());
+    }
     MessageParcel reply;
     MessageOption option;
 
@@ -329,7 +336,14 @@ void GetCameraTrackingLayoutInnerFuzzTest(std::shared_ptr<MechBodyControllerStub
 {
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::GET_CAMERA_TRACKING_LAYOUT);
     MessageParcel datas;
-    datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
+    bool useValidToken = fdp.ConsumeBool();
+    std::u16string token = useValidToken
+        ? MECH_SERVICE_IPC_TOKEN
+        : u"invalid.fuzz.token";
+    datas.WriteInterfaceToken(token);
+    if (fdp.ConsumeBool()) {
+        datas.WriteInt32(fdp.ConsumeIntegral<int32_t>());
+    }
     MessageParcel reply;
     MessageOption option;
 

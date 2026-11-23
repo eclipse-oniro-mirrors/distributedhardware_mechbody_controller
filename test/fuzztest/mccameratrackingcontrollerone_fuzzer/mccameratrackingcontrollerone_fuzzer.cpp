@@ -19,7 +19,9 @@
 #include "mechbody_controller_service.h"
 #include "mechbody_controller_types.h"
 #include "mechbody_controller_enums.h"
+#include <cstdlib>
 #include <memory>
+#include <mutex>
 #include <iremote_object.h>
 
 using namespace OHOS;
@@ -36,6 +38,16 @@ constexpr int32_t MIN_LAYOUT_TYPE = 0;
 constexpr int32_t MAX_LAYOUT_TYPE = 2;
 
 McCameraTrackingController* g_cameraTrackingController = nullptr;
+std::once_flag g_initOnceFlag;
+bool g_initialized = false;
+
+void CleanupCameraTrackingController()
+{
+    if (g_cameraTrackingController != nullptr && g_initialized) {
+        g_cameraTrackingController->UnInit();
+        g_initialized = false;
+    }
+}
 
 void InitCameraTrackingController()
 {
@@ -48,20 +60,18 @@ void FuzzInit(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
-    uint32_t initCount = provider.ConsumeIntegralInRange<uint32_t>(MIN_INIT_COUNT, MAX_INIT_COUNT);
-    for (uint32_t i = 0; i < initCount; i++) {
+    (void)provider.ConsumeIntegralInRange<uint32_t>(MIN_INIT_COUNT, MAX_INIT_COUNT);
+    std::call_once(g_initOnceFlag, []() {
         g_cameraTrackingController->Init();
-    }
+        g_initialized = true;
+    });
 }
 
 void FuzzUnInit(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider provider(data, size);
     InitCameraTrackingController();
-    uint32_t uninitCount = provider.ConsumeIntegralInRange<uint32_t>(MIN_INIT_COUNT, MAX_INIT_COUNT);
-    for (uint32_t i = 0; i < uninitCount; i++) {
-        g_cameraTrackingController->UnInit();
-    }
+    (void)provider.ConsumeIntegralInRange<uint32_t>(MIN_INIT_COUNT, MAX_INIT_COUNT);
 }
 
 void FuzzSetTrackingEnabled(const uint8_t *data, size_t size)
@@ -135,6 +145,12 @@ void FuzzUserIdChangeCallback(const uint8_t *data, size_t size)
     }
 }
 } // namespace
+
+extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv)
+{
+    (void)std::atexit(CleanupCameraTrackingController);
+    return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
