@@ -51,6 +51,7 @@ using namespace OHOS::MechBodyController;
 
 namespace {
 const std::string TAG = "MotionManagerFiveFuzz";
+constexpr uint32_t MAX_REALNAME_WAIT_TIMEOUT_MS = 5000;
 class MockCommandBase : public CommandBase {
 public:
     MockCommandBase() = default;
@@ -142,9 +143,9 @@ void FuzzAllCheckSpeedMethods(FuzzedDataProvider &provider)
 void FuzzTryGetDeviceRealNameSync(FuzzedDataProvider &provider)
 {
     InitMotionManager();
-    uint32_t timeoutMs = provider.ConsumeIntegral<uint32_t>();
+    uint32_t timeoutMs = provider.ConsumeIntegralInRange<uint32_t>(0, MAX_REALNAME_WAIT_TIMEOUT_MS);
     g_motionManager->TryGetDeviceRealNameSync(timeoutMs);
-    g_motionManager->TryGetDeviceRealNameSync(provider.ConsumeIntegral<uint32_t>());
+    g_motionManager->TryGetDeviceRealNameSync(provider.ConsumeIntegralInRange<uint32_t>(0, MAX_REALNAME_WAIT_TIMEOUT_MS));
 }
 
 void FuzzTryGetDeviceRealNameSyncWithTimeout(FuzzedDataProvider &provider)

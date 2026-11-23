@@ -31,6 +31,7 @@ using namespace OHOS::MechBodyController;
 namespace {
     const std::string TAG = "McSendAdapterFuzzTest";
     const uint32_t MAX_DATA_SIZE = 4096;
+    constexpr int32_t MAX_SEND_CMD_DELAY_MS = 1000;
 
     static void FuzzSendCommandBasic(FuzzedDataProvider& provider)
     {
@@ -38,7 +39,7 @@ namespace {
             return;
         }
         bool useNullCmd = provider.ConsumeBool();
-        int32_t delayMs = provider.ConsumeIntegral<int32_t>();
+        int32_t delayMs = provider.ConsumeIntegralInRange<int32_t>(0, MAX_SEND_CMD_DELAY_MS);
 
         if (useNullCmd) {
             std::shared_ptr<CommandBase> nullCmd = nullptr;
@@ -72,7 +73,7 @@ namespace {
         cmd->SetRetryTimes(provider.ConsumeIntegralInRange<int32_t>(0, rangeMax));
         cmd->SetTimestamp(provider.ConsumeIntegral<int64_t>());
 
-        int32_t delayMs = provider.ConsumeIntegral<int32_t>();
+        int32_t delayMs = provider.ConsumeIntegralInRange<int32_t>(0, MAX_SEND_CMD_DELAY_MS);
         TransportSendAdapter adapter;
         adapter.SendCommand(cmd, delayMs);
     }
