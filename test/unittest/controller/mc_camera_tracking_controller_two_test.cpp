@@ -2586,7 +2586,6 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_VirtualCenter_001, Tes
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    // xOffset = -offsetY = 0，虚拟中心0.5，roi.x(0.8)>0.5：xOffset=(0.8-0.5)/(1.2-0.5)*0.5≈0.214，截断为0.2，roi.x=0.7；yOffset=0.1，roi.y=0.6
     EXPECT_FLOAT_EQ(roi.x, 0.7f);
     EXPECT_FLOAT_EQ(roi.y, 0.6f);
 
@@ -2611,7 +2610,6 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_VirtualCenter_002, Tes
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    // xOffset = -offsetY = 0，虚拟中心0.5，roi.x(0.2)<0.5：xOffset=(0.2-0.5)/(0.5-0.2)*0.5=-0.5，截断为-0.2，roi.x=0.3；yOffset=-0.1，roi.y=0.4
     EXPECT_FLOAT_EQ(roi.x, 0.3f);
     EXPECT_FLOAT_EQ(roi.y, 0.4f);
 
