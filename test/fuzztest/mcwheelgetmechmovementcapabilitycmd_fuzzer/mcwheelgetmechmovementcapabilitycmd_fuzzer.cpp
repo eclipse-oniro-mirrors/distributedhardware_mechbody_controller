@@ -25,24 +25,29 @@
 
 #include "mc_wheel_get_mech_movement_capability_cmd.h"
 #include "mc_data_buffer.h"
+#include "mechbody_controller_types.h"
 
 using namespace OHOS;
 using namespace OHOS::MechBodyController;
 
 namespace {
+constexpr uint32_t MAX_CAPABILITY_BIT = 2006;
+
 void FuzzSetCapability(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
-    uint32_t cap = fdp.ConsumeIntegral<uint32_t>();
+    uint32_t cap = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CAPABILITY_BIT - 1);
     cmd.SetCapability(cap);
 }
 
 void FuzzSetCapabilityBitValue(FuzzedDataProvider &fdp)
 {
     WheelGetMechMovementCapabilityCmd cmd;
-    uint32_t start = fdp.ConsumeIntegral<uint32_t>();
     uint8_t value = fdp.ConsumeIntegral<uint8_t>();
     uint8_t index = fdp.ConsumeIntegral<uint8_t>();
+    uint32_t maxStart = (MAX_CAPABILITY_BIT > static_cast<uint32_t>(index) * 8 + 7)
+        ? (MAX_CAPABILITY_BIT - static_cast<uint32_t>(index) * 8 - 8) : 0;
+    uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, maxStart);
     cmd.SetCapabilityBitValue(start, value, index);
 }
 
@@ -79,7 +84,7 @@ void FuzzOnDataReceiveValidStructure(FuzzedDataProvider &fdp)
     buffer.push_back(segNum);
 
     for (uint8_t i = 0; i < segNum; i++) {
-        uint32_t start = fdp.ConsumeIntegral<uint32_t>();
+        uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CAPABILITY_BIT - 1);
         uint8_t len = fdp.ConsumeIntegralInRange<uint8_t>(0, 5);
 
         /* Append start as 4 bytes */
@@ -121,7 +126,7 @@ void FuzzOnDataReceiveInvalidLen(FuzzedDataProvider &fdp)
     /* Construct buffer with valid segNum but invalid len > 32 */
     uint8_t buf[6];
     buf[0] = 1; /* segNum = 1 */
-    uint32_t start = fdp.ConsumeIntegral<uint32_t>();
+    uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CAPABILITY_BIT - 1);
     buf[1] = static_cast<uint8_t>(start & 0xFF);
     buf[2] = static_cast<uint8_t>((start >> 8) & 0xFF);
     buf[3] = static_cast<uint8_t>((start >> 16) & 0xFF);
@@ -188,13 +193,15 @@ void FuzzMarshalAndBasicOps(FuzzedDataProvider &fdp)
     auto buffer = cmd.Marshal();
 
     /* Test SetCapability with various values */
-    uint32_t cap1 = fdp.ConsumeIntegral<uint32_t>();
+    uint32_t cap1 = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CAPABILITY_BIT - 1);
     cmd.SetCapability(cap1);
 
     /* Test SetCapabilityBitValue */
-    uint32_t start = fdp.ConsumeIntegral<uint32_t>();
     uint8_t value = fdp.ConsumeIntegral<uint8_t>();
     uint8_t index = fdp.ConsumeIntegral<uint8_t>();
+    uint32_t maxStart = (MAX_CAPABILITY_BIT > static_cast<uint32_t>(index) * 8 + 7)
+        ? (MAX_CAPABILITY_BIT - static_cast<uint32_t>(index) * 8 - 8) : 0;
+    uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, maxStart);
     cmd.SetCapabilityBitValue(start, value, index);
 
     /* Test GetResult */

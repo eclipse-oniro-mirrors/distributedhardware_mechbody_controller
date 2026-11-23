@@ -50,6 +50,11 @@ void InitCameraTrackingController()
     }
 }
 
+bool IsControllerValid()
+{
+    return g_cameraTrackingController != nullptr;
+}
+
 CameraStandard::Rect GenerateRandomRect(FuzzedDataProvider &fdp)
 {
     CameraStandard::Rect rect;
@@ -119,7 +124,7 @@ void SetupCaptureSessionInfo(FuzzedDataProvider &fdp, int32_t sessionMode)
     previewOutputInfo.height = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
     captureSessionInfo.outputInfos.push_back(previewOutputInfo);
 
-    captureSessionInfo.callerTokenId = fdp.ConsumeIntegralInRange<int32_t>(1, 100);
+    captureSessionInfo.callerTokenId = 0;
     captureSessionInfo.sessionMode = sessionMode;
     captureSessionInfo.sessionId = fdp.ConsumeIntegral<int32_t>();
     captureSessionInfo.position = fdp.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
@@ -129,6 +134,9 @@ void SetupCaptureSessionInfo(FuzzedDataProvider &fdp, int32_t sessionMode)
     captureSessionInfo.zoomInfo.focusMode = fdp.ConsumeIntegral<int32_t>();
     captureSessionInfo.sessionStatus = fdp.ConsumeBool();
 
+    if (!IsControllerValid()) {
+        return;
+    }
     g_cameraTrackingController->OnCaptureSessionConfiged(captureSessionInfo);
 }
 
@@ -137,6 +145,9 @@ void FuzzOnFocusTrackingWithObjects(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     // Setup camera session first to initialize currentCameraInfo_
     int32_t sessionMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
@@ -165,6 +176,9 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     // Setup camera session with CINEMATIC_VIDEO mode to hit SelectBestObjectByRegion path
     bool useCinematicMode = fdp.ConsumeBool();
@@ -270,6 +284,9 @@ void FuzzBuildTrackingParamsFallback(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     int32_t sessionMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
     SetupCaptureSessionInfo(fdp, sessionMode);
@@ -312,6 +329,9 @@ void FuzzOnMetadataInfoWithFov(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     // Setup camera session first
     SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::NORMAL));
@@ -344,6 +364,9 @@ void FuzzOnZoomInfoChangeWithSession(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     // Setup camera session first so currentCameraInfo_ has valid tokenId
     SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::VIDEO));
@@ -363,6 +386,9 @@ void FuzzOnSessionStatusChangeWithSession(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     // Setup camera session first
     SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::VIDEO));
@@ -383,6 +409,9 @@ void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     CameraStandard::CaptureSessionInfo captureSessionInfo;
 
@@ -410,7 +439,7 @@ void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
     int32_t modeIndex = fdp.ConsumeIntegralInRange<int32_t>(0, 4);
     captureSessionInfo.sessionMode = sceneModes[modeIndex];
 
-    captureSessionInfo.callerTokenId = fdp.ConsumeIntegralInRange<int32_t>(1, 100);
+    captureSessionInfo.callerTokenId = 0;
     captureSessionInfo.sessionId = fdp.ConsumeIntegral<int32_t>();
     captureSessionInfo.position = fdp.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
     captureSessionInfo.zoomInfo.zoomValue = fdp.ConsumeFloatingPointInRange<float>(0.5f, 10.0f);
@@ -434,6 +463,9 @@ void FuzzComputeFovVariants(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     // Test different video stabilization modes to exercise SensorCutForVideoMode branches
     int32_t stabModes[] = {
@@ -451,7 +483,7 @@ void FuzzComputeFovVariants(const uint8_t *data, size_t size)
     videoOutputInfo.height = fdp.ConsumeIntegralInRange<int32_t>(100, 4000);
     captureSessionInfo.outputInfos.push_back(videoOutputInfo);
 
-    captureSessionInfo.callerTokenId = fdp.ConsumeIntegralInRange<int32_t>(1, 100);
+    captureSessionInfo.callerTokenId = 0;
     captureSessionInfo.sessionId = fdp.ConsumeIntegral<int32_t>();
     captureSessionInfo.position = fdp.ConsumeBool() ? REAR_MOUNTED_LENS : 0;
 
@@ -475,6 +507,9 @@ void FuzzCalculateIOUViaTracking(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     int32_t sessionMode = fdp.ConsumeIntegralInRange<int32_t>(MIN_SCENE_MODE, MAX_SCENE_MODE);
     SetupCaptureSessionInfo(fdp, sessionMode);
@@ -532,6 +567,9 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider fdp(data, size);
     InitCameraTrackingController();
+    if (!IsControllerValid()) {
+        return;
+    }
 
     // Must use CINEMATIC_VIDEO mode
     SetupCaptureSessionInfo(fdp, static_cast<int32_t>(CameraStandard::SceneMode::CINEMATIC_VIDEO));

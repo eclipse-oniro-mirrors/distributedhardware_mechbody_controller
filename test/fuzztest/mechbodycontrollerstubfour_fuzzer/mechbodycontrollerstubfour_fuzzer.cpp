@@ -270,7 +270,7 @@ void StopMovingInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyCon
     uint32_t code = static_cast<uint32_t>(IMechBodyControllerCode::STOP_MOVING);
     MessageParcel datas;
     datas.WriteInterfaceToken(MECH_SERVICE_IPC_TOKEN);
-    std::string cmdId = fdp.ConsumeRandomLengthString();
+    std::string cmdId = fdp.ConsumeRandomLengthString(256);
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
     datas.WriteString(cmdId);
     datas.WriteInt32(mechId);
@@ -279,7 +279,9 @@ void StopMovingInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mechBodyCon
         ? new IPCObjectStub(u"test.callback") : nullptr;
     datas.WriteRemoteObject(callback);
     MessageParcel reply;
-    MessageOption option;
+    int32_t flags = fdp.ConsumeBool() ? MessageOption::TF_ASYNC : MessageOption::TF_SYNC;
+    int32_t waitTime = fdp.ConsumeIntegralInRange<int32_t>(0, 30);
+    MessageOption option(flags, waitTime);
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
@@ -293,7 +295,9 @@ void GetRotationAnglesInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> mech
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
     datas.WriteInt32(mechId);
     MessageParcel reply;
-    MessageOption option;
+    int32_t flags = fdp.ConsumeBool() ? MessageOption::TF_ASYNC : MessageOption::TF_SYNC;
+    int32_t waitTime = fdp.ConsumeIntegralInRange<int32_t>(0, 30);
+    MessageOption option(flags, waitTime);
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
@@ -307,7 +311,9 @@ void GetRotationDegreeLimitsInnerFuzzTest(std::shared_ptr<MechBodyControllerStub
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
     datas.WriteInt32(mechId);
     MessageParcel reply;
-    MessageOption option;
+    int32_t flags = fdp.ConsumeBool() ? MessageOption::TF_ASYNC : MessageOption::TF_SYNC;
+    int32_t waitTime = fdp.ConsumeIntegralInRange<int32_t>(0, 30);
+    MessageOption option(flags, waitTime);
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
@@ -321,7 +327,9 @@ void GetRotationAxesStatusInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> 
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
     datas.WriteInt32(mechId);
     MessageParcel reply;
-    MessageOption option;
+    int32_t flags = fdp.ConsumeBool() ? MessageOption::TF_ASYNC : MessageOption::TF_SYNC;
+    int32_t waitTime = fdp.ConsumeIntegralInRange<int32_t>(0, 30);
+    MessageOption option(flags, waitTime);
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
@@ -337,7 +345,9 @@ void RotationAxesStatusChangeListenOnInnerFuzzTest(std::shared_ptr<MechBodyContr
         ? new IPCObjectStub(u"test.callback") : nullptr;
     datas.WriteRemoteObject(callback);
     MessageParcel reply;
-    MessageOption option;
+    int32_t flags = fdp.ConsumeBool() ? MessageOption::TF_ASYNC : MessageOption::TF_SYNC;
+    int32_t waitTime = fdp.ConsumeIntegralInRange<int32_t>(0, 30);
+    MessageOption option(flags, waitTime);
 
     mechBodyControllerStubPtr->OnRemoteRequest(code, datas, reply, option);
 }
