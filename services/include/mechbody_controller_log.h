@@ -318,6 +318,11 @@ enum MechNapiErrorCode {
      * Result(33300003) for device not supported.
      */
     DEVICE_NOT_SUPPORTED = 33300003,
+
+    /**
+     * Result(804) for API not supported on emulator.
+     */
+    EMULATOR_NOT_SUPPORTED = 804,
 };
 } // namespace MechBodyController
 } // namespace OHOS

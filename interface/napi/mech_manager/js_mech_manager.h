@@ -98,6 +98,7 @@ public:
 private:
     static int32_t CheckControlL1(napi_env env);
     static int32_t CheckDeviceL1(napi_env env);
+    static int32_t CheckEmulator(napi_env env);
     static int32_t ExecuteOn(std::string &eventType, CallbackFunctionInfo &callbackFunctionInfo);
     static int32_t ExecuteOnForAttachStateChange(const CallbackFunctionInfo &callbackFunctionInfo);
     static int32_t ExecuteOnForTrackingEvent(const CallbackFunctionInfo &callbackFunctionInfo);
@@ -119,6 +120,7 @@ private:
     static napi_value MechInfoToNapiObject(napi_env env, const std::shared_ptr<MechInfo> &info);
 
     static bool PreCheck(napi_env env);
+    static bool PreCheckDevice(napi_env env);
 
     static bool RegisterCmdChannel();
 

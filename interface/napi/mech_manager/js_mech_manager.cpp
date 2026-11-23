@@ -55,6 +55,63 @@ namespace {
     constexpr int32_t EIGHTEEN = 18;
     constexpr int32_t TWENTY_THREE = 23;
     constexpr int32_t THIRTY_TWO = 32;
+
+    std::string NapiValueTypeToString(napi_valuetype type)
+    {
+        switch (type) {
+            case napi_undefined:
+                return "undefined";
+            case napi_null:
+                return "null";
+            case napi_boolean:
+                return "boolean";
+            case napi_number:
+                return "number";
+            case napi_string:
+                return "string";
+            case napi_object:
+                return "object";
+            case napi_function:
+                return "function";
+            case napi_external:
+                return "external";
+            case napi_bigint:
+                return "bigint";
+            case napi_symbol:
+                return "symbol";
+            default:
+                return "unknown";
+        }
+    }
+ 
+    // Get the actual type name of a napi_value for error messages.
+    std::string GetNapiValueTypeName(napi_env env, napi_value value)
+    {
+        napi_valuetype type = napi_undefined;
+        napi_typeof(env, value, &type);
+        return NapiValueTypeToString(type);
+    }
+ 
+    // Template: Param[${index}] is required, cannot be null or undefined
+    std::string BuildParamRequiredError(size_t index)
+    {
+        return "Parameter error. Param[" + std::to_string(index) + "] is required, cannot be null or undefined";
+    }
+ 
+    // Template: Param[${index}] type mismatch. Expected: ${expectedType}, Actual: ${actualType}
+    std::string BuildParamTypeMismatchError(size_t index, const std::string &expectedType,
+        const std::string &actualType)
+    {
+        return "Parameter error. Param[" + std::to_string(index) + "] type mismatch. Expected: " + expectedType +
+            ", Actual: " + actualType;
+    }
+ 
+    // Template: Incorrect parameter count. Expected: ${expectedCount}, Actual: ${actualCount}
+    std::string BuildParamCountError(size_t expectedCount, size_t actualCount)
+    {
+        return "Parameter error. Incorrect parameter count. Expected: " + std::to_string(expectedCount) +
+            ", Actual: " + std::to_string(actualCount);
+    }
 }
 
 std::mutex MechManager::attachStateChangeStubMutex_;
@@ -74,6 +131,9 @@ std::shared_ptr<MechClient> MechManager::mechClient_ = std::make_shared<MechClie
 
 napi_value MechManager::On(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckControlL1(env)) {
         return nullptr;
     }
@@ -110,8 +170,8 @@ bool MechManager::ParseOnParams(napi_env env, napi_callback_info info,
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < PARAM_COUNT_TWO) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
-        HILOGE("Wrong number of arguments.");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return false;
     }
 
@@ -119,8 +179,8 @@ bool MechManager::ParseOnParams(napi_env env, napi_callback_info info,
     napi_typeof(env, args[0], &type);
     if (type != napi_string) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "First argument must be a string");
-        HILOGE("First argument must be a string.");
+            BuildParamTypeMismatchError(0, "string", NapiValueTypeToString(type)).c_str());
+        HILOGE("Parse on params failed, Param[0] type mismatch.");
         return false;
     }
 
@@ -138,8 +198,8 @@ bool MechManager::ParseOnParams(napi_env env, napi_callback_info info,
     napi_typeof(env, args[1], &type);
     if (type != napi_function) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Second argument must be a function");
-        HILOGE("Second argument must be a function.");
+            BuildParamTypeMismatchError(1, "function", NapiValueTypeToString(type)).c_str());
+        HILOGE("Parse on params failed, Param[1] type mismatch.");
         return false;
     }
     napi_status status = napi_create_reference(env, args[1], 1, &outCallbackRef);
@@ -173,6 +233,18 @@ int32_t MechManager::CheckDeviceL1(napi_env env)
     HILOGI("Device not support.");
     napi_throw_error(env, std::to_string(MechNapiErrorCode::DEVICE_NOT_CONNECTED).c_str(), "Device not connected");
     return static_cast<int32_t>(MechNapiErrorCode::DEVICE_NOT_CONNECTED);
+#else
+    return 0;
+#endif
+}
+
+int32_t MechManager::CheckEmulator(napi_env env)
+{
+#ifdef MECHBODY_CONTROLLER_EMULATOR
+    HILOGE("The capability is not supported on the emulator at this time.");
+    napi_throw_error(env, std::to_string(MechNapiErrorCode::EMULATOR_NOT_SUPPORTED).c_str(),
+        "The capability is not supported on the emulator at this time.");
+    return static_cast<int32_t>(MechNapiErrorCode::EMULATOR_NOT_SUPPORTED);
 #else
     return 0;
 #endif
@@ -289,8 +361,8 @@ void MechManager::ProcessOnResultCode(napi_env env, int32_t &result)
 {
     HILOGE("Register the callback function result code: %{public}d ", result);
     if (result == MechNapiErrorCode::PARAMETER_CHECK_FAILED) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Invalid event type.");
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
+            "Parameter error. Possible causes: 2. Incorrect parameter types;");
         return;
     }
     if (result == MechNapiErrorCode::PERMISSION_DENIED) {
@@ -351,6 +423,9 @@ bool MechManager::InitRotationAxesStatusChangeStub()
 
 napi_value MechManager::Off(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckControlL1(env)) {
         return nullptr;
     }
@@ -393,16 +468,16 @@ bool MechManager::ParseOffParams(napi_env env, napi_callback_info info,
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
-        HILOGE("Wrong number of arguments.");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return false;
     }
     napi_valuetype type;
     napi_typeof(env, args[0], &type);
     if (type != napi_string) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Argument must be a string");
-        HILOGE("Argument must be a string.");
+            BuildParamTypeMismatchError(0, "string", NapiValueTypeToString(type)).c_str());
+        HILOGE("Parse off params failed, Param[0] type mismatch.");
         return false;
     }
     size_t eventTypeLength = 0;
@@ -420,8 +495,8 @@ bool MechManager::ParseOffParams(napi_env env, napi_callback_info info,
         napi_typeof(env, args[1], &type);
         if (type != napi_function) {
             napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                "Second argument must be a function");
-            HILOGE("Second argument must be a function.");
+                BuildParamTypeMismatchError(1, "function", NapiValueTypeToString(type)).c_str());
+            HILOGE("Parse off params failed, Param[1] type mismatch.");
             return false;
         }
         napi_status status = napi_create_reference(env, args[1], 1, &outCallbackRef);
@@ -583,8 +658,8 @@ void MechManager::ProcessOffResultCode(napi_env env, int32_t &result)
 {
     HILOGE("UnRegister the callback function result code: %{public}d ", result);
     if (result == MechNapiErrorCode::PARAMETER_CHECK_FAILED) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Invalid event type.");
+        napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
+            "Parameter error. Possible causes: 2. Incorrect parameter types;");
         return;
     }
     if (result != ERR_OK) {
@@ -596,6 +671,9 @@ void MechManager::ProcessOffResultCode(napi_env env, int32_t &result)
 
 napi_value MechManager::GetAttachedDevices(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckControlL1(env)) {
         return nullptr;
     }
@@ -655,8 +733,8 @@ napi_value MechManager::SetUserOperation(napi_env env, napi_callback_info info)
 
     if (argc < THREE) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
-        HILOGE("Wrong number of arguments.");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
 
@@ -701,7 +779,25 @@ napi_value MechManager::SetUserOperation(napi_env env, napi_callback_info info)
 
 bool MechManager::PreCheck(napi_env env)
 {
+    if (CheckEmulator(env)) {
+        return false;
+    }
     if (CheckControlL1(env)) {
+        return false;
+    }
+    if (!IsSystemApp()) {
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+        return false;
+    }
+    return true;
+}
+
+bool MechManager::PreCheckDevice(napi_env env)
+{
+    if (CheckEmulator(env)) {
+        return false;
+    }
+    if (CheckDeviceL1(env)) {
         return false;
     }
     if (!IsSystemApp()) {
@@ -713,6 +809,9 @@ bool MechManager::PreCheck(napi_env env)
 
 napi_value MechManager::SetCameraTrackingEnabled(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckDeviceL1(env)) {
         return nullptr;
     }
@@ -722,8 +821,8 @@ napi_value MechManager::SetCameraTrackingEnabled(napi_env env, napi_callback_inf
 
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments.");
-        HILOGE("Wrong number of arguments.");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
 
@@ -731,8 +830,8 @@ napi_value MechManager::SetCameraTrackingEnabled(napi_env env, napi_callback_inf
     napi_status status = napi_get_value_bool(env, args[0], &isEnabled);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Invalid camera tracking status.");
-        HILOGE("Invalid camera tracking status.");
+            BuildParamTypeMismatchError(0, "boolean", GetNapiValueTypeName(env, args[0])).c_str());
+        HILOGE("SetCameraTrackingEnabled failed, Param[0] type mismatch.");
         return nullptr;
     }
     if (!InitMechClient()) {
@@ -761,6 +860,9 @@ napi_value MechManager::SetCameraTrackingEnabled(napi_env env, napi_callback_inf
 
 napi_value MechManager::GetCameraTrackingEnabled(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckDeviceL1(env)) {
         return nullptr;
     }
@@ -788,11 +890,7 @@ napi_value MechManager::GetCameraTrackingEnabled(napi_env env, napi_callback_inf
 
 napi_value MechManager::SetCameraTrackingLayout(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
 
@@ -832,14 +930,14 @@ bool MechManager::ParseSetCameraTrackingLayoutParams(napi_env env, napi_callback
 
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
 
     napi_status status = napi_get_value_int32(env, args[0], &jsLayout);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "trackingLayout must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
     if (jsLayout > LAYOUT_MAX || jsLayout < 0) {
@@ -852,6 +950,9 @@ bool MechManager::ParseSetCameraTrackingLayoutParams(napi_env env, napi_callback
 
 napi_value MechManager::GetCameraTrackingLayout(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckDeviceL1(env)) {
         return nullptr;
     }
@@ -880,14 +981,10 @@ napi_value MechManager::GetCameraTrackingLayout(napi_env env, napi_callback_info
 
 napi_value MechManager::Rotate(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     HILOGI("start");
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
-        return nullptr;
-    }
     RotateByDegreeParam rotateParam;
     int32_t mechId;
     if (!GetRotateParam(env, info, rotateParam, mechId)) {
@@ -963,14 +1060,14 @@ bool MechManager::GetRotateParam(napi_env env, napi_callback_info info, RotateBy
 
     if (argc < THREE) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
 
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
 
@@ -978,7 +1075,8 @@ bool MechManager::GetRotateParam(napi_env env, napi_callback_info info, RotateBy
     status = napi_get_value_int32(env, args[PARAM_COUNT_TWO], &duration);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(PARAM_COUNT_TWO, "number", GetNapiValueTypeName(env,
+                args[PARAM_COUNT_TWO])).c_str());
         return false;
     }
 
@@ -1065,14 +1163,14 @@ bool MechManager::GetRotateToEulerAnglesParam(napi_env env, napi_callback_info i
 
     if (argc < THREE) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
 
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
 
@@ -1080,7 +1178,8 @@ bool MechManager::GetRotateToEulerAnglesParam(napi_env env, napi_callback_info i
     status = napi_get_value_int32(env, args[PARAM_COUNT_TWO], &duration);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(PARAM_COUNT_TWO, "number", GetNapiValueTypeName(env,
+                args[PARAM_COUNT_TWO])).c_str());
         return false;
     }
 
@@ -1108,11 +1207,7 @@ bool MechManager::GetRotateToEulerAnglesParam(napi_env env, napi_callback_info i
 
 napi_value MechManager::GetMaxRotationTime(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     size_t argc = 1;
@@ -1121,7 +1216,7 @@ napi_value MechManager::GetMaxRotationTime(napi_env env, napi_callback_info info
 
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
 
@@ -1129,7 +1224,7 @@ napi_value MechManager::GetMaxRotationTime(napi_env env, napi_callback_info info
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
 
@@ -1155,11 +1250,7 @@ napi_value MechManager::GetMaxRotationTime(napi_env env, napi_callback_info info
 
 napi_value MechManager::GetMaxRotationSpeed(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     size_t argc = 1;
@@ -1168,7 +1259,7 @@ napi_value MechManager::GetMaxRotationSpeed(napi_env env, napi_callback_info inf
 
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
 
@@ -1176,7 +1267,7 @@ napi_value MechManager::GetMaxRotationSpeed(napi_env env, napi_callback_info inf
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
 
@@ -1230,11 +1321,7 @@ napi_value MechManager::RotateSpeedToNapi(napi_env env, const RotateSpeed &speed
 
 napi_value MechManager::RotateBySpeed(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     RotateBySpeedParam rotateBySpeedParam;
@@ -1290,14 +1377,14 @@ bool MechManager::GetRotateBySpeedParam(napi_env env, napi_callback_info info,
 
     if (argc < THREE) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
 
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
 
@@ -1305,7 +1392,8 @@ bool MechManager::GetRotateBySpeedParam(napi_env env, napi_callback_info info,
     status = napi_get_value_double(env, args[PARAM_COUNT_TWO], &duration);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(PARAM_COUNT_TWO, "number", GetNapiValueTypeName(env,
+                args[PARAM_COUNT_TWO])).c_str());
         return false;
     }
 
@@ -1333,11 +1421,7 @@ bool MechManager::GetRotateBySpeedParam(napi_env env, napi_callback_info info,
 
 napi_value MechManager::StopMoving(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     size_t argc = 1;
@@ -1345,14 +1429,14 @@ napi_value MechManager::StopMoving(napi_env env, napi_callback_info info)
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
     int32_t mechId;
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
     napi_deferred deferred;
@@ -1386,11 +1470,7 @@ napi_value MechManager::StopMoving(napi_env env, napi_callback_info info)
 
 napi_value MechManager::GetCurrentAngles(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     size_t argc = 1;
@@ -1399,7 +1479,7 @@ napi_value MechManager::GetCurrentAngles(napi_env env, napi_callback_info info)
 
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
 
@@ -1407,7 +1487,7 @@ napi_value MechManager::GetCurrentAngles(napi_env env, napi_callback_info info)
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
 
@@ -1428,11 +1508,7 @@ napi_value MechManager::GetCurrentAngles(napi_env env, napi_callback_info info)
 
 napi_value MechManager::GetRotationLimits(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     size_t argc = 1;
@@ -1441,7 +1517,7 @@ napi_value MechManager::GetRotationLimits(napi_env env, napi_callback_info info)
 
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
 
@@ -1449,7 +1525,7 @@ napi_value MechManager::GetRotationLimits(napi_env env, napi_callback_info info)
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
 
@@ -1472,11 +1548,7 @@ napi_value MechManager::GetRotationLimits(napi_env env, napi_callback_info info)
 
 napi_value MechManager::GetRotationAxesStatus(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     size_t argc = 1;
@@ -1485,7 +1557,7 @@ napi_value MechManager::GetRotationAxesStatus(napi_env env, napi_callback_info i
 
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
 
@@ -1493,7 +1565,7 @@ napi_value MechManager::GetRotationAxesStatus(napi_env env, napi_callback_info i
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
 
@@ -1514,11 +1586,7 @@ napi_value MechManager::GetRotationAxesStatus(napi_env env, napi_callback_info i
 
 napi_value MechManager::SearchTarget(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     TargetInfo targetInfo;
@@ -1568,6 +1636,9 @@ napi_value MechManager::SearchTarget(napi_env env, napi_callback_info info)
 
 napi_value MechManager::IsControlSupported(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     napi_value isSupportedResult;
     bool isSupported = false;
 
@@ -1611,11 +1682,7 @@ napi_value MechManager::IsControlSupported(napi_env env, napi_callback_info info
 
 napi_value MechManager::Move(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     MoveParams moveParams;
@@ -1664,11 +1731,7 @@ napi_value MechManager::Move(napi_env env, napi_callback_info info)
  
 napi_value MechManager::MoveBySpeed(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     SpeedParams speedParams;
@@ -1718,11 +1781,7 @@ napi_value MechManager::MoveBySpeed(napi_env env, napi_callback_info info)
 
 napi_value MechManager::TurnBySpeed(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     int32_t mechId;
@@ -1778,14 +1837,14 @@ bool MechManager::ParseIsSupportActionArgs(napi_env env, napi_callback_info info
 
     if (argc < paramSize) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                         "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
 
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                              "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
 
@@ -1793,7 +1852,7 @@ bool MechManager::ParseIsSupportActionArgs(napi_env env, napi_callback_info info
     status = napi_get_value_int32(env, args[1], &actionTypeValue);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                              "actionType must be a number");
+            BuildParamTypeMismatchError(1, "number", GetNapiValueTypeName(env, args[1])).c_str());
         return false;
     }
 
@@ -1803,11 +1862,7 @@ bool MechManager::ParseIsSupportActionArgs(napi_env env, napi_callback_info info
 
 napi_value MechManager::IsSupportAction(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
 
@@ -1843,11 +1898,7 @@ napi_value MechManager::IsSupportAction(napi_env env, napi_callback_info info)
 
 napi_value MechManager::DoAction(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     int32_t mechId;
@@ -1902,8 +1953,8 @@ bool MechManager::ParseSubscribeParams(
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < paramSize) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                         "Wrong number of arguments");
-        HILOGE("Wrong number of arguments.");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return false;
     }
 
@@ -1916,8 +1967,8 @@ bool MechManager::ParseSubscribeParams(
     napi_typeof(env, args[callbackParamIndex], &type);
     if (type != napi_function) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                         "third argument must be a function");
-        HILOGE("third argument must be a function.");
+            BuildParamTypeMismatchError(callbackParamIndex, "function", NapiValueTypeToString(type)).c_str());
+        HILOGE("Parse subscribe params failed, Param[1] type mismatch.");
         return false;
     }
     napi_status status = napi_create_reference(env, args[callbackParamIndex], 1, &outCallbackRef);
@@ -1942,8 +1993,8 @@ bool MechManager::ParseUnsubscribeParams(napi_env env, napi_callback_info info, 
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < paramSize) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                         "Wrong number of arguments");
-        HILOGE("Wrong number of arguments.");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return false;
     }
 
@@ -1958,8 +2009,9 @@ bool MechManager::ParseEventsArray(napi_env env, napi_value eventsArray, std::ve
     bool isArray;
     napi_status status = napi_is_array(env, eventsArray, &isArray);
     if (!isArray) {
-        HILOGE("params is not array.");
-        return false;
+        std::string errMsg = BuildParamTypeMismatchError(0, "Array", GetNapiValueTypeName(env, eventsArray));
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(), errMsg.c_str());
+        HILOGE("%{public}s", errMsg.c_str());
     }
 
     uint32_t arrayLength;
@@ -1971,7 +2023,8 @@ bool MechManager::ParseEventsArray(napi_env env, napi_value eventsArray, std::ve
         status = napi_get_value_int32(env, value, &mechEventType);
         if (status != napi_ok) {
             napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                                  "mechEventType must be a number");
+                ("Parameter error. Param[0] element type mismatch. Expected: number, Actual: " +
+                    GetNapiValueTypeName(env, value)).c_str());
             return false;
         }
         outEvents.push_back(static_cast<MechEventType>(mechEventType));
@@ -1981,6 +2034,9 @@ bool MechManager::ParseEventsArray(napi_env env, napi_value eventsArray, std::ve
 
 napi_value MechManager::Subscribe(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckControlL1(env)) {
         return nullptr;
     }
@@ -2000,6 +2056,9 @@ napi_value MechManager::Subscribe(napi_env env, napi_callback_info info)
 
 napi_value MechManager::UnSubscribe(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckControlL1(env)) {
         return nullptr;
     }
@@ -2017,6 +2076,9 @@ napi_value MechManager::UnSubscribe(napi_env env, napi_callback_info info)
 
 napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckControlL1(env)) {
         return nullptr;
     }
@@ -2026,8 +2088,8 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < PARAM_COUNT_TWO) {
         napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
-            "Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
-        HILOGE("Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
  
@@ -2035,8 +2097,8 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
     napi_typeof(env, args[0], &type);
     if (type != napi_number) {
         napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
-            "Parameter error. Possible causes: 2. Incorrect parameter types;");
-        HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
+            BuildParamTypeMismatchError(0, "number", NapiValueTypeToString(type)).c_str());
+        HILOGE("%{public}s", BuildParamTypeMismatchError(0, "number", NapiValueTypeToString(type)).c_str());
         return nullptr;
     }
  
@@ -2046,8 +2108,8 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
     napi_typeof(env, args[1], &type);
     if (type != napi_function) {
         napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
-            "Parameter error. Possible causes: 2. Incorrect parameter types;");
-        HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
+            BuildParamTypeMismatchError(1, "function", NapiValueTypeToString(type)).c_str());
+        HILOGE("%{public}s", BuildParamTypeMismatchError(1, "function", NapiValueTypeToString(type)).c_str());
         return nullptr;
     }
  
@@ -2056,7 +2118,7 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
     if (status != napi_ok || callbackRef == nullptr) {
         HILOGE("Failed to create reference to callback");
         napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
-            "Parameter error. Possible causes: 2. Incorrect parameter types;");
+            BuildParamTypeMismatchError(1, "function", GetNapiValueTypeName(env, args[1])).c_str());
         if (callbackRef != nullptr) {
             napi_delete_reference(env, callbackRef);
             callbackRef = nullptr;
@@ -2073,6 +2135,9 @@ napi_value MechManager::OnBatteryLevelChange(napi_env env, napi_callback_info in
  
 napi_value MechManager::OffBatteryLevelChange(napi_env env, napi_callback_info info)
 {
+    if (CheckEmulator(env)) {
+        return nullptr;
+    }
     if (CheckControlL1(env)) {
         return nullptr;
     }
@@ -2082,8 +2147,8 @@ napi_value MechManager::OffBatteryLevelChange(napi_env env, napi_callback_info i
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < 1) {
         napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
-            "Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
-        HILOGE("Parameter error. Possible causes: 1. Mandatory parameters are left unspecified;");
+            BuildParamRequiredError(argc).c_str());
+        HILOGE("%{public}s", BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
  
@@ -2091,8 +2156,8 @@ napi_value MechManager::OffBatteryLevelChange(napi_env env, napi_callback_info i
     napi_typeof(env, args[0], &type);
     if (type != napi_number) {
         napi_throw_business_error(env, MechNapiErrorCode::PARAMETER_CHECK_FAILED,
-            "Parameter error. Possible causes: 2. Incorrect parameter types;");
-        HILOGE("Parameter error. Possible causes: 2. Incorrect parameter types;");
+            BuildParamTypeMismatchError(0, "number", NapiValueTypeToString(type)).c_str());
+        HILOGE("%{public}s", BuildParamTypeMismatchError(0, "number", NapiValueTypeToString(type)).c_str());
         return nullptr;
     }
  
@@ -2116,12 +2181,7 @@ napi_value MechManager::OffBatteryLevelChange(napi_env env, napi_callback_info i
 
 napi_value MechManager::GetDeviceAdsorbState(napi_env env, napi_callback_info info)
 {
-    if (CheckDeviceL1(env)) {
-        return nullptr;
-    }
-    if (!IsSystemApp()) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PERMISSION_DENIED).c_str(), "Not system application");
-
+    if (!PreCheckDevice(env)) {
         return nullptr;
     }
     size_t argc = 1;
@@ -2129,14 +2189,14 @@ napi_value MechManager::GetDeviceAdsorbState(napi_env env, napi_callback_info in
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < 1) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return nullptr;
     }
     int32_t mechId;
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return nullptr;
     }
 
@@ -2309,8 +2369,9 @@ bool MechManager::GetSearchTargetParam(napi_env env, napi_callback_info info,
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
     if (argc != PARAM_COUNT_TWO) {
-        napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-                         "Wrong number of arguments");
+        std::string errMsg = argc < PARAM_COUNT_TWO ? BuildParamRequiredError(argc)
+            : BuildParamCountError(PARAM_COUNT_TWO, argc);
+        napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(), errMsg.c_str());
         return false;
     }
 
@@ -2494,14 +2555,14 @@ bool MechManager::GetMoveParams(napi_env env, napi_callback_info info,
  
     if (argc < PARAM_COUNT_TWO) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
  
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
  
@@ -2542,21 +2603,22 @@ bool MechManager::GetMoveBySpeedParams(napi_env env, napi_callback_info info,
  
     if (argc < THREE) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
  
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
  
     status = napi_get_value_int32(env, args[PARAM_COUNT_TWO], &duration);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "duration must be a number");
+            BuildParamTypeMismatchError(PARAM_COUNT_TWO, "number",
+                GetNapiValueTypeName(env, args[PARAM_COUNT_TWO])).c_str());
         return false;
     }
  
@@ -2591,14 +2653,14 @@ bool MechManager::GetTurnBySpeedParams(napi_env env, napi_callback_info info,
  
     if (argc < THREE) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
  
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
  
@@ -2606,7 +2668,7 @@ bool MechManager::GetTurnBySpeedParams(napi_env env, napi_callback_info info,
     status = napi_get_value_double(env, args[1], &value);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "angleSpeed must be a number");
+            BuildParamTypeMismatchError(1, "number", GetNapiValueTypeName(env, args[1])).c_str());
         return false;
     }
     angleSpeed = static_cast<float>(value);
@@ -2614,7 +2676,8 @@ bool MechManager::GetTurnBySpeedParams(napi_env env, napi_callback_info info,
     status = napi_get_value_int32(env, args[PARAM_COUNT_TWO], &duration);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "duration must be a number");
+            BuildParamTypeMismatchError(PARAM_COUNT_TWO, "number",
+                GetNapiValueTypeName(env, args[PARAM_COUNT_TWO])).c_str());
         return false;
     }
     return true;
@@ -2629,14 +2692,14 @@ bool MechManager::GetDoActionParams(napi_env env, napi_callback_info info,
  
     if (argc < PARAM_COUNT_TWO) {
         napi_throw_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "Wrong number of arguments");
+            BuildParamRequiredError(argc).c_str());
         return false;
     }
  
     napi_status status = napi_get_value_int32(env, args[0], &mechId);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "mechId must be a number");
+            BuildParamTypeMismatchError(0, "number", GetNapiValueTypeName(env, args[0])).c_str());
         return false;
     }
  
@@ -2644,7 +2707,7 @@ bool MechManager::GetDoActionParams(napi_env env, napi_callback_info info,
     status = napi_get_value_int32(env, args[1], &value);
     if (status != napi_ok) {
         napi_throw_type_error(env, std::to_string(MechNapiErrorCode::PARAMETER_CHECK_FAILED).c_str(),
-            "actionType must be a number");
+            BuildParamTypeMismatchError(1, "number", GetNapiValueTypeName(env, args[1])).c_str());
         return false;
     }
     actionType = static_cast<ActionType>(value);

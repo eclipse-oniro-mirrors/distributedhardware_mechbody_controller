@@ -194,7 +194,9 @@ private:
     bool AniSendEvent(std::function<void()> task);
     int32_t CheckControlL1();
     int32_t CheckDeviceL1();
+    int32_t CheckEmulator();
     bool PreCheck();
+    bool PreCheckDevice();
 private:
     std::mutex attachStateChangeStubMutex_;
     sptr<AniMechManagerStub> attachStateChangeStub_ { nullptr };
