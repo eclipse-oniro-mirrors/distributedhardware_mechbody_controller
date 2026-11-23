@@ -127,6 +127,18 @@ int32_t AniMechManagerStub::BatteryLevelChangeCallback(MessageParcel &data, Mess
     return AniMechManager::GetInstance().BatteryLevelChangeCallbackInvoke(mechId, batteryLevel, isCharging);
 }
 
+int32_t AniMechManagerStub::ConnectCallback(MessageParcel &data, MessageParcel &reply)
+{
+    std::string cmdId = data.ReadString();
+    int32_t state = data.ReadInt32();
+    std::shared_ptr<MechInfo> mechInfo(data.ReadParcelable<MechInfo>());
+    if (!mechInfo) {
+        return NAPI_RECV_DATA_FAIL;
+    }
+    return AniMechManager::GetInstance().ConnectCallback(cmdId,
+        static_cast<AttachmentState>(state), mechInfo);
+}
+
 void AniMechManagerStub::InitMechManagerFunc()
 {
     mechManagerFuncMap_[IMechBodyControllerCode::ATTACH_STATE_CHANGE_CALLBACK] =
@@ -139,6 +151,7 @@ void AniMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &AniMechManagerStub::SubscribeCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
         &AniMechManagerStub::BatteryLevelChangeCallback;
+    mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_DEVICE] = &AniMechManagerStub::ConnectCallback;
 }
 
 AniMechManagerStub::AniMechManagerStub()

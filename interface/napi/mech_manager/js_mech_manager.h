@@ -91,6 +91,9 @@ public:
     static napi_value OffBatteryLevelChange(napi_env env, napi_callback_info info);
 
     static napi_value GetDeviceAdsorbState(napi_env env, napi_callback_info info);
+    static napi_value ConnectDevice(napi_env env, napi_callback_info info);
+
+    static napi_value DisconnectDevice(napi_env env, napi_callback_info info);
 
 private:
     static int32_t CheckControlL1(napi_env env);
@@ -183,6 +186,9 @@ private:
     static bool ParseSetCameraTrackingLayoutParams(napi_env env, napi_callback_info info,
         int32_t &jsLayout);
 
+    static bool GetConnectDeviceParam(napi_env env, napi_callback_info info,
+        AddressInfo &addrInfo, ConnectParam &connectParam);
+
 private:
     static std::mutex attachStateChangeStubMutex_;
     static sptr<JsMechManagerStub> attachStateChangeStub_;
@@ -218,7 +224,7 @@ private:
     public:
         void OnRemoteDied(const wptr<IRemoteObject> &object) override;
     };
-
+    
     class BaseChannelDeathListener : public IRemoteObject::DeathRecipient {
     public:
         void OnRemoteDied(const wptr<IRemoteObject> &object) override;

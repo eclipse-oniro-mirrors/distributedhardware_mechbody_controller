@@ -20,7 +20,6 @@
 
 namespace OHOS {
 namespace MechBodyController {
-
     inline const std::u16string MECH_SERVICE_IPC_TOKEN = u"ohos.mechservice.accessToken";
     static constexpr int32_t MECH_SERVICE_SA_ID = 8550;
 
@@ -70,6 +69,8 @@ enum class IMechBodyControllerCode : uint32_t {
     BATTERY_LEVEL_LISTEN_ON = 39,
     BATTERY_LEVEL_LISTEN_OFF = 40,
     BATTERY_LEVEL_CHANGE_CALLBACK = 41,
+    CONNECT_DEVICE = 42,
+    DISCONNECT_DEVICE = 43,
 };
 } // namespace MechBodyController
 } // namespace OHOS

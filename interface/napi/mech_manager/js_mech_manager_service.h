@@ -52,8 +52,7 @@ struct CallbackFunctionInfo {
         envId = reinterpret_cast<uintptr_t>(env);
     }
 
-    bool operator<(const CallbackFunctionInfo &other) const
-    {
+    bool operator<(const CallbackFunctionInfo &other) const {
         if (envId != other.envId) {
             return envId < other.envId;
         }
@@ -103,6 +102,8 @@ public:
 
     int32_t BatteryLevelChangeCallbackInvoke(const int32_t &mechId, const int32_t &batteryLevel,
         const bool &isCharging);
+    int32_t ConnectCallback(const std::string &cmdId, const AttachmentState &state,
+        const std::shared_ptr<MechInfo> &mechInfo);
 
 private:
     static void InvokeCallbackTask(const CallbackFunctionInfo &item, int32_t mechId, MechEventType mechEventType);
@@ -124,6 +125,8 @@ public:
     std::map<MechEventType, std::set<CallbackFunctionInfo>> subscribeCallback_;
     std::mutex batteryLevelCallbackMutex_;
     std::map<int32_t, std::set<CallbackFunctionInfo>> batteryLevelCallback_;
+    std::mutex connectCallbackMutex_;
+    std::map<std::string, std::shared_ptr<RotatePrimiseFulfillmentParam>> connectCallback_;
 };
 } // namespace MechManager
 } // namespace OHOS

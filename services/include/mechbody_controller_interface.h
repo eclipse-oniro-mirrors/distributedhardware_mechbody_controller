@@ -76,6 +76,10 @@ public:
 
     virtual int32_t RegisterBatteryLevelCallback(sptr<IRemoteObject> callback, int32_t mechId) = 0;
     virtual int32_t UnRegisterBatteryLevelCallback() = 0;
+    virtual int32_t ConnectDevice(std::string &cmdId,
+        const std::shared_ptr<AddressInfo> &addrInfo,
+        const std::shared_ptr<ConnectParam> &params) = 0;
+    virtual int32_t DisconnectDevice(std::string &cmdId, int32_t mechId) = 0;
 };
 } // namespace MechBodyController
 } // namespace OHOS

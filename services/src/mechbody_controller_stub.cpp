@@ -111,6 +111,10 @@ void MechBodyControllerStub::InitFuncsInnerPart2()
             &MechBodyControllerStub::BatteryLevelListenOnInner;
     funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::BATTERY_LEVEL_LISTEN_OFF)] =
             &MechBodyControllerStub::BatteryLevelListenOffInner;
+    funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::CONNECT_DEVICE)] =
+            &MechBodyControllerStub::ConnectDeviceInner;
+    funcsMap_[static_cast<uint32_t>(IMechBodyControllerCode::DISCONNECT_DEVICE)] =
+            &MechBodyControllerStub::DisconnectDeviceInner;
 }
 
 int32_t MechBodyControllerStub::OnRemoteRequest(
@@ -141,7 +145,7 @@ int32_t MechBodyControllerStub::AttachStateChangeListenOnInner(MessageParcel &da
 
     int32_t result = MechBodyControllerService::GetInstance().RegisterAttachStateChangeCallback(callback);
     bool writeResult = reply.WriteInt32(result);
-    HILOGI("writeResult = %{public}d", writeResult);
+    HILOGI("%{public}d", writeResult);
     return result;
 }
 
@@ -519,7 +523,6 @@ int32_t MechBodyControllerStub::BatteryLevelListenOnInner(MessageParcel &data, M
     HILOGI("writeResult %{public}d", writeResult);
     return result;
 }
- 
 int32_t MechBodyControllerStub::BatteryLevelListenOffInner(MessageParcel &data, MessageParcel &reply)
 {
     uint32_t tokenId = IPCSkeleton::GetCallingTokenID();
@@ -531,6 +534,46 @@ int32_t MechBodyControllerStub::BatteryLevelListenOffInner(MessageParcel &data, 
     HILOGI("result %{public}d", result);
     HILOGI("writeResult %{public}d", writeResult);
     return result;
+}
+
+int32_t MechBodyControllerStub::ConnectDeviceInner(MessageParcel &data, MessageParcel &reply)
+{
+    std::string cmdId = data.ReadString();
+    std::shared_ptr<AddressInfo> addrInfo(data.ReadParcelable<AddressInfo>());
+    std::shared_ptr<ConnectParam> connectParam(data.ReadParcelable<ConnectParam>());
+    if (addrInfo == nullptr || connectParam == nullptr) {
+        HILOGE("ReadParcelable failed");
+        return INVALID_PARAMETERS_ERR;
+    }
+    int32_t result = MechBodyControllerService::GetInstance().ConnectDevice(cmdId, addrInfo, connectParam);
+    bool writeResult = reply.WriteInt32(result);
+    HILOGI("result %{public}d", result);
+    HILOGI("writeResult %{public}d", writeResult);
+    return result;
+}
+
+int32_t MechBodyControllerStub::DisconnectDeviceInner(MessageParcel &data, MessageParcel &reply)
+{
+    std::string cmdId = data.ReadString();
+    int32_t mechId = data.ReadInt32();
+    int32_t result = MechBodyControllerService::GetInstance().DisconnectDevice(cmdId, mechId);
+    bool writeResult = reply.WriteInt32(result);
+    HILOGI("result %{public}d", result);
+    HILOGI("writeResult %{public}d", writeResult);
+    return result;
+}
+
+int32_t MechBodyControllerStub::ConnectCallbackInner(MessageParcel &data, MessageParcel &reply)
+{
+    std::string cmdId = data.ReadString();
+    int32_t state = data.ReadInt32();
+    std::shared_ptr<MechInfo> mechInfo(data.ReadParcelable<MechInfo>());
+    if (mechInfo == nullptr) {
+        HILOGE("ReadParcelable MechInfo failed");
+        return INVALID_PARAMETERS_ERR;
+    }
+    HILOGI("cmdId: %{public}s, state: %{public}d", cmdId.c_str(), state);
+    return ERR_OK;
 }
 } // namespace MechBodyController
 } // namespace OHOS

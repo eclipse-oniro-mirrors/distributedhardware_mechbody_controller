@@ -150,6 +150,11 @@ public:
 
     int32_t IsControlSupported(MechDeviceType mechDeviceType, bool &isSupported);
 
+    int32_t ConnectDevice(const std::string &cmdId, const AddressInfo &addrInfo,
+        const ConnectParam &connectParam);
+
+    int32_t DisconnectDevice(const std::string &cmdId, int32_t mechId);
+
 private:
     sptr <IRemoteObject> GetDmsProxy();
 

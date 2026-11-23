@@ -126,6 +126,18 @@ int32_t JsMechManagerStub::BatteryLevelChangeCallback(MessageParcel &data, Messa
     return JsMechManagerService::GetInstance().BatteryLevelChangeCallbackInvoke(mechId, batteryLevel, isCharging);
 }
 
+int32_t JsMechManagerStub::ConnectCallback(MessageParcel &data, MessageParcel &reply)
+{
+    std::string cmdId = data.ReadString();
+    int32_t state = data.ReadInt32();
+    std::shared_ptr<MechInfo> mechInfo(data.ReadParcelable<MechInfo>());
+    if (!mechInfo) {
+        return NAPI_RECV_DATA_FAIL;
+    }
+    return JsMechManagerService::GetInstance().ConnectCallback(cmdId,
+        static_cast<AttachmentState>(state), mechInfo);
+}
+
 void JsMechManagerStub::InitMechManagerFunc()
 {
     mechManagerFuncMap_[IMechBodyControllerCode::ATTACH_STATE_CHANGE_CALLBACK] =
@@ -138,6 +150,7 @@ void JsMechManagerStub::InitMechManagerFunc()
     mechManagerFuncMap_[IMechBodyControllerCode::SUBSCRIBE_CALLBACK] = &JsMechManagerStub::SubscribeCallback;
     mechManagerFuncMap_[IMechBodyControllerCode::BATTERY_LEVEL_CHANGE_CALLBACK] =
         &JsMechManagerStub::BatteryLevelChangeCallback;
+    mechManagerFuncMap_[IMechBodyControllerCode::CONNECT_DEVICE] = &JsMechManagerStub::ConnectCallback;
 }
 
 JsMechManagerStub::JsMechManagerStub()

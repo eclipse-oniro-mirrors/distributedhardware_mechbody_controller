@@ -240,12 +240,12 @@ enum class SpeedGear: int32_t {
     MIDDLE_SPEED = 1,
     HIGH_SPEED = 2
 };
-
+ 
 enum class MarchingMode: int32_t {
     TURN_THEN_MOVE = 0, // 先转动再移动
     TURNING_MOVING = 1, // 边移动边转动
 };
-
+ 
 enum class ActionType: int32_t {
     LANDSCAPE_PORTRAIT_SWITCH = 0,
     PATROL_MODE = 1,
@@ -272,13 +272,17 @@ enum class ActionType: int32_t {
     LOW_POWER = 2005,
     THINKING = 2006
 };
-
+ 
 enum class MechEventType: int32_t {
     DEVICE_ADSORBED = 0,
     DEVICE_UNADSORBED = 1,
     REACH_CLIFF = 2,
     REACH_OBSTACLE = 3,
     LOW_POWER = 4,
+};
+ 
+enum class AddressType: int32_t {
+    BLE_ADDR = 0,
 };
 
 }  // namespace MechBodyController
