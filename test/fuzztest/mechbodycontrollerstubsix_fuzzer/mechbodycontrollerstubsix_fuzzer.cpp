@@ -56,7 +56,8 @@ MechBodyControllerService::~MechBodyControllerService()
 {
 }
 
-int32_t MechBodyControllerService::OnDeviceConnected(int32_t mechId, bool isFirstConnect, const uint32_t &deviceIdentifier)
+int32_t MechBodyControllerService::OnDeviceConnected(int32_t mechId, bool isFirstConnect,
+    const uint32_t &deviceIdentifier)
 {
     return 0;
 }
@@ -313,6 +314,14 @@ void BatteryLevelListenOffInnerFuzzTest(std::shared_ptr<MechBodyControllerStub> 
 } // namespace OHOS
 
 /* Fuzzer entry point */
+using FuzzFunc = void (*)(const std::shared_ptr<OHOS::MechBodyControllerService> &, FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    GetDeviceAdsorbStateInnerFuzzTest,
+    BatteryLevelListenOnInnerFuzzTest,
+    BatteryLevelListenOffInnerFuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
@@ -320,19 +329,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
     FuzzedDataProvider fdp(data, size);
     auto mechBodyControllerStubPtr = std::make_shared<OHOS::MechBodyControllerService>();
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 3;
-    switch (funcIndex) {
-        case 0:
-            GetDeviceAdsorbStateInnerFuzzTest(mechBodyControllerStubPtr, fdp);
-            break;
-        case 1:
-            BatteryLevelListenOnInnerFuzzTest(mechBodyControllerStubPtr, fdp);
-            break;
-        case 2:
-            BatteryLevelListenOffInnerFuzzTest(mechBodyControllerStubPtr, fdp);
-            break;
-        default:
-            break;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](mechBodyControllerStubPtr, fdp);
     }
     return 0;
 }

@@ -45,25 +45,23 @@ void GetAnonymUint32FuzzTest(FuzzedDataProvider &fdp)
 }
 
 /* Fuzzer entry point */
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    OHOS::GetAnonymStrFuzzTest,
+    OHOS::GetAnonymInt32FuzzTest,
+    OHOS::GetAnonymUint32FuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
         return 0;
     }
     FuzzedDataProvider fdp(data, size);
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 3;
-    switch (funcIndex) {
-        case 0:
-            OHOS::GetAnonymStrFuzzTest(fdp);
-            break;
-        case 1:
-            OHOS::GetAnonymInt32FuzzTest(fdp);
-            break;
-        case 2:
-            OHOS::GetAnonymUint32FuzzTest(fdp);
-            break;
-        default:
-            break;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](fdp);
     }
     return 0;
 }

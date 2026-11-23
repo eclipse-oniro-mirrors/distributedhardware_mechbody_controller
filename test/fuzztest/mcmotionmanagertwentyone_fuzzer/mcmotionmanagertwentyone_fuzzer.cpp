@@ -42,7 +42,11 @@
 #include "mechbody_controller_log.h"
 
 namespace {
+constexpr size_t STATE_INFO_DATA_SIZE = 5;
+constexpr uint8_t PHONE_STATE_ON = 0x01;
+constexpr uint8_t INVALID_STATE_BYTE = 0xFF;
 constexpr int32_t TEST_MECH_ID = 1;
+constexpr int16_t MAX_NONZERO_DEGREE = 32767;
 // Device error code values matching MapDeviceErrorCodeToExecResult switch cases
 constexpr uint8_t ERR_SUCCESS = 0;
 constexpr uint8_t ERR_PARA_ERROR = 1;
@@ -133,103 +137,52 @@ void FuzzMapDeviceErrorCodeToExecResult(FuzzedDataProvider &provider)
     testManager->TestMapDeviceErrorCodeToExecResult(cmdType3, defaultError2);
 }
 
+void NotifyMechParamWithMode(const std::shared_ptr<MechEventListenerImpl> &listener,
+    uint8_t mechMode, FuzzedDataProvider &provider)
+{
+    auto cmd = std::make_shared<RegisterMechStateInfoCmd>();
+    auto data = std::make_shared<MechDataBuffer>(STATE_INFO_DATA_SIZE);
+    if (data != nullptr) {
+        data->AppendUint8(mechMode);
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        data->AppendUint8(PHONE_STATE_ON);
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        cmd->Unmarshal(data);
+        listener->MechParamNotify(cmd);
+    }
+}
+
+void NotifyMechGenericEvent(const std::shared_ptr<MechEventListenerImpl> &listener, uint8_t lowPower,
+    uint8_t attached, uint8_t yawDisable, FuzzedDataProvider &provider)
+{
+    auto cmd = std::make_shared<NormalRegisterMechGenericEventCmd>();
+    auto data = std::make_shared<MechDataBuffer>(STATE_INFO_DATA_SIZE);
+    if (data != nullptr) {
+        data->AppendUint8(lowPower);
+        data->AppendUint8(attached);
+        data->AppendUint8(yawDisable);
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        cmd->Unmarshal(data);
+        listener->MechGenericEventNotify(cmd);
+    }
+}
+
 void FuzzMechParamNotify(FuzzedDataProvider &provider)
 {
     InitMotionManager();
     auto listener = std::make_shared<MechEventListenerImpl>(g_motionManager);
 
     // Test each MechMode value to cover all switch cases in MechParamNotify
-    // MechMode is encoded in the first byte of the StateInfo command data
-
-    // FOLLOW mode (0)
-    {
-        auto cmd = std::make_shared<RegisterMechStateInfoCmd>();
-        auto data = std::make_shared<MechDataBuffer>(5);
-        if (data != nullptr) {
-            data->AppendUint8(MECH_MODE_FOLLOW);   // mechMode
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());  // isCaptureVertical
-            data->AppendUint8(0x01);  // isPhoneOn = true
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            cmd->Unmarshal(data);
-            listener->MechParamNotify(cmd);
-        }
-    }
-
-    // PITCH_FREE mode (1)
-    {
-        auto cmd = std::make_shared<RegisterMechStateInfoCmd>();
-        auto data = std::make_shared<MechDataBuffer>(5);
-        if (data != nullptr) {
-            data->AppendUint8(MECH_MODE_PITCH_FREE);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(0x01);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            cmd->Unmarshal(data);
-            listener->MechParamNotify(cmd);
-        }
-    }
-
-    // FPV mode (2)
-    {
-        auto cmd = std::make_shared<RegisterMechStateInfoCmd>();
-        auto data = std::make_shared<MechDataBuffer>(5);
-        if (data != nullptr) {
-            data->AppendUint8(MECH_MODE_FPV);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(0x01);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            cmd->Unmarshal(data);
-            listener->MechParamNotify(cmd);
-        }
-    }
-
-    // ROLL mode (3)
-    {
-        auto cmd = std::make_shared<RegisterMechStateInfoCmd>();
-        auto data = std::make_shared<MechDataBuffer>(5);
-        if (data != nullptr) {
-            data->AppendUint8(MECH_MODE_ROLL);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(0x01);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            cmd->Unmarshal(data);
-            listener->MechParamNotify(cmd);
-        }
-    }
-
-    // FREE mode (4)
-    {
-        auto cmd = std::make_shared<RegisterMechStateInfoCmd>();
-        auto data = std::make_shared<MechDataBuffer>(5);
-        if (data != nullptr) {
-            data->AppendUint8(MECH_MODE_FREE);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(0x01);
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            cmd->Unmarshal(data);
-            listener->MechParamNotify(cmd);
-        }
-    }
+    NotifyMechParamWithMode(listener, MECH_MODE_FOLLOW, provider);
+    NotifyMechParamWithMode(listener, MECH_MODE_PITCH_FREE, provider);
+    NotifyMechParamWithMode(listener, MECH_MODE_FPV, provider);
+    NotifyMechParamWithMode(listener, MECH_MODE_ROLL, provider);
+    NotifyMechParamWithMode(listener, MECH_MODE_FREE, provider);
 
     // Random MechMode (covers default case in MechParamNotify switch)
-    {
-        auto cmd = std::make_shared<RegisterMechStateInfoCmd>();
-        auto data = std::make_shared<MechDataBuffer>(5);
-        if (data != nullptr) {
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            cmd->Unmarshal(data);
-            listener->MechParamNotify(cmd);
-        }
-    }
+    NotifyMechParamWithMode(listener, provider.ConsumeIntegral<uint8_t>(), provider);
 }
 
 void FuzzMechButtonEventNotify(FuzzedDataProvider &provider)
@@ -284,62 +237,19 @@ void FuzzMechGenericEventNotify(FuzzedDataProvider &provider)
     auto listener = std::make_shared<MechEventListenerImpl>(g_motionManager);
 
     // Test with random fuzz data
-    auto cmd = std::make_shared<NormalRegisterMechGenericEventCmd>();
-    auto data = std::make_shared<MechDataBuffer>(5);
-    if (data != nullptr) {
-        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());  // lowPower bit
-        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());  // attached
-        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());  // yawDisable
-        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());  // rollDisable
-        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());  // pitchDisable
-        cmd->Unmarshal(data);
-        listener->MechGenericEventNotify(cmd);
-    }
+    NotifyMechGenericEvent(listener, provider.ConsumeIntegral<uint8_t>(),
+        provider.ConsumeIntegral<uint8_t>(), provider.ConsumeIntegral<uint8_t>(), provider);
 
     // Test low power event path (lowPower == BIT_1)
-    {
-        auto lowPowerCmd = std::make_shared<NormalRegisterMechGenericEventCmd>();
-        auto lowPowerData = std::make_shared<MechDataBuffer>(5);
-        if (lowPowerData != nullptr) {
-            lowPowerData->AppendUint8(0x01);  // lowPower = BIT_1
-            lowPowerData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            lowPowerData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            lowPowerData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            lowPowerData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            lowPowerCmd->Unmarshal(lowPowerData);
-            listener->MechGenericEventNotify(lowPowerCmd);
-        }
-    }
+    NotifyMechGenericEvent(listener, PHONE_STATE_ON, provider.ConsumeIntegral<uint8_t>(),
+        provider.ConsumeIntegral<uint8_t>(), provider);
 
     // Test attached != -1 path
-    {
-        auto attachCmd = std::make_shared<NormalRegisterMechGenericEventCmd>();
-        auto attachData = std::make_shared<MechDataBuffer>(5);
-        if (attachData != nullptr) {
-            attachData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            attachData->AppendUint8(0x01);  // attached = 1 (not -1)
-            attachData->AppendUint8(0x00);  // yawDisable = 0 (not -1, so won't return early)
-            attachData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            attachData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            attachCmd->Unmarshal(attachData);
-            listener->MechGenericEventNotify(attachCmd);
-        }
-    }
+    NotifyMechGenericEvent(listener, provider.ConsumeIntegral<uint8_t>(), PHONE_STATE_ON, 0x00, provider);
 
     // Test early return when yawDisable == 0xFF (-1)
-    {
-        auto earlyReturnCmd = std::make_shared<NormalRegisterMechGenericEventCmd>();
-        auto earlyReturnData = std::make_shared<MechDataBuffer>(5);
-        if (earlyReturnData != nullptr) {
-            earlyReturnData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            earlyReturnData->AppendUint8(0xFF);  // attached = 0xFF (-1), skip attached logic
-            earlyReturnData->AppendUint8(0xFF);  // yawDisable = 0xFF, triggers early return
-            earlyReturnData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            earlyReturnData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
-            earlyReturnCmd->Unmarshal(earlyReturnData);
-            listener->MechGenericEventNotify(earlyReturnCmd);
-        }
-    }
+    NotifyMechGenericEvent(listener, provider.ConsumeIntegral<uint8_t>(), INVALID_STATE_BYTE,
+        INVALID_STATE_BYTE, provider);
 }
 
 void FuzzMechExecutionResultNotify(FuzzedDataProvider &provider)
@@ -394,7 +304,8 @@ void FuzzMechWheelZoomNotify(FuzzedDataProvider &provider)
         auto nonzeroData = std::make_shared<MechDataBuffer>(5);
         if (nonzeroData != nullptr) {
             nonzeroData->AppendUint32(provider.ConsumeIntegral<uint32_t>());
-            nonzeroData->AppendInt16(provider.ConsumeIntegralInRange<int16_t>(1, 32767));  // non-zero degree
+            nonzeroData->AppendInt16(
+                provider.ConsumeIntegralInRange<int16_t>(1, MAX_NONZERO_DEGREE));  // non-zero degree
             nonzeroData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
             nonzeroCmd->Unmarshal(nonzeroData);
             listener->MechWheelZoomNotify(nonzeroCmd);

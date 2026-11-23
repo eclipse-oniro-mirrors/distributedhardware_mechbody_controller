@@ -29,6 +29,12 @@
 namespace OHOS {
 using namespace OHOS::MechBodyController;
 namespace {
+constexpr int32_t MIN_MECH_TYPE = static_cast<int32_t>(MechType::UNKNOWN);
+constexpr int32_t MAX_MECH_TYPE = static_cast<int32_t>(MechType::WHEEL_BASE);
+constexpr size_t MAC_ADDR_LENGTH = 17;
+} // namespace
+
+namespace {
 const std::string TAG = "BluetoothStateAdapterFuzzTest";
 }
 
@@ -75,8 +81,8 @@ void NotifyMechStateFuzzTest(const uint8_t *data, size_t size)
     MechConnectManager& connectMgr = MechConnectManager::GetInstance();
     MechInfo testMech;
     testMech.mechId = fdp.ConsumeIntegral<int32_t>();
-    testMech.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
-    testMech.mac = fdp.ConsumeRandomLengthString(17);
+    testMech.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE));
+    testMech.mac = fdp.ConsumeRandomLengthString(MAC_ADDR_LENGTH);
     testMech.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
     testMech.isFirstConnect = fdp.ConsumeBool();
     testMech.deviceIdentifier = fdp.ConsumeIntegral<uint32_t>();
@@ -107,8 +113,8 @@ void SetMechanicStatesFuzzTest(const uint8_t *data, size_t size)
     MechConnectManager& connectMgr = MechConnectManager::GetInstance();
     MechInfo testMech;
     testMech.mechId = fdp.ConsumeIntegral<int32_t>();
-    testMech.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
-    testMech.mac = fdp.ConsumeRandomLengthString(17);
+    testMech.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE));
+    testMech.mac = fdp.ConsumeRandomLengthString(MAC_ADDR_LENGTH);
     testMech.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
 
     connectMgr.AddMechInfo(testMech);

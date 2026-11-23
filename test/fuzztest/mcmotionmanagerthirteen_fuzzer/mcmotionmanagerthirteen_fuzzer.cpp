@@ -142,6 +142,16 @@ void FuzzHandleMechPlacementChangeWithPhoneState(FuzzedDataProvider &provider)
 
 }  // namespace
 
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    FuzzHandlePhoneOffMultipleCalls,
+    FuzzHandlePhoneOnMultipleCalls,
+    FuzzMMIKeyEventAndCreateKeyEvent,
+    FuzzHandlePhoneOffAndOnCombination,
+    FuzzHandleMechPlacementChangeWithPhoneState,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
@@ -149,25 +159,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider provider(data, size);
-    uint8_t choice = provider.ConsumeIntegral<uint8_t>() % 5;
-    switch (choice) {
-        case 0:
-            FuzzHandlePhoneOffMultipleCalls(provider);
-            break;
-        case 1:
-            FuzzHandlePhoneOnMultipleCalls(provider);
-            break;
-        case 2:
-            FuzzMMIKeyEventAndCreateKeyEvent(provider);
-            break;
-        case 3:
-            FuzzHandlePhoneOffAndOnCombination(provider);
-            break;
-        case 4:
-            FuzzHandleMechPlacementChangeWithPhoneState(provider);
-            break;
-        default:
-            break;
+    uint8_t choice = provider.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (choice < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[choice](fdp);
     }
     return 0;
 }

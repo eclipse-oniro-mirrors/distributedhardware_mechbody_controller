@@ -28,6 +28,11 @@
 namespace OHOS {
 using namespace OHOS::MechBodyController;
 namespace {
+constexpr int32_t MIN_MECH_TYPE = static_cast<int32_t>(MechType::UNKNOWN);
+constexpr int32_t MAX_MECH_TYPE = static_cast<int32_t>(MechType::WHEEL_BASE);
+} // namespace
+
+namespace {
 const std::string TAG = "McConnectManagerThreeFuzzTest";
 
 // Fuzz test constants
@@ -100,7 +105,7 @@ void NotifyMechConnectFuzzTest(const uint8_t *data, size_t size)
 
     MechInfo mechInfo;
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
-    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
+    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE));
     mechInfo.mechName = fdp.ConsumeRandomLengthString();
     mechInfo.mac = fdp.ConsumeRandomLengthString();
     mechInfo.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
@@ -129,7 +134,7 @@ void SetMechTypeFuzzTest(const uint8_t *data, size_t size)
 
     MechInfo mechInfo;
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
-    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
+    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE));
     mechInfo.mechName = fdp.ConsumeRandomLengthString();
     mechInfo.mac = fdp.ConsumeRandomLengthString();
     mechInfo.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
@@ -140,7 +145,7 @@ void SetMechTypeFuzzTest(const uint8_t *data, size_t size)
     MechConnectManager::GetInstance().AddMechInfo(mechInfo);
 
     int32_t targetMechId = fdp.ConsumeIntegral<int32_t>();
-    MechType newMechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
+    MechType newMechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE));
     MechConnectManager::GetInstance().SetMechType(targetMechId, newMechType);
 
     MechConnectManager::GetInstance().CleanMechInfo();
@@ -162,7 +167,7 @@ void McConnectManagerCombinedFuzzTest(const uint8_t *data, size_t size)
 
     MechInfo mechInfo;
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
-    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
+    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE));
     mechInfo.mechName = fdp.ConsumeRandomLengthString();
     mechInfo.mac = fdp.ConsumeRandomLengthString();
     mechInfo.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
@@ -210,7 +215,7 @@ void NotifyMechDisconnectFuzzTest(const uint8_t *data, size_t size)
 
     MechInfo mechInfo;
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
-    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
+    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE));
     mechInfo.mechName = fdp.ConsumeRandomLengthString();
     mechInfo.mac = fdp.ConsumeRandomLengthString();
     mechInfo.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));

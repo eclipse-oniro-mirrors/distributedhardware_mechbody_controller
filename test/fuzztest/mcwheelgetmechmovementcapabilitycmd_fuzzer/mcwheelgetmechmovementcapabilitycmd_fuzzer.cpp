@@ -32,6 +32,11 @@ using namespace OHOS::MechBodyController;
 
 namespace {
 constexpr uint32_t MAX_CAPABILITY_BIT = 2006;
+constexpr int BITS_PER_BYTE = 8;
+constexpr int LAST_BIT_OFFSET = 7;
+constexpr int SHIFT_ONE_BYTE = 8;
+constexpr int SHIFT_TWO_BYTES = 16;
+constexpr int SHIFT_THREE_BYTES = 24;
 
 void FuzzSetCapability(FuzzedDataProvider &fdp)
 {
@@ -45,8 +50,8 @@ void FuzzSetCapabilityBitValue(FuzzedDataProvider &fdp)
     WheelGetMechMovementCapabilityCmd cmd;
     uint8_t value = fdp.ConsumeIntegral<uint8_t>();
     uint8_t index = fdp.ConsumeIntegral<uint8_t>();
-    uint32_t maxStart = (MAX_CAPABILITY_BIT > static_cast<uint32_t>(index) * 8 + 7)
-        ? (MAX_CAPABILITY_BIT - static_cast<uint32_t>(index) * 8 - 8) : 0;
+    uint32_t maxStart = (static_cast<uint32_t>(index) * BITS_PER_BYTE + LAST_BIT_OFFSET < MAX_CAPABILITY_BIT)
+        ? (MAX_CAPABILITY_BIT - static_cast<uint32_t>(index) * BITS_PER_BYTE - BITS_PER_BYTE) : 0;
     uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, maxStart);
     cmd.SetCapabilityBitValue(start, value, index);
 }
@@ -89,9 +94,9 @@ void FuzzOnDataReceiveValidStructure(FuzzedDataProvider &fdp)
 
         /* Append start as 4 bytes */
         buffer.push_back(static_cast<uint8_t>(start & 0xFF));
-        buffer.push_back(static_cast<uint8_t>((start >> 8) & 0xFF));
-        buffer.push_back(static_cast<uint8_t>((start >> 16) & 0xFF));
-        buffer.push_back(static_cast<uint8_t>((start >> 24) & 0xFF));
+        buffer.push_back(static_cast<uint8_t>((start >> SHIFT_ONE_BYTE) & 0xFF));
+        buffer.push_back(static_cast<uint8_t>((start >> SHIFT_TWO_BYTES) & 0xFF));
+        buffer.push_back(static_cast<uint8_t>((start >> SHIFT_THREE_BYTES) & 0xFF));
 
         /* Append len */
         buffer.push_back(len);
@@ -128,9 +133,9 @@ void FuzzOnDataReceiveInvalidLen(FuzzedDataProvider &fdp)
     buf[0] = 1; /* segNum = 1 */
     uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, MAX_CAPABILITY_BIT - 1);
     buf[1] = static_cast<uint8_t>(start & 0xFF);
-    buf[2] = static_cast<uint8_t>((start >> 8) & 0xFF);
-    buf[3] = static_cast<uint8_t>((start >> 16) & 0xFF);
-    buf[4] = static_cast<uint8_t>((start >> 24) & 0xFF);
+    buf[2] = static_cast<uint8_t>((start >> SHIFT_ONE_BYTE) & 0xFF);
+    buf[3] = static_cast<uint8_t>((start >> SHIFT_TWO_BYTES) & 0xFF);
+    buf[4] = static_cast<uint8_t>((start >> SHIFT_THREE_BYTES) & 0xFF);
     buf[5] = fdp.ConsumeIntegralInRange<uint8_t>(33, 255); /* Invalid len > 32 */
     cmd.OnDataReceive(buf);
 }
@@ -199,14 +204,27 @@ void FuzzMarshalAndBasicOps(FuzzedDataProvider &fdp)
     /* Test SetCapabilityBitValue */
     uint8_t value = fdp.ConsumeIntegral<uint8_t>();
     uint8_t index = fdp.ConsumeIntegral<uint8_t>();
-    uint32_t maxStart = (MAX_CAPABILITY_BIT > static_cast<uint32_t>(index) * 8 + 7)
-        ? (MAX_CAPABILITY_BIT - static_cast<uint32_t>(index) * 8 - 8) : 0;
+    uint32_t maxStart = (static_cast<uint32_t>(index) * BITS_PER_BYTE + LAST_BIT_OFFSET < MAX_CAPABILITY_BIT)
+        ? (MAX_CAPABILITY_BIT - static_cast<uint32_t>(index) * BITS_PER_BYTE - BITS_PER_BYTE) : 0;
     uint32_t start = fdp.ConsumeIntegralInRange<uint32_t>(0, maxStart);
     cmd.SetCapabilityBitValue(start, value, index);
 
     /* Test GetResult */
     cmd.GetResult();
 }
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    FuzzSetCapability,
+    FuzzSetCapabilityBitValue,
+    FuzzOnDataReceive,
+    FuzzOnDataReceiveValidStructure,
+    FuzzOnDataReceiveInvalidSegNum,
+    FuzzOnDataReceiveInvalidLen,
+    FuzzTriggerResponse,
+    FuzzTriggerResponseWithCallback,
+    FuzzMarshalAndBasicOps,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
 } // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
@@ -216,37 +234,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 9;
-    switch (funcIndex) {
-        case 0:
-            FuzzSetCapability(fdp);
-            break;
-        case 1:
-            FuzzSetCapabilityBitValue(fdp);
-            break;
-        case 2:
-            FuzzOnDataReceive(fdp);
-            break;
-        case 3:
-            FuzzOnDataReceiveValidStructure(fdp);
-            break;
-        case 4:
-            FuzzOnDataReceiveInvalidSegNum(fdp);
-            break;
-        case 5:
-            FuzzOnDataReceiveInvalidLen(fdp);
-            break;
-        case 6:
-            FuzzTriggerResponse(fdp);
-            break;
-        case 7:
-            FuzzTriggerResponseWithCallback(fdp);
-            break;
-        case 8:
-            FuzzMarshalAndBasicOps(fdp);
-            break;
-        default:
-            break;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](fdp);
     }
     return 0;
 }

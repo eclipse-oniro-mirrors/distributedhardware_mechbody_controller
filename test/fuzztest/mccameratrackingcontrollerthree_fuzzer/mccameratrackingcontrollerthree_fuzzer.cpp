@@ -162,11 +162,15 @@ void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
 
 } // namespace
 
-extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv)
-{
-    (void)std::atexit(CleanupCameraTrackingController);
-    return 0;
-}
+namespace {
+struct ControllerCleaner {
+    ~ControllerCleaner()
+    {
+        CleanupCameraTrackingController();
+    }
+};
+const ControllerCleaner g_controllerCleaner;
+} // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {

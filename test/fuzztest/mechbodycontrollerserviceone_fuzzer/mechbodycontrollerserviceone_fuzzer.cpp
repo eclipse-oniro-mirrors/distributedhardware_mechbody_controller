@@ -127,6 +127,19 @@ void JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(FuzzedDataProv
 }
 
 /* Fuzzer entry point */
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    OHOS::UnRegisterAttachStateChangeCallbackFuzzTest,
+    OHOS::OnAttachStateChangeFuzzTest,
+    OHOS::OnDeviceConnectedFuzzTest,
+    OHOS::GetAttachedDevicesFuzzTest,
+    OHOS::SetTrackingEnabledFuzzTest,
+    OHOS::GetAppNameByTokenIdFuzzTest,
+    OHOS::JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest,
+    OHOS::JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
@@ -134,34 +147,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
     FuzzedDataProvider fdp(data, size);
     OHOS::g_isSystemApp = fdp.ConsumeBool();
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 8;
-    switch (funcIndex) {
-        case 0:
-            OHOS::UnRegisterAttachStateChangeCallbackFuzzTest(fdp);
-            break;
-        case 1:
-            OHOS::OnAttachStateChangeFuzzTest(fdp);
-            break;
-        case 2:
-            OHOS::OnDeviceConnectedFuzzTest(fdp);
-            break;
-        case 3:
-            OHOS::GetAttachedDevicesFuzzTest(fdp);
-            break;
-        case 4:
-            OHOS::SetTrackingEnabledFuzzTest(fdp);
-            break;
-        case 5:
-            OHOS::GetAppNameByTokenIdFuzzTest(fdp);
-            break;
-        case 6:
-            OHOS::JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest(fdp);
-            break;
-        case 7:
-            OHOS::JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(fdp);
-            break;
-        default:
-            break;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](fdp);
     }
     return 0;
 }

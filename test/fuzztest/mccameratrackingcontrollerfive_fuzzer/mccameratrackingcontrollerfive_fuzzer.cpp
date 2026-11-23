@@ -140,34 +140,26 @@ void FuzzOnReceiveEvent(FuzzedDataProvider &fdp)
 
 } // namespace
 
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    FuzzOnFocusTrackingInfo,
+    FuzzOnCaptureSessionConfiged,
+    FuzzOnZoomInfoChange,
+    FuzzOnSessionStatusChange,
+    FuzzOnMetadataInfo,
+    FuzzOnReceiveEvent,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
         return 0;
     }
     FuzzedDataProvider fdp(data, size);
-    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % 6;
-    switch (funcIndex) {
-        case 0:
-            FuzzOnFocusTrackingInfo(fdp);
-            break;
-        case 1:
-            FuzzOnCaptureSessionConfiged(fdp);
-            break;
-        case 2:
-            FuzzOnZoomInfoChange(fdp);
-            break;
-        case 3:
-            FuzzOnSessionStatusChange(fdp);
-            break;
-        case 4:
-            FuzzOnMetadataInfo(fdp);
-            break;
-        case 5:
-            FuzzOnReceiveEvent(fdp);
-            break;
-        default:
-            break;
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](fdp);
     }
     return 0;
 }

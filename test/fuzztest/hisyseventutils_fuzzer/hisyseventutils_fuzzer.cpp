@@ -19,6 +19,13 @@
 #include <vector>
 
 using namespace OHOS::MechBodyController;
+namespace {
+constexpr int32_t MIN_MECH_TYPE = static_cast<int32_t>(MechType::UNKNOWN);
+constexpr int32_t MAX_MECH_TYPE = static_cast<int32_t>(MechType::WHEEL_BASE);
+constexpr int32_t MIN_START_RESULT_CODE = 0;
+constexpr int32_t MAX_START_RESULT_CODE = 2;
+} // namespace
+
 
 namespace {
 void FuzzDotReportFocustrackingStartEvent(FuzzedDataProvider &fdp)
@@ -32,9 +39,9 @@ void FuzzDotReportMechKitStartEvent(FuzzedDataProvider &fdp)
     MechKitStartReportInfo reportInfo;
     int32_t connectTypeValue = fdp.ConsumeIntegralInRange<int32_t>(-1, 1);
     reportInfo.connectType = static_cast<ConnectType>(connectTypeValue);
-    int32_t deviceTypeValue = fdp.ConsumeIntegralInRange<int32_t>(-1, 2);
+    int32_t deviceTypeValue = fdp.ConsumeIntegralInRange<int32_t>(MIN_MECH_TYPE, MAX_MECH_TYPE);
     reportInfo.deviceType = static_cast<MechType>(deviceTypeValue);
-    int32_t resultCodeValue = fdp.ConsumeIntegralInRange<int32_t>(0, 2);
+    int32_t resultCodeValue = fdp.ConsumeIntegralInRange<int32_t>(MIN_START_RESULT_CODE, MAX_START_RESULT_CODE);
     reportInfo.mechkitStartResultCode = static_cast<MechKitStartResCode>(resultCodeValue);
     reportInfo.deviceName = fdp.ConsumeRandomLengthString();
     reportInfo.deviceModel = fdp.ConsumeRandomLengthString();

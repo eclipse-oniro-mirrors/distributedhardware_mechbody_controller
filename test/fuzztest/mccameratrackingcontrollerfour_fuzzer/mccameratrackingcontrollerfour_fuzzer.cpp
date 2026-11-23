@@ -32,6 +32,10 @@ McCameraTrackingController* g_cameraTrackingController = nullptr;
 
 constexpr uint32_t MIN_GET_COUNT = 1;
 constexpr uint32_t MAX_GET_COUNT = 5;
+constexpr uint8_t MIN_CAMERA_TYPE = static_cast<uint8_t>(CameraType::FRONT);
+constexpr uint8_t MAX_CAMERA_TYPE = static_cast<uint8_t>(CameraType::OTHER);
+constexpr uint8_t MIN_CONFIDENCE_LEVEL = static_cast<uint8_t>(ConfidenceLevel::LOST);
+constexpr uint8_t MAX_CONFIDENCE_LEVEL = static_cast<uint8_t>(ConfidenceLevel::LOW);
 
 void InitCameraTrackingController()
 {
@@ -85,8 +89,8 @@ void FuzzHandleTrackingFrame(const uint8_t *data, size_t size)
     TrackingFrameParams params;
     params.targetId = provider.ConsumeIntegral<uint16_t>();
     params.timeStamp = provider.ConsumeIntegral<uint64_t>();
-    params.cameraType = static_cast<CameraType>(provider.ConsumeIntegralInRange<uint8_t>(1, 3));
-    params.confidence = static_cast<ConfidenceLevel>(provider.ConsumeIntegralInRange<uint8_t>(0, 3));
+    params.cameraType = static_cast<CameraType>(provider.ConsumeIntegralInRange<uint8_t>(MIN_CAMERA_TYPE, MAX_CAMERA_TYPE));
+    params.confidence = static_cast<ConfidenceLevel>(provider.ConsumeIntegralInRange<uint8_t>(MIN_CONFIDENCE_LEVEL, MAX_CONFIDENCE_LEVEL));
     params.objectType = provider.ConsumeIntegral<uint8_t>();
     params.roi.x = provider.ConsumeFloatingPoint<float>();
     params.roi.y = provider.ConsumeFloatingPoint<float>();
@@ -108,8 +112,8 @@ void FuzzCalcRoiRotate(const uint8_t *data, size_t size)
     auto params = std::make_shared<TrackingFrameParams>();
     params->targetId = provider.ConsumeIntegral<uint16_t>();
     params->timeStamp = provider.ConsumeIntegral<uint64_t>();
-    params->cameraType = static_cast<CameraType>(provider.ConsumeIntegralInRange<uint8_t>(1, 3));
-    params->confidence = static_cast<ConfidenceLevel>(provider.ConsumeIntegralInRange<uint8_t>(0, 3));
+    params->cameraType = static_cast<CameraType>(provider.ConsumeIntegralInRange<uint8_t>(MIN_CAMERA_TYPE, MAX_CAMERA_TYPE));
+    params->confidence = static_cast<ConfidenceLevel>(provider.ConsumeIntegralInRange<uint8_t>(MIN_CONFIDENCE_LEVEL, MAX_CONFIDENCE_LEVEL));
     params->objectType = provider.ConsumeIntegral<uint8_t>();
     params->roi.x = provider.ConsumeFloatingPoint<float>();
     params->roi.y = provider.ConsumeFloatingPoint<float>();
@@ -134,8 +138,8 @@ void FuzzBodyRoiOffset(const uint8_t *data, size_t size)
     auto params = std::make_shared<TrackingFrameParams>();
     params->targetId = provider.ConsumeIntegral<uint16_t>();
     params->timeStamp = provider.ConsumeIntegral<uint64_t>();
-    params->cameraType = static_cast<CameraType>(provider.ConsumeIntegralInRange<uint8_t>(1, 3));
-    params->confidence = static_cast<ConfidenceLevel>(provider.ConsumeIntegralInRange<uint8_t>(0, 3));
+    params->cameraType = static_cast<CameraType>(provider.ConsumeIntegralInRange<uint8_t>(MIN_CAMERA_TYPE, MAX_CAMERA_TYPE));
+    params->confidence = static_cast<ConfidenceLevel>(provider.ConsumeIntegralInRange<uint8_t>(MIN_CONFIDENCE_LEVEL, MAX_CONFIDENCE_LEVEL));
     params->objectType = provider.ConsumeIntegral<uint8_t>();
     params->roi.x = provider.ConsumeFloatingPoint<float>();
     params->roi.y = provider.ConsumeFloatingPoint<float>();

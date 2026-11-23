@@ -36,6 +36,17 @@
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
+namespace {
+constexpr uint8_t MECH_EVENT_TYPE_COUNT = 5;
+constexpr uint8_t ADDRESS_TYPE_COUNT = 3;
+constexpr uint8_t EXEC_RESULT_COUNT = 7;
+constexpr uint8_t TRACKING_LAYOUT_COUNT = 4;
+constexpr uint8_t ROTATION_AXIS_LIMITED_COUNT = 3;
+constexpr int32_t MIN_ATTACHMENT_STATE = static_cast<int32_t>(AttachmentState::UNKNOWN);
+constexpr int32_t MAX_ATTACHMENT_STATE = static_cast<int32_t>(AttachmentState::DETACHED);
+constexpr uint32_t MIN_QUERY_COUNT = 1;
+constexpr uint32_t MAX_QUERY_COUNT = 3;
+} // namespace
 
 static bool g_isSystemApp = true;
 bool Security::AccessToken::TokenIdKit::IsSystemAppByFullTokenID(uint64_t tokenId)
@@ -148,7 +159,7 @@ void NotifyMechEventFuzzTest(const uint8_t *data, size_t size)
 
     FuzzedDataProvider fdp(data, size);
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
-    uint8_t eventIdx = fdp.ConsumeIntegral<uint8_t>() % 5;
+    uint8_t eventIdx = fdp.ConsumeIntegral<uint8_t>() % MECH_EVENT_TYPE_COUNT;
     MechEventType mechEventType = static_cast<MechEventType>(eventIdx);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
@@ -297,7 +308,7 @@ void SubscribeCallbackFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint8_t eventIdx = fdp.ConsumeIntegral<uint8_t>() % 5;
+    uint8_t eventIdx = fdp.ConsumeIntegral<uint8_t>() % MECH_EVENT_TYPE_COUNT;
     MechEventType mechEventType = static_cast<MechEventType>(eventIdx);
     sptr<IRemoteObject> callback;
 
@@ -312,7 +323,7 @@ void UnSubscribeCallbackFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint8_t eventIdx = fdp.ConsumeIntegral<uint8_t>() % 5;
+    uint8_t eventIdx = fdp.ConsumeIntegral<uint8_t>() % MECH_EVENT_TYPE_COUNT;
     MechEventType mechEventType = static_cast<MechEventType>(eventIdx);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
@@ -330,7 +341,7 @@ void ConnectDeviceFuzzTest(const uint8_t *data, size_t size)
     auto addrInfo = std::make_shared<AddressInfo>();
     if (addrInfo != nullptr) {
         addrInfo->address = fdp.ConsumeRandomLengthString();
-        addrInfo->addressType = static_cast<AddressType>(fdp.ConsumeIntegral<uint8_t>() % 3);
+        addrInfo->addressType = static_cast<AddressType>(fdp.ConsumeIntegral<uint8_t>() % ADDRESS_TYPE_COUNT);
     }
     auto params = std::make_shared<ConnectParam>();
     if (params != nullptr) {
@@ -366,7 +377,7 @@ void NotifyOperationResultFuzzTest(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
     std::string cmdId = fdp.ConsumeRandomLengthString();
-    uint8_t resultIdx = fdp.ConsumeIntegral<uint8_t>() % 7;
+    uint8_t resultIdx = fdp.ConsumeIntegral<uint8_t>() % EXEC_RESULT_COUNT;
     ExecResult result = static_cast<ExecResult>(resultIdx);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
@@ -382,7 +393,7 @@ void NotifyConnectResultFuzzTest(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     uint32_t tokenId = fdp.ConsumeIntegral<uint32_t>();
     std::string cmdId = fdp.ConsumeRandomLengthString();
-    int32_t stateIdx = fdp.ConsumeIntegralInRange<int32_t>(-1, 1);
+    int32_t stateIdx = fdp.ConsumeIntegralInRange<int32_t>(MIN_ATTACHMENT_STATE, MAX_ATTACHMENT_STATE);
     AttachmentState state = static_cast<AttachmentState>(stateIdx);
     MechInfo mechInfo;
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
@@ -399,7 +410,7 @@ void SetTrackingLayoutFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint8_t layoutIdx = fdp.ConsumeIntegral<uint8_t>() % 4;
+    uint8_t layoutIdx = fdp.ConsumeIntegral<uint8_t>() % TRACKING_LAYOUT_COUNT;
     CameraTrackingLayout layout = static_cast<CameraTrackingLayout>(layoutIdx);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
@@ -488,9 +499,12 @@ void OnRotationAxesStatusChangeFuzzTest(const uint8_t *data, size_t size)
     axesStatus.yawEnabled = fdp.ConsumeBool();
     axesStatus.rollEnabled = fdp.ConsumeBool();
     axesStatus.pitchEnabled = fdp.ConsumeBool();
-    axesStatus.yawLimited = static_cast<RotationAxisLimited>(fdp.ConsumeIntegral<uint32_t>() % 3);
-    axesStatus.rollLimited = static_cast<RotationAxisLimited>(fdp.ConsumeIntegral<uint32_t>() % 3);
-    axesStatus.pitchLimited = static_cast<RotationAxisLimited>(fdp.ConsumeIntegral<uint32_t>() % 3);
+    axesStatus.yawLimited = static_cast<RotationAxisLimited>(
+        fdp.ConsumeIntegral<uint32_t>() % ROTATION_AXIS_LIMITED_COUNT);
+    axesStatus.rollLimited = static_cast<RotationAxisLimited>(
+        fdp.ConsumeIntegral<uint32_t>() % ROTATION_AXIS_LIMITED_COUNT);
+    axesStatus.pitchLimited = static_cast<RotationAxisLimited>(
+        fdp.ConsumeIntegral<uint32_t>() % ROTATION_AXIS_LIMITED_COUNT);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     service.OnRotationAxesStatusChange(mechId, axesStatus);
@@ -604,7 +618,8 @@ void GetDeviceAdsorbStateFuzzTest(const uint8_t *data, size_t size)
 
     FuzzedDataProvider fdp(data, size);
     int32_t mechId = fdp.ConsumeIntegral<int32_t>();
-    AttachmentState state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+    AttachmentState state = static_cast<AttachmentState>(
+        fdp.ConsumeIntegralInRange<int32_t>(MIN_ATTACHMENT_STATE, MAX_ATTACHMENT_STATE));
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     service.GetDeviceAdsorbState(mechId, state);
@@ -668,7 +683,7 @@ void CleanMotionManagersFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t cleanCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+    uint32_t cleanCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_QUERY_COUNT, MAX_QUERY_COUNT);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     for (uint32_t i = 0; i < cleanCount; i++) {
@@ -683,7 +698,7 @@ void GetAttachedDevicesFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_QUERY_COUNT, MAX_QUERY_COUNT);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     for (uint32_t i = 0; i < queryCount; i++) {
@@ -699,7 +714,7 @@ void GetTrackingEnabledFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_QUERY_COUNT, MAX_QUERY_COUNT);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     for (uint32_t i = 0; i < queryCount; i++) {
@@ -715,7 +730,7 @@ void GetTrackingLayoutFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_QUERY_COUNT, MAX_QUERY_COUNT);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     for (uint32_t i = 0; i < queryCount; i++) {
@@ -746,7 +761,7 @@ void GetTrackingEnabledDeviceFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 3);
+    uint32_t queryCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_QUERY_COUNT, MAX_QUERY_COUNT);
 
     MechBodyControllerService& service = MechBodyControllerService::GetInstance();
     for (uint32_t i = 0; i < queryCount; i++) {
@@ -762,13 +777,15 @@ void OnAttachStateChangeFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    AttachmentState attachmentState = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+    AttachmentState attachmentState = static_cast<AttachmentState>(
+        fdp.ConsumeIntegralInRange<int32_t>(MIN_ATTACHMENT_STATE, MAX_ATTACHMENT_STATE));
     MechInfo mechInfo;
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
     mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegral<int32_t>());
     mechInfo.mechName = fdp.ConsumeRandomLengthString();
     mechInfo.mac = fdp.ConsumeRandomLengthString();
-    mechInfo.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+    mechInfo.state = static_cast<AttachmentState>(
+        fdp.ConsumeIntegralInRange<int32_t>(MIN_ATTACHMENT_STATE, MAX_ATTACHMENT_STATE));
     mechInfo.gattCoonectState = fdp.ConsumeBool();
     mechInfo.pairState = fdp.ConsumeBool();
     mechInfo.hidState = fdp.ConsumeBool();
@@ -777,6 +794,56 @@ void OnAttachStateChangeFuzzTest(const uint8_t *data, size_t size)
     service.OnAttachStateChange(attachmentState, mechInfo);
 }
 
+
+using FuzzTestFunc = void (*)(const uint8_t *, size_t);
+const FuzzTestFunc FUZZ_TEST_FUNCS[] = {
+    SetUserOperationFuzzTest,
+    SetUserOperationNullOpFuzzTest,
+    SetUserOperationJsonFuzzTest,
+    OnDeviceConnectedFuzzTest,
+    OnDeviceDisconnectedFuzzTest,
+    SetTrackingEnabledFuzzTest,
+    NotifyMechEventFuzzTest,
+    RotateByDegreeFuzzTest,
+    RotateByDegreeNullParamFuzzTest,
+    RotateToEulerAnglesFuzzTest,
+    RotateBySpeedFuzzTest,
+    RotateBySpeedNullParamFuzzTest,
+    StopMovingFuzzTest,
+    SearchTargetFuzzTest,
+    SearchTargetNullParamFuzzTest,
+    SubscribeCallbackFuzzTest,
+    UnSubscribeCallbackFuzzTest,
+    ConnectDeviceFuzzTest,
+    DisconnectDeviceFuzzTest,
+    NotifyOperationResultFuzzTest,
+    NotifyConnectResultFuzzTest,
+    SetTrackingLayoutFuzzTest,
+    GetMaxRotationTimeFuzzTest,
+    GetMaxRotationSpeedFuzzTest,
+    GetRotationAnglesFuzzTest,
+    GetRotationDegreeLimitsFuzzTest,
+    GetRotationAxesStatusFuzzTest,
+    OnRotationAxesStatusChangeFuzzTest,
+    RegisterAttachStateChangeCallbackFuzzTest,
+    RegisterTrackingEventCallbackFuzzTest,
+    UnRegisterTrackingEventCallbackFuzzTest,
+    RegisterCmdChannelFuzzTest,
+    RegisterRotationAxesStatusChangeCallbackFuzzTest,
+    UnRegisterRotationAxesStatusChangeCallbackFuzzTest,
+    GetDeviceAdsorbStateFuzzTest,
+    RegisterBatteryLevelCallbackFuzzTest,
+    UnRegisterBatteryLevelCallbackFuzzTest,
+    NotifyBatteryLevelChangeFuzzTest,
+    CleanMotionManagersFuzzTest,
+    GetAttachedDevicesFuzzTest,
+    GetTrackingEnabledFuzzTest,
+    GetTrackingLayoutFuzzTest,
+    SearchTargetEndFuzzTest,
+    GetTrackingEnabledDeviceFuzzTest,
+    OnAttachStateChangeFuzzTest,
+};
+constexpr size_t FUZZ_TEST_FUNC_COUNT = sizeof(FUZZ_TEST_FUNCS) / sizeof(FUZZ_TEST_FUNCS[0]);
 } // namespace OHOS
 
 /* Fuzzer entry point */
@@ -788,149 +855,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     OHOS::g_isSystemApp = fdp.ConsumeBool();
 
-    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % 45;
+    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % OHOS::FUZZ_TEST_FUNC_COUNT;
     auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
     const uint8_t *actionData = remaining.data();
     size_t actionSize = remaining.size();
-
-    switch (action) {
-        case 0:
-            OHOS::SetUserOperationFuzzTest(actionData, actionSize);
-            break;
-        case 1:
-            OHOS::SetUserOperationNullOpFuzzTest(actionData, actionSize);
-            break;
-        case 2:
-            OHOS::SetUserOperationJsonFuzzTest(actionData, actionSize);
-            break;
-        case 3:
-            OHOS::OnDeviceConnectedFuzzTest(actionData, actionSize);
-            break;
-        case 4:
-            OHOS::OnDeviceDisconnectedFuzzTest(actionData, actionSize);
-            break;
-        case 5:
-            OHOS::SetTrackingEnabledFuzzTest(actionData, actionSize);
-            break;
-        case 6:
-            OHOS::NotifyMechEventFuzzTest(actionData, actionSize);
-            break;
-        case 7:
-            OHOS::RotateByDegreeFuzzTest(actionData, actionSize);
-            break;
-        case 8:
-            OHOS::RotateByDegreeNullParamFuzzTest(actionData, actionSize);
-            break;
-        case 9:
-            OHOS::RotateToEulerAnglesFuzzTest(actionData, actionSize);
-            break;
-        case 10:
-            OHOS::RotateBySpeedFuzzTest(actionData, actionSize);
-            break;
-        case 11:
-            OHOS::RotateBySpeedNullParamFuzzTest(actionData, actionSize);
-            break;
-        case 12:
-            OHOS::StopMovingFuzzTest(actionData, actionSize);
-            break;
-        case 13:
-            OHOS::SearchTargetFuzzTest(actionData, actionSize);
-            break;
-        case 14:
-            OHOS::SearchTargetNullParamFuzzTest(actionData, actionSize);
-            break;
-        case 15:
-            OHOS::SubscribeCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 16:
-            OHOS::UnSubscribeCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 17:
-            OHOS::ConnectDeviceFuzzTest(actionData, actionSize);
-            break;
-        case 18:
-            OHOS::DisconnectDeviceFuzzTest(actionData, actionSize);
-            break;
-        case 19:
-            OHOS::NotifyOperationResultFuzzTest(actionData, actionSize);
-            break;
-        case 20:
-            OHOS::NotifyConnectResultFuzzTest(actionData, actionSize);
-            break;
-        case 21:
-            OHOS::SetTrackingLayoutFuzzTest(actionData, actionSize);
-            break;
-        case 22:
-            OHOS::GetMaxRotationTimeFuzzTest(actionData, actionSize);
-            break;
-        case 23:
-            OHOS::GetMaxRotationSpeedFuzzTest(actionData, actionSize);
-            break;
-        case 24:
-            OHOS::GetRotationAnglesFuzzTest(actionData, actionSize);
-            break;
-        case 25:
-            OHOS::GetRotationDegreeLimitsFuzzTest(actionData, actionSize);
-            break;
-        case 26:
-            OHOS::GetRotationAxesStatusFuzzTest(actionData, actionSize);
-            break;
-        case 27:
-            OHOS::OnRotationAxesStatusChangeFuzzTest(actionData, actionSize);
-            break;
-        case 28:
-            OHOS::RegisterAttachStateChangeCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 29:
-            OHOS::RegisterTrackingEventCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 30:
-            OHOS::UnRegisterTrackingEventCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 31:
-            OHOS::RegisterCmdChannelFuzzTest(actionData, actionSize);
-            break;
-        case 32:
-            OHOS::RegisterRotationAxesStatusChangeCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 33:
-            OHOS::UnRegisterRotationAxesStatusChangeCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 34:
-            OHOS::GetDeviceAdsorbStateFuzzTest(actionData, actionSize);
-            break;
-        case 35:
-            OHOS::RegisterBatteryLevelCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 36:
-            OHOS::UnRegisterBatteryLevelCallbackFuzzTest(actionData, actionSize);
-            break;
-        case 37:
-            OHOS::NotifyBatteryLevelChangeFuzzTest(actionData, actionSize);
-            break;
-        case 38:
-            OHOS::CleanMotionManagersFuzzTest(actionData, actionSize);
-            break;
-        case 39:
-            OHOS::GetAttachedDevicesFuzzTest(actionData, actionSize);
-            break;
-        case 40:
-            OHOS::GetTrackingEnabledFuzzTest(actionData, actionSize);
-            break;
-        case 41:
-            OHOS::GetTrackingLayoutFuzzTest(actionData, actionSize);
-            break;
-        case 42:
-            OHOS::SearchTargetEndFuzzTest(actionData, actionSize);
-            break;
-        case 43:
-            OHOS::GetTrackingEnabledDeviceFuzzTest(actionData, actionSize);
-            break;
-        case 44:
-            OHOS::OnAttachStateChangeFuzzTest(actionData, actionSize);
-            break;
-        default:
-            break;
-    }
+    OHOS::FUZZ_TEST_FUNCS[action](actionData, actionSize);
     return 0;
 }

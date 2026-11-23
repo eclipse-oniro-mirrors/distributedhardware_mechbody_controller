@@ -25,6 +25,11 @@
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
+namespace {
+constexpr uint8_t MIN_CALL_COUNT = 1;
+constexpr uint8_t MAX_CALL_COUNT = 5;
+} // namespace
+
 
 void InitFuzzTest(const uint8_t *data, size_t size)
 {
@@ -68,7 +73,7 @@ void UnInitWithoutInitFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint8_t callCount = fdp.ConsumeIntegralInRange<uint8_t>(1, 5);
+    uint8_t callCount = fdp.ConsumeIntegralInRange<uint8_t>(MIN_CALL_COUNT, MAX_CALL_COUNT);
     McBatteryManager manager;
     for (uint8_t i = 0; i < callCount; i++) {
         manager.UnInit();
@@ -83,7 +88,7 @@ void SetIsChargingFuzzTest(const uint8_t *data, size_t size)
 
     FuzzedDataProvider fdp(data, size);
     bool isCharging = fdp.ConsumeBool();
-    uint32_t checkCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 5);
+    uint32_t checkCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_CALL_COUNT, MAX_CALL_COUNT);
 
     McBatteryManager manager;
     manager.SetIsCharging(isCharging);
@@ -99,7 +104,7 @@ void GetCachedBatteryLevelFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t checkCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 5);
+    uint32_t checkCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_CALL_COUNT, MAX_CALL_COUNT);
 
     McBatteryManager manager;
     for (uint32_t i = 0; i < checkCount; i++) {
@@ -153,7 +158,7 @@ void CacheBatteryLevelViaPublicTest(const uint8_t *data, size_t size)
 
     FuzzedDataProvider fdp(data, size);
     bool isCharging = fdp.ConsumeBool();
-    uint32_t checkCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 5);
+    uint32_t checkCount = fdp.ConsumeIntegralInRange<uint32_t>(MIN_CALL_COUNT, MAX_CALL_COUNT);
 
     McBatteryManager manager;
     manager.SetIsCharging(isCharging);
@@ -189,42 +194,28 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         return 0;
     }
     FuzzedDataProvider fdp(data, size);
-    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % 9;
+    uint8_t action = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
     auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
     const uint8_t *actionData = remaining.data();
     size_t actionSize = remaining.size();
 
-    switch (action) {
-        case 0:
-            OHOS::InitFuzzTest(actionData, actionSize);
-            break;
-        case 1:
-            OHOS::InitTwiceFuzzTest(actionData, actionSize);
-            break;
-        case 2:
-            OHOS::UnInitWithoutInitFuzzTest(actionData, actionSize);
-            break;
-        case 3:
-            OHOS::SetIsChargingFuzzTest(actionData, actionSize);
-            break;
-        case 4:
-            OHOS::GetCachedBatteryLevelFuzzTest(actionData, actionSize);
-            break;
-        case 5:
-            OHOS::IsObserverRegisteredFuzzTest(actionData, actionSize);
-            break;
-        case 6:
-            OHOS::NotifyBatteryLevelChangeViaStateTest(actionData, actionSize);
-            break;
-        case 7:
-            OHOS::CacheBatteryLevelViaPublicTest(actionData, actionSize);
-            break;
-        case 8:
-            OHOS::RequestBatteryLevelFuzzTest(actionData, actionSize);
-            break;
-        default:
-            break;
+    if (action < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[action](actionData, actionSize);
     }
     return 0;
 }
+using FuzzFunc = void (*)(const uint8_t *, size_t);
+const FuzzFunc FUZZ_FUNCS[] = {
+    OHOS::InitFuzzTest,
+    OHOS::InitTwiceFuzzTest,
+    OHOS::UnInitWithoutInitFuzzTest,
+    OHOS::SetIsChargingFuzzTest,
+    OHOS::GetCachedBatteryLevelFuzzTest,
+    OHOS::IsObserverRegisteredFuzzTest,
+    OHOS::NotifyBatteryLevelChangeViaStateTest,
+    OHOS::CacheBatteryLevelViaPublicTest,
+    OHOS::RequestBatteryLevelFuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 } // namespace OHOS
