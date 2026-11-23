@@ -20,6 +20,8 @@
 #include "../test_log.h"
 #include "mechbody_controller_service.h"
 #include "mc_connect_manager.h"
+#include "notification_utils.h"
+#include "mc_action_gimbal_feature_control_cmd.h"
 #include "camera_metadata_info.h"
 #include <chrono>
 #include <thread>
@@ -51,6 +53,21 @@ void McCameraTrackingControllerTwoTest::SetUp()
 {
     DTEST_LOG << "McCameraTrackingControllerTwoTest::SetUp" << std::endl;
 }
+
+// 捕获ActionGimbalFeatureControl下发命令的发送适配器，用于验证被测函数下发的云台控制参数
+class ActionControlCaptureAdapter : public TransportSendAdapter {
+public:
+    ActionControlCaptureAdapter() : TransportSendAdapter(true) {}
+    ~ActionControlCaptureAdapter() override = default;
+
+    int32_t SendCommand(const std::shared_ptr<CommandBase> &cmd, int32_t delayMs = 0) override
+    {
+        sentCmds.push_back(cmd);
+        return ERR_OK;
+    }
+
+    std::vector<std::shared_ptr<CommandBase>> sentCmds;
+};
 /**
  * @tc.name  : OnMetadataInfo_002
  * @tc.number: OnMetadataInfo_002
@@ -81,12 +98,20 @@ HWTEST_F(McCameraTrackingControllerTwoTest, OnCaptureSessionConfiged_001, TestSi
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
     controller.currentCameraInfo_->tokenId = 1001;
+    controller.appSettings.erase(1001);
 
     CameraStandard::CaptureSessionInfo sessionInfo;
+    // callerTokenId是OnCaptureSessionConfiged内部tokenId的实际来源（会覆盖currentCameraInfo_->tokenId），
+    // 未设置时默认为0，将导致跟踪开关逻辑被跳过
+    sessionInfo.callerTokenId = 1001;
     sessionInfo.position = 1;
 
     int32_t ret = controller.OnCaptureSessionConfiged(sessionInfo);
     EXPECT_EQ(ret, ERR_OK);
+    // tokenId非0且无应用设置时，默认开启跟踪：生成appSettings并置currentTrackingEnable为true
+    ASSERT_NE(controller.appSettings.find(1001), controller.appSettings.end());
+    EXPECT_TRUE(controller.appSettings[1001]->isTrackingEnabled);
+    EXPECT_TRUE(controller.currentCameraInfo_->currentTrackingEnable.load());
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest OnCaptureSessionConfiged_001 end" << std::endl;
 }
@@ -109,10 +134,16 @@ HWTEST_F(McCameraTrackingControllerTwoTest, OnCaptureSessionConfiged_002, TestSi
     controller.appSettings[1001] = setting;
 
     CameraStandard::CaptureSessionInfo sessionInfo;
+    // callerTokenId是OnCaptureSessionConfiged内部tokenId的实际来源（会覆盖currentCameraInfo_->tokenId）
+    sessionInfo.callerTokenId = 1001;
     sessionInfo.position = 1;
 
     int32_t ret = controller.OnCaptureSessionConfiged(sessionInfo);
     EXPECT_EQ(ret, ERR_OK);
+    // 已存在的应用设置isTrackingEnabled为false时，应按设置关闭currentTrackingEnable
+    ASSERT_NE(controller.appSettings.find(1001), controller.appSettings.end());
+    EXPECT_FALSE(controller.appSettings[1001]->isTrackingEnabled);
+    EXPECT_FALSE(controller.currentCameraInfo_->currentTrackingEnable.load());
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest OnCaptureSessionConfiged_002 end" << std::endl;
 }
@@ -1046,12 +1077,18 @@ HWTEST_F(McCameraTrackingControllerTwoTest, UpdateMotionsWithTrackingData_003, T
     DTEST_LOG << "McCameraTrackingControllerTwoTest UpdateMotionsWithTrackingData_003 begin" << std::endl;
 
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
+    controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
+    // 预置哨兵值：空参数分支应提前返回，不更新最近跟踪帧时间戳
+    constexpr int64_t sentinelFrameTimeNs = 123456789;
+    controller.lastTrackingFrameTimeNs_.store(sentinelFrameTimeNs);
 
     std::shared_ptr<TrackingFrameParams> params = nullptr;
     int32_t trackingObjectId = 100;
 
     int32_t ret = controller.UpdateMotionsWithTrackingData(params, trackingObjectId);
     EXPECT_EQ(ret, ERR_OK);
+    // 空参数提前返回：不应更新最近跟踪帧时间戳，也不应下发跟踪数据
+    EXPECT_EQ(controller.lastTrackingFrameTimeNs_.load(), sentinelFrameTimeNs);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest UpdateMotionsWithTrackingData_003 end" << std::endl;
 }
@@ -1068,12 +1105,17 @@ HWTEST_F(McCameraTrackingControllerTwoTest, UpdateMotionsWithTrackingData_004, T
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
     controller.currentCameraInfo_->currentTrackingEnable = false;
+    // 预置哨兵值：跟踪关闭分支应提前返回，不更新最近跟踪帧时间戳
+    constexpr int64_t sentinelFrameTimeNs = 123456789;
+    controller.lastTrackingFrameTimeNs_.store(sentinelFrameTimeNs);
 
     std::shared_ptr<TrackingFrameParams> params = std::make_shared<TrackingFrameParams>();
     int32_t trackingObjectId = 100;
 
     int32_t ret = controller.UpdateMotionsWithTrackingData(params, trackingObjectId);
     EXPECT_EQ(ret, ERR_OK);
+    // 跟踪关闭提前返回：不应更新最近跟踪帧时间戳，也不应下发SetMechCameraTrackingFrame
+    EXPECT_EQ(controller.lastTrackingFrameTimeNs_.load(), sentinelFrameTimeNs);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest UpdateMotionsWithTrackingData_004 end" << std::endl;
 }
@@ -1112,10 +1154,19 @@ HWTEST_F(McCameraTrackingControllerTwoTest, OnTrackingEvent_001, TestSize.Level1
     controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
     controller.currentCameraInfo_->tokenId = 7777;
     controller.appSettings.erase(7777);
+    // 预置反向状态，验证用户开启跟踪事件的副作用
+    NotificationUtils::isTrackingEnabled_ = false;
+    controller.isAutoCentering_ = true;
 
     int32_t mechId = 100;
     int32_t ret = controller.OnTrackingEvent(mechId, TrackingEvent::CAMERA_TRACKING_USER_ENABLED);
     EXPECT_EQ(ret, ERR_OK);
+    // CAMERA_TRACKING_USER_ENABLED事件应复位自动居中标志并更新通知跟踪使能状态
+    EXPECT_FALSE(controller.isAutoCentering_.load());
+    EXPECT_TRUE(NotificationUtils::isTrackingEnabled_.load());
+    // 恢复默认状态，避免影响其他用例
+    NotificationUtils::isTrackingEnabled_ = true;
+    controller.isAutoCentering_ = false;
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest OnTrackingEvent_001 end" << std::endl;
 }
@@ -1194,9 +1245,31 @@ HWTEST_F(McCameraTrackingControllerTwoTest, UpdateActionControl_001, TestSize.Le
 
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     controller.eventHandler_ = nullptr;
+    controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
+    controller.lastTrackingFrame_ = nullptr;
+
+    // 注册捕获适配器的MotionManager并预置已入舱机械信息，验证云台控制命令下发
+    int32_t mechId = 9101;
+    auto adapter = std::make_shared<ActionControlCaptureAdapter>();
+    auto motionMgr = std::make_shared<MotionManager>(adapter, mechId);
+    MechBodyControllerService::GetInstance().motionManagers_[mechId] = motionMgr;
+    MechInfo mechInfo;
+    mechInfo.mechId = mechId;
+    mechInfo.mac = "update_action_control_001_mac";
+    mechInfo.state = AttachmentState::ATTACHED;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
 
     int32_t ret = controller.UpdateActionControl();
     EXPECT_EQ(ret, ERR_OK);
+    // 无跟踪目标时不发起控制请求，controlReq为0
+    ASSERT_EQ(adapter->sentCmds.size(), 1);
+    auto cmd = std::static_pointer_cast<ActionGimbalFeatureControlCmd>(adapter->sentCmds[0]);
+    EXPECT_EQ(cmd->GetParams().controlReq, 0);
+
+    // 清理测试数据
+    MechBodyControllerService::GetInstance().motionManagers_.erase(mechId);
+    std::string mac = mechInfo.mac;
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(mac);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest UpdateActionControl_001 end" << std::endl;
 }
@@ -1211,12 +1284,41 @@ HWTEST_F(McCameraTrackingControllerTwoTest, UpdateActionControl_002, TestSize.Le
     DTEST_LOG << "McCameraTrackingControllerTwoTest UpdateActionControl_002 begin" << std::endl;
 
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
+    controller.eventHandler_ = nullptr;
     controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
     controller.currentCameraInfo_->currentTrackingEnable = true;
     controller.currentCameraInfo_->trackingTargetNum = 1;
+    // 预置最近跟踪帧且时间戳未超时，满足控制条件
+    controller.lastTrackingFrame_ = std::make_shared<TrackingFrameParams>();
+    controller.lastTrackingFrame_->timeStamp = static_cast<uint64_t>(
+        std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now())
+            .time_since_epoch().count());
+
+    // 注册捕获适配器的MotionManager并预置已入舱机械信息
+    int32_t mechId = 9102;
+    auto adapter = std::make_shared<ActionControlCaptureAdapter>();
+    auto motionMgr = std::make_shared<MotionManager>(adapter, mechId);
+    MechBodyControllerService::GetInstance().motionManagers_[mechId] = motionMgr;
+    MechInfo mechInfo;
+    mechInfo.mechId = mechId;
+    mechInfo.mac = "update_action_control_002_mac";
+    mechInfo.state = AttachmentState::ATTACHED;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
 
     int32_t ret = controller.UpdateActionControl();
     EXPECT_EQ(ret, ERR_OK);
+    // trackingTargetNum等条件满足时应发起控制请求，controlReq及三轴控制均为1
+    ASSERT_EQ(adapter->sentCmds.size(), 1);
+    auto cmd = std::static_pointer_cast<ActionGimbalFeatureControlCmd>(adapter->sentCmds[0]);
+    EXPECT_EQ(cmd->GetParams().controlReq, 1);
+    EXPECT_EQ(cmd->GetParams().yawControl, 1);
+    EXPECT_EQ(cmd->GetParams().pitchControl, 1);
+    EXPECT_EQ(cmd->GetParams().rollControl, 1);
+
+    // 清理测试数据
+    MechBodyControllerService::GetInstance().motionManagers_.erase(mechId);
+    std::string mac = mechInfo.mac;
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(mac);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest UpdateActionControl_002 end" << std::endl;
 }
@@ -1521,8 +1623,40 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SearchTargetRotateFinish_002, TestSi
     controller.currentCameraInfo_->searchTargetNapiCmdId = "cmd123";
     std::string cmdId = "cmd456";
 
+    std::atomic<bool> notified = false;
+    std::atomic<bool> waiterReady = false;
+    std::thread waiter([&controller, &notified, &waiterReady]() {
+        std::unique_lock<std::mutex> lock(controller.searchTargetMutex_);
+        waiterReady = true;
+        auto res = controller.searchTargetCv_.wait_for(lock, std::chrono::milliseconds(100));
+        notified = res == std::cv_status::no_timeout;
+    });
+    while (!waiterReady) {
+        std::this_thread::yield();
+    }
+
+    // cmdId与搜索任务名不匹配时直接返回，不应触发条件变量通知
     controller.SearchTargetRotateFinish(cmdId);
-    EXPECT_EQ(controller.currentCameraInfo_->searchTargetNapiCmdId, "cmd123");
+    waiter.join();
+    EXPECT_FALSE(notified.load());
+
+    // 正向对照：cmdId匹配（SEARCH_TARGET_TASK_NAME，定义于被测cpp）时应触发条件变量通知
+    std::atomic<bool> readyForMatch = false;
+    std::thread matchWaiter([&controller, &notified, &readyForMatch]() {
+        std::unique_lock<std::mutex> lock(controller.searchTargetMutex_);
+        readyForMatch = true;
+        auto res = controller.searchTargetCv_.wait_for(lock, std::chrono::seconds(2));
+        notified = res == std::cv_status::no_timeout;
+    });
+    while (!readyForMatch) {
+        std::this_thread::yield();
+    }
+    controller.SearchTargetRotateFinish("searchTargetTaskName");
+    matchWaiter.join();
+    EXPECT_TRUE(notified.load());
+
+    // 清理测试状态
+    controller.currentCameraInfo_->searchTargetNapiCmdId = "";
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest SearchTargetRotateFinish_002 end" << std::endl;
 }
@@ -1539,9 +1673,15 @@ HWTEST_F(McCameraTrackingControllerTwoTest, SearchTargetStop_002, TestSize.Level
     McCameraTrackingController& controller = McCameraTrackingController::GetInstance();
     controller.currentCameraInfo_ = std::make_shared<CameraInfo>();
     controller.currentCameraInfo_->searchingTarget = false;
+    controller.currentCameraInfo_->tokenId = 9999;
+    controller.currentCameraInfo_->currentTrackingEnable = false;
+    controller.appSettings.erase(9999);
 
     controller.SearchTargetStop();
     EXPECT_FALSE(controller.currentCameraInfo_->searchingTarget);
+    // searchingTarget为false时提前返回：不应恢复跟踪使能，也不应创建应用设置
+    EXPECT_FALSE(controller.currentCameraInfo_->currentTrackingEnable.load());
+    EXPECT_EQ(controller.appSettings.find(9999), controller.appSettings.end());
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest SearchTargetStop_002 end" << std::endl;
 }
@@ -2171,10 +2311,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AddXOffset_001, TestSize.Level1)
     bool isBody = false;
 
     controller.AddXOffset(roi, cameraType, offsetX, offsetY, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // FRONT人脸：yOffset = 0.1 - 0.1 = 0，roi.y = 0.5；xOffset = -0.1，roi.x = 0.4
+    EXPECT_FLOAT_EQ(roi.x, 0.4f);
+    EXPECT_FLOAT_EQ(roi.y, 0.5f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AddXOffset_001 end" << std::endl;
 }
@@ -2197,10 +2336,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AddXOffset_002, TestSize.Level1)
     bool isBody = false;
 
     controller.AddXOffset(roi, cameraType, offsetX, offsetY, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // BACK人脸：yOffset = 0.1 + 0.1 = 0.2，roi.y = 0.7；xOffset = -0.1，roi.x = 0.4
+    EXPECT_FLOAT_EQ(roi.x, 0.4f);
+    EXPECT_FLOAT_EQ(roi.y, 0.7f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AddXOffset_002 end" << std::endl;
 }
@@ -2223,10 +2361,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AddXOffset_003, TestSize.Level1)
     bool isBody = true;
 
     controller.AddXOffset(roi, cameraType, offsetX, offsetY, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // FRONT人身体：yOffset = 0.1 + 0.1 = 0.2，roi.y = 0.7；xOffset = -0.1，roi.x = 0.4
+    EXPECT_FLOAT_EQ(roi.x, 0.4f);
+    EXPECT_FLOAT_EQ(roi.y, 0.7f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AddXOffset_003 end" << std::endl;
 }
@@ -2249,10 +2386,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AddXOffset_004, TestSize.Level1)
     bool isBody = true;
 
     controller.AddXOffset(roi, cameraType, offsetX, offsetY, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // BACK人身体：yOffset = 0.1 - 0.1 = 0，roi.y = 0.5；xOffset = -0.1，roi.x = 0.4
+    EXPECT_FLOAT_EQ(roi.x, 0.4f);
+    EXPECT_FLOAT_EQ(roi.y, 0.5f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AddXOffset_004 end" << std::endl;
 }
@@ -2275,10 +2411,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustYOffset_Back_001, TestSize.Lev
     float y = 0.0f;
 
     controller.AdjustYOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // BACK相机yOffset=0，roi.y落在虚拟中心0.5不变；xOffset=0，roi.x=0.5
+    EXPECT_FLOAT_EQ(roi.x, 0.5f);
+    EXPECT_FLOAT_EQ(roi.y, 0.5f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustYOffset_Back_001 end" << std::endl;
 }
@@ -2301,10 +2436,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustYOffset_VirtualCenter_001, Tes
     float y = 0.1f;
 
     controller.AdjustYOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // FRONT相机virtualCenterY=0.4，roi.y(0.8)>0.4：yOffset=(0.8-0.4)/(1.2-0.4)*0.5=0.25，截断为0.2，roi.y=0.7；xOffset=0，roi.x不变
+    EXPECT_FLOAT_EQ(roi.x, 0.8f);
+    EXPECT_FLOAT_EQ(roi.y, 0.7f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustYOffset_VirtualCenter_001 end" << std::endl;
 }
@@ -2327,10 +2461,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustYOffset_VirtualCenter_002, Tes
     float y = -0.1f;
 
     controller.AdjustYOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // FRONT相机virtualCenterY=0.6，roi.y(0.2)<0.6：yOffset=(0.2-0.6)/(0.6-0.2)*0.5=-0.5，截断为-0.2，roi.y=0.3；xOffset=0，roi.x不变
+    EXPECT_FLOAT_EQ(roi.x, 0.2f);
+    EXPECT_FLOAT_EQ(roi.y, 0.3f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustYOffset_VirtualCenter_002 end" << std::endl;
 }
@@ -2353,10 +2486,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_Front_001, TestSize.Le
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // FRONT人脸：yOffset = 0 - 0.1 = -0.1，roi.y = 0.4；xOffset = 0，roi.x处于虚拟中心0.5不变
+    EXPECT_FLOAT_EQ(roi.x, 0.5f);
+    EXPECT_FLOAT_EQ(roi.y, 0.4f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustXOffset_Front_001 end" << std::endl;
 }
@@ -2379,10 +2511,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_Back_001, TestSize.Lev
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // BACK人脸：yOffset = 0 + 0.1 = 0.1，roi.y = 0.6；xOffset = 0，roi.x处于虚拟中心0.5不变
+    EXPECT_FLOAT_EQ(roi.x, 0.5f);
+    EXPECT_FLOAT_EQ(roi.y, 0.6f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustXOffset_Back_001 end" << std::endl;
 }
@@ -2405,10 +2536,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_BodyFront_001, TestSiz
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // FRONT人身体：yOffset = 0 + 0.1 = 0.1，roi.y = 0.6；xOffset = 0，roi.x处于虚拟中心0.5不变
+    EXPECT_FLOAT_EQ(roi.x, 0.5f);
+    EXPECT_FLOAT_EQ(roi.y, 0.6f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustXOffset_BodyFront_001 end" << std::endl;
 }
@@ -2431,10 +2561,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_BodyBack_001, TestSize
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // BACK人身体：yOffset = 0 - 0.1 = -0.1，roi.y = 0.4；xOffset = 0，roi.x处于虚拟中心0.5不变
+    EXPECT_FLOAT_EQ(roi.x, 0.5f);
+    EXPECT_FLOAT_EQ(roi.y, 0.4f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustXOffset_BodyBack_001 end" << std::endl;
 }
@@ -2457,10 +2586,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_VirtualCenter_001, Tes
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // xOffset = -offsetY = 0，虚拟中心0.5，roi.x(0.8)>0.5：xOffset=(0.8-0.5)/(1.2-0.5)*0.5≈0.214，截断为0.2，roi.x=0.7；yOffset=0.1，roi.y=0.6
+    EXPECT_FLOAT_EQ(roi.x, 0.7f);
+    EXPECT_FLOAT_EQ(roi.y, 0.6f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustXOffset_VirtualCenter_001 end" << std::endl;
 }
@@ -2483,10 +2611,9 @@ HWTEST_F(McCameraTrackingControllerTwoTest, AdjustXOffset_VirtualCenter_002, Tes
     float y = 0.0f;
 
     controller.AdjustXOffset(roi, cameraType, x, y, isFace, isBody);
-    EXPECT_GE(roi.x, 0.0f);
-    EXPECT_LE(roi.x, 1.0f);
-    EXPECT_GE(roi.y, 0.0f);
-    EXPECT_LE(roi.y, 1.0f);
+    // xOffset = -offsetY = 0，虚拟中心0.5，roi.x(0.2)<0.5：xOffset=(0.2-0.5)/(0.5-0.2)*0.5=-0.5，截断为-0.2，roi.x=0.3；yOffset=-0.1，roi.y=0.4
+    EXPECT_FLOAT_EQ(roi.x, 0.3f);
+    EXPECT_FLOAT_EQ(roi.y, 0.4f);
 
     DTEST_LOG << "McCameraTrackingControllerTwoTest AdjustXOffset_VirtualCenter_002 end" << std::endl;
 }
