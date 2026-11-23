@@ -99,9 +99,9 @@ void FuzzMechExecutionResultNotifyWithCompleted(FuzzedDataProvider &provider)
     auto cmd = std::make_shared<RegisterMechControlResultCmd>();
     auto data = std::make_shared<MechDataBuffer>(3);
     if (data != nullptr) {
-        data->AppendUint8(0x02);
-        data->AppendUint8(0x01);
-        data->AppendUint8(0x00);
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         cmd->Unmarshal(data);
         listener->MechExecutionResultNotify(cmd);
     }
@@ -135,9 +135,9 @@ void FuzzMechWheelZoomNotifyWithZeroDegree(FuzzedDataProvider &provider)
     auto cmd = std::make_shared<RegisterMechWheelDataCmd>();
     auto data = std::make_shared<MechDataBuffer>(5);
     if (data != nullptr) {
-        data->AppendUint32(0);
-        data->AppendInt16(0);
-        data->AppendUint8(0);
+        data->AppendUint32(provider.ConsumeIntegral<uint32_t>());
+        data->AppendInt16(provider.ConsumeIntegral<int16_t>());
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         cmd->Unmarshal(data);
         listener->MechWheelZoomNotify(cmd);
     }
@@ -168,8 +168,8 @@ void FuzzMechTrackingStatusNotifyWithEnabled(FuzzedDataProvider &provider)
     auto cmd = std::make_shared<RegisterMechTrackingEnableCmd>();
     auto data = std::make_shared<MechDataBuffer>(2);
     if (data != nullptr) {
-        data->AppendUint8(0x01);
-        data->AppendUint8(0x00);
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        data->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         cmd->Unmarshal(data);
         listener->MechTrackingStatusNotify(cmd);
     }

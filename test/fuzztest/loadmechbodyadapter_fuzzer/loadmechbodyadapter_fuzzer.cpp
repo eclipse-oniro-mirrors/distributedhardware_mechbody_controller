@@ -39,7 +39,9 @@ enum class TestFunctionId {
     FUZZ_CLEAR_MULTIPLE_TIMES = 13,
     FUZZ_RESET_MULTIPLE_TIMES = 14,
     FUZZ_RUN_WITH_VARYING_CALLBACKS = 15,
-    TEST_FUNCTION_ID_MAX = 15,
+    FUZZ_REGISTER_BACKGROUND_TRACKING = 16,
+    FUZZ_REGISTER_BACKGROUND_TRACKING_NULL_CALLBACK = 17,
+    TEST_FUNCTION_ID_MAX = 17,
 };
 
 void FuzzInitTrackingCore(FuzzedDataProvider &provider)
@@ -293,6 +295,22 @@ void FuzzRunWithVaryingCallbacks(FuzzedDataProvider &provider)
     MechbodyAdapterUtils::Clear();
 }
 
+void FuzzRegisterBackgroundTracking(FuzzedDataProvider &provider)
+{
+    int8_t deviceType = provider.ConsumeIntegral<int8_t>();
+    GetBackgroundXYFn callback = [](TrackingFrameParams params) {
+        (void)params;
+    };
+    MechbodyAdapterUtils::RegisterBackgroundTracking(callback, deviceType);
+}
+
+void FuzzRegisterBackgroundTrackingNullCallback(FuzzedDataProvider &provider)
+{
+    int8_t deviceType = provider.ConsumeIntegral<int8_t>();
+    GetBackgroundXYFn callback = nullptr;
+    MechbodyAdapterUtils::RegisterBackgroundTracking(callback, deviceType);
+}
+
 void RunFuzzTest(FuzzedDataProvider &provider, int32_t testFunctionId)
 {
     switch (static_cast<TestFunctionId>(testFunctionId)) {
@@ -319,6 +337,12 @@ void RunFuzzTest(FuzzedDataProvider &provider, int32_t testFunctionId)
             break;
         case TestFunctionId::FUZZ_RUN_WITH_VARYING_CALLBACKS:
             FuzzRunWithVaryingCallbacks(provider);
+            break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING:
+            FuzzRegisterBackgroundTracking(provider);
+            break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING_NULL_CALLBACK:
+            FuzzRegisterBackgroundTrackingNullCallback(provider);
             break;
         default:
             break;
@@ -356,6 +380,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
             break;
         case TestFunctionId::FUZZ_RUN_WITH_CALLBACK:
             FuzzRunWithCallback(provider);
+            break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING:
+            FuzzRegisterBackgroundTracking(provider);
+            break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING_NULL_CALLBACK:
+            FuzzRegisterBackgroundTrackingNullCallback(provider);
             break;
         default:
             RunFuzzTest(provider, testFunctionId);

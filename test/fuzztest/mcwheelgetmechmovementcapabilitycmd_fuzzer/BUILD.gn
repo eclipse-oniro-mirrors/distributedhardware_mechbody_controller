@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Huawei Device Co., Ltd.
+# Copyright (c) 2026 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,12 +17,12 @@ import("//build/test.gni")
 import(
     "//foundation/distributedhardware/mechbody_controller/mechbody.gni")
 
-ohos_fuzztest("JsMechManagerFuzzTest") {
+ohos_fuzztest("McWheelGetMechMovementCapabilityCmdFuzzTest") {
   module_out_path = "mechbody_controller/mechbody_controller/"
   mechbody_path =
       "//foundation/distributedhardware/mechbody_controller"
   fuzz_config_file =
-      "${mechbody_path}/test/fuzztest/jsmechmanager_fuzzer"
+      "${mechbody_path}/test/fuzztest/mcwheelgetmechmovementcapabilitycmd_fuzzer"
   include_dirs = [
     "${mechbody_path}/services/include",
     "${mechbody_path}/services/include/dotReport",
@@ -35,8 +35,8 @@ ohos_fuzztest("JsMechManagerFuzzTest") {
     "${mechbody_path}/services/include/transport/command/0x02",
     "${mechbody_path}/services/include/transport/command/0x03",
     "${mechbody_path}/interface/inner_api",
-    "${mechbody_path}/interface/napi/mech_manager",
     "${mechbody_path}/services/include/utils",
+    "${mechbody_path}/services/include/swing",
   ]
   cflags = [
     "-g",
@@ -45,22 +45,18 @@ ohos_fuzztest("JsMechManagerFuzzTest") {
     "-fno-omit-frame-pointer",
   ]
   sources = [
-    "${mechbody_path}/interface/napi/mech_manager/js_mech_manager.cpp",
-    "${mechbody_path}/interface/napi/mech_manager/js_mech_manager_client.cpp",
-    "${mechbody_path}/interface/napi/mech_manager/js_mech_manager_service.cpp",
-    "${mechbody_path}/interface/napi/mech_manager/js_mech_manager_stub.cpp",
-    "${mechbody_path}/test/fuzztest/jsmechmanager_fuzzer/jsmechmanager_fuzzer.cpp",
+    "${mechbody_path}/services/src/transport/command/mc_command_base.cpp",
+    "${mechbody_path}/services/src/transport/mc_data_buffer.cpp",
+    "${mechbody_path}/services/src/transport/command/0x03/mc_wheel_get_mech_movement_capability_cmd.cpp",
+    "${mechbody_path}/test/fuzztest/mcwheelgetmechmovementcapabilitycmd_fuzzer/mcwheelgetmechmovementcapabilitycmd_fuzzer.cpp",
   ]
 
-  deps = [
-    "${mechbody_path}/services:mechbody_service",
-    "${mechbody_path}/interface/napi/mech_manager:mechanicmanager_napi",
-  ]
+  deps = [ "${mechbody_path}/services:mechbody_service" ]
 
   external_deps = [
     "access_token:libaccesstoken_sdk",
-    "access_token:libtokenid_sdk",
-    "access_token:libtokensetproc_shared",
+    "access_token:libnativetoken",
+    "access_token:libtoken_setproc",
     "bluetooth:btframework",
     "camera_framework:camera_framework",
     "drivers_interface_camera:metadata",
@@ -80,12 +76,11 @@ ohos_fuzztest("JsMechManagerFuzzTest") {
     "sensor:sensor_interface_native",
     "window_manager:libdm_lite",
     "hisysevent:libhisysevent",
-    "napi:ace_napi",
-    "api_metrics:histogrammanager",
+    "distributed_notification_service:ans_innerkits",
   ]
 }
 
 group("fuzztest") {
   testonly = true
-  deps = [ ":JsMechManagerFuzzTest" ]
+  deps = [ ":McWheelGetMechMovementCapabilityCmdFuzzTest" ]
 }

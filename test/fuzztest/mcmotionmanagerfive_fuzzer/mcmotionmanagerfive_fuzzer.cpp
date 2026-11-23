@@ -144,7 +144,7 @@ void FuzzTryGetDeviceRealNameSync(FuzzedDataProvider &provider)
     InitMotionManager();
     uint32_t timeoutMs = provider.ConsumeIntegral<uint32_t>();
     g_motionManager->TryGetDeviceRealNameSync(timeoutMs);
-    g_motionManager->TryGetDeviceRealNameSync(0);
+    g_motionManager->TryGetDeviceRealNameSync(provider.ConsumeIntegral<uint32_t>());
 }
 
 void FuzzTryGetDeviceRealNameSyncWithTimeout(FuzzedDataProvider &provider)

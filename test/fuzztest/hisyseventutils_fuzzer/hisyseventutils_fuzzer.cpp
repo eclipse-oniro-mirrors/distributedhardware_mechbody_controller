@@ -35,7 +35,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     reportInfo.connectType = static_cast<ConnectType>(connectTypeValue);
     
     // Set deviceType (currently only PORTABLE_GIMBAL = 0)
-    int32_t deviceTypeValue = provider.ConsumeIntegralInRange<int32_t>(0, 0);
+    int32_t deviceTypeValue = provider.ConsumeIntegralInRange<int32_t>(-1, 2);
     reportInfo.deviceType = static_cast<MechType>(deviceTypeValue);
     
     // Set mechkitStartResultCode with all possible enum values

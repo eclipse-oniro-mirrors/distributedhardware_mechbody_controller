@@ -37,6 +37,7 @@ const std::string TAG = "BleSendManager";
 const std::string TARGET_DEVICE_NAME = "";
 const int32_t VALUE_TWO = 2;
 const int32_t VALUE_THREE = 3;
+const int32_t MECH_TYPE_COUNT = 4;
 std::unique_ptr<std::thread> delayThread;
 
 UUID SERVICE_UUID = UUID::FromString("15f1e600-a277-43fc-a484-dd39ef8a9100");
@@ -129,7 +130,7 @@ void CleanAllLocalInfoFuzzTest(const uint8_t *data, size_t size)
         mechInfo.mac = fdp.ConsumeRandomLengthString(randomLengthMin);
         mechInfo.mechName = fdp.ConsumeRandomLengthString(randomLengthMax);
         mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
-        mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegral<int32_t>());
+        mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegral<int32_t>() % MECH_TYPE_COUNT);
         mechInfo.gattCoonectState = fdp.ConsumeBool();
         MechConnectManager::GetInstance().AddMechInfo(mechInfo);
     }
@@ -206,7 +207,7 @@ void GetRealNameFuzzTest(const uint8_t *data, size_t size)
     mechInfo.mac = fdp.ConsumeRandomLengthString();
     mechInfo.mechName = fdp.ConsumeRandomLengthString();
     mechInfo.mechId = fdp.ConsumeIntegral<int32_t>();
-    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegral<int32_t>());
+    mechInfo.mechType = static_cast<MechType>(fdp.ConsumeIntegral<int32_t>() % MECH_TYPE_COUNT);
 
     bleSendManager.GetRealName(mechInfo);
     bleSendManager.NotifyGetRealName();

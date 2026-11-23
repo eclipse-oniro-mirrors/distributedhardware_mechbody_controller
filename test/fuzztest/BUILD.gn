@@ -27,6 +27,7 @@ group("fuzztest") {
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollerthree_fuzzer:McCameraTrackingControllerThreeFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollerfour_fuzzer:McCameraTrackingControllerFourFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollerfive_fuzzer:McCameraTrackingControllerFiveFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mccameratrackingcontrollersix_fuzzer:McCameraTrackingControllerSixFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerserviceone_fuzzer:MechBodyControllerServiceOneFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerservicetwo_fuzzer:MechBodyControllerServiceTwoFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerservicethree_fuzzer:MechBodyControllerServiceThreeFuzzTest",
@@ -60,8 +61,6 @@ group("fuzztest") {
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcgetmechprotocolvercmd_fuzzer:McGetMechProtocolVerCmdFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcsetmechdevicepairinginfocmd_fuzzer:McSetMechDevicePairingInfoCmdFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcsetmechdisconnectcmd_fuzzer:McSetMechDisconnectCmdFuzzTest",
-    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/jsmechmanager_fuzzer:JsMechManagerFuzzTest",
-    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechmanagerinner_fuzzer:MechManagerInnerFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/normalsetmechrotationbyspeedcmd_fuzzer:NormalSetMechRotationBySpeedCmdFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/normalsetmechrotationtolocationcmd_fuzzer:NormalSetMechRotationToLocationCmdFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/normalsetmechrotationtracecmd_fuzzer:NormalSetMechRotationTraceCmdFuzzTest",
@@ -91,5 +90,8 @@ group("fuzztest") {
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagereighteen_fuzzer:McMotionManagerEighteenFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagernineteen_fuzzer:McMotionManagerNineteenFuzzTest",
     "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagertwenty_fuzzer:McMotionManagerTwentyFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcmotionmanagertwentyone_fuzzer:McMotionManagerTwentyOneFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mechbodycontrollerserviceseven_fuzzer:MechBodyControllerServiceSevenFuzzTest",
+    "//foundation/distributedhardware/mechbody_controller/test/fuzztest/mcwheelgetmechmovementcapabilitycmd_fuzzer:McWheelGetMechMovementCapabilityCmdFuzzTest",
   ]
 }

@@ -22,12 +22,114 @@
 #include <string>
 
 #include "bluetooth_state_adapter.h"
+#include "mc_connect_manager.h"
 #include "mechbody_controller_log.h"
+#include "mechbody_controller_types.h"
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
 namespace {
 const std::string TAG = "BluetoothStateAdapterFuzzTest";
+}
+
+void UpdateBleStatusFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    bool isBTActive = fdp.ConsumeBool();
+    bool isBLEActive = fdp.ConsumeBool();
+
+    // UpdateBTState/UpdateBLEState trigger MechConnectManager::UpdateBleStatus
+    // with combined boolean logic - this is the core downstream business logic
+    BluetoothStateAdapter& adapter = BluetoothStateAdapter::GetInstance();
+    adapter.UpdateBTState(isBTActive);
+    adapter.UpdateBLEState(isBLEActive);
+
+    // Verify the downstream state through MechConnectManager
+    MechConnectManager& connectMgr = MechConnectManager::GetInstance();
+    (void)connectMgr.GetLocalDeviceBleStatus();
+
+    // Toggle to test different combined state transitions
+    adapter.UpdateBTState(!isBTActive);
+    (void)connectMgr.GetLocalDeviceBleStatus();
+
+    adapter.UpdateBLEState(!isBLEActive);
+    (void)connectMgr.GetLocalDeviceBleStatus();
+
+    // Verify adapter's combined state
+    (void)adapter.IsBluetoothActive();
+}
+
+void NotifyMechStateFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+
+    // Add a MechInfo entry first so NotifyMechState can find it
+    MechConnectManager& connectMgr = MechConnectManager::GetInstance();
+    MechInfo testMech;
+    testMech.mechId = fdp.ConsumeIntegral<int32_t>();
+    testMech.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
+    testMech.mac = fdp.ConsumeRandomLengthString(17);
+    testMech.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+    testMech.isFirstConnect = fdp.ConsumeBool();
+    testMech.deviceIdentifier = fdp.ConsumeIntegral<uint32_t>();
+
+    connectMgr.AddMechInfo(testMech);
+
+    bool isAttached = fdp.ConsumeBool();
+    bool forceDisconnect = fdp.ConsumeBool();
+    connectMgr.NotifyMechState(testMech.mechId, isAttached, forceDisconnect);
+
+    // Test GetMechBasicInfo after state update
+    MechInfo retrievedInfo;
+    (void)connectMgr.GetMechBasicInfo(testMech.mechId, retrievedInfo);
+
+    // Test GetMechState
+    (void)connectMgr.GetMechState(testMech.mechId);
+}
+
+void SetMechanicStatesFuzzTest(const uint8_t *data, size_t size)
+{
+    if ((data == nullptr) || (size == 0)) {
+        return;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+
+    // Add a MechInfo entry to operate on
+    MechConnectManager& connectMgr = MechConnectManager::GetInstance();
+    MechInfo testMech;
+    testMech.mechId = fdp.ConsumeIntegral<int32_t>();
+    testMech.mechType = static_cast<MechType>(fdp.ConsumeIntegralInRange<int32_t>(-1, 2));
+    testMech.mac = fdp.ConsumeRandomLengthString(17);
+    testMech.state = static_cast<AttachmentState>(fdp.ConsumeIntegralInRange<int32_t>(-1, 1));
+
+    connectMgr.AddMechInfo(testMech);
+
+    // Test GATT/Pair/HID state setters with fuzz data
+    std::string mac = testMech.mac;
+    bool gattState = fdp.ConsumeBool();
+    bool pairState = fdp.ConsumeBool();
+    bool hidState = fdp.ConsumeBool();
+
+    (void)connectMgr.SetMechanicGattState(mac, gattState);
+    (void)connectMgr.SetMechanicPairState(mac, pairState);
+    (void)connectMgr.SetMechanicHidState(mac, hidState);
+
+    // Read back and verify
+    bool outGattState = false;
+    bool outPairState = false;
+    bool outHidState = false;
+    (void)connectMgr.GetMechanicGattState(mac, outGattState);
+    (void)connectMgr.GetMechanicPairState(mac, outPairState);
+    (void)connectMgr.GetMechanicHidState(mac, outHidState);
 }
 
 void IsBluetoothActiveFuzzTest(const uint8_t *data, size_t size)
@@ -39,62 +141,6 @@ void IsBluetoothActiveFuzzTest(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     BluetoothStateAdapter& adapter = BluetoothStateAdapter::GetInstance();
 
-    // Use fuzz data to control the number of times to check the state
-    uint32_t checkCount = fdp.ConsumeIntegralInRange<uint32_t>(1, 10);
-    for (uint32_t i = 0; i < checkCount && i < size; i++) {
-        (void)adapter.IsBluetoothActive();
-    }
-}
-
-void UpdateBTStateFuzzTest(const uint8_t *data, size_t size)
-{
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
-    bool isBTActive = fdp.ConsumeBool();
-
-    BluetoothStateAdapter& adapter = BluetoothStateAdapter::GetInstance();
-    adapter.UpdateBTState(isBTActive);
-}
-
-void UpdateBLEStateFuzzTest(const uint8_t *data, size_t size)
-{
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
-    bool isBLEActive = fdp.ConsumeBool();
-
-    BluetoothStateAdapter& adapter = BluetoothStateAdapter::GetInstance();
-    adapter.UpdateBLEState(isBLEActive);
-}
-
-void BluetoothStateAdapterCombinedFuzzTest(const uint8_t *data, size_t size)
-{
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
-    BluetoothStateAdapter& adapter = BluetoothStateAdapter::GetInstance();
-
-    // Test various combinations of BT and BLE states
-    bool isBTActive = fdp.ConsumeBool();
-    bool isBLEActive = fdp.ConsumeBool();
-
-    adapter.UpdateBTState(isBTActive);
-    adapter.UpdateBLEState(isBLEActive);
-
-    // Check the combined state
-    (void)adapter.IsBluetoothActive();
-
-    // Toggle states
-    adapter.UpdateBTState(!isBTActive);
-    adapter.UpdateBLEState(!isBLEActive);
-
     (void)adapter.IsBluetoothActive();
 }
 
@@ -102,10 +148,10 @@ void BluetoothStateAdapterCombinedFuzzTest(const uint8_t *data, size_t size)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     /* Run your code on data */
+    OHOS::UpdateBleStatusFuzzTest(data, size);
+    OHOS::NotifyMechStateFuzzTest(data, size);
+    OHOS::SetMechanicStatesFuzzTest(data, size);
     OHOS::IsBluetoothActiveFuzzTest(data, size);
-    OHOS::UpdateBTStateFuzzTest(data, size);
-    OHOS::UpdateBLEStateFuzzTest(data, size);
-    OHOS::BluetoothStateAdapterCombinedFuzzTest(data, size);
     return 0;
 }
 } // namespace OHOS

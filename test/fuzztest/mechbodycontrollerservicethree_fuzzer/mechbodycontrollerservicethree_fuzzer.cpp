@@ -47,12 +47,12 @@ void RotateToEulerAnglesFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t duration = fdp.ConsumeIntegral<uint32_t>();
+    int32_t duration = fdp.ConsumeIntegral<int32_t>();
     float yaw = fdp.ConsumeIntegral<uint32_t>();
     float roll = fdp.ConsumeIntegral<uint32_t>();
     float pitch = fdp.ConsumeIntegral<uint32_t>();
     RotateToEulerAnglesParam rotateParam;
-    rotateParam.duration = static_cast<int32_t>(duration);
+    rotateParam.duration = duration;
     rotateParam.angles.yaw = yaw;
     rotateParam.angles.roll = roll;
     rotateParam.angles.pitch = pitch;
@@ -111,12 +111,12 @@ void RotateBySpeedFuzzTest(const uint8_t *data, size_t size)
     }
 
     FuzzedDataProvider fdp(data, size);
-    uint32_t duration = fdp.ConsumeIntegral<uint32_t>();
+    float duration = fdp.ConsumeFloatingPoint<float>();
     float yaw = fdp.ConsumeIntegral<uint32_t>();
     float roll = fdp.ConsumeIntegral<uint32_t>();
     float pitch = fdp.ConsumeIntegral<uint32_t>();
     RotateBySpeedParam rotateParam;
-    rotateParam.duration = static_cast<float>(duration);
+    rotateParam.duration = duration;
     rotateParam.speed.yawSpeed = yaw;
     rotateParam.speed.rollSpeed = roll;
     rotateParam.speed.pitchSpeed = pitch;

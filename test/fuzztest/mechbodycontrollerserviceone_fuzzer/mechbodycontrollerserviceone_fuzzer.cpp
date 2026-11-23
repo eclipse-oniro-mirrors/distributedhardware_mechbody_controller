@@ -35,9 +35,10 @@
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
+static bool g_isSystemApp = true;
 bool Security::AccessToken::TokenIdKit::IsSystemAppByFullTokenID(uint64_t tokenId)
 {
-    return true;
+    return g_isSystemApp;
 }
 
 void UnRegisterAttachStateChangeCallbackFuzzTest(const uint8_t *data, size_t size)
@@ -168,14 +169,20 @@ void JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(const uint8_t 
 /* Fuzzer entry point */
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    /* Run your code on data */
-    OHOS::UnRegisterAttachStateChangeCallbackFuzzTest(data, size);
-    OHOS::OnAttachStateChangeFuzzTest(data, size);
-    OHOS::OnDeviceConnectedFuzzTest(data, size);
-    OHOS::GetAttachedDevicesFuzzTest(data, size);
-    OHOS::SetTrackingEnabledFuzzTest(data, size);
-    OHOS::GetAppNameByTokenIdFuzzTest(data, size);
-    OHOS::JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest(data, size);
-    OHOS::JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(data, size);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+    /* Use ConsumeBool to decide whether IsSystemAppByFullTokenID returns true or false */
+    FuzzedDataProvider fdp(data, size);
+    OHOS::g_isSystemApp = fdp.ConsumeBool();
+    /* Run your code on remaining data */
+    OHOS::UnRegisterAttachStateChangeCallbackFuzzTest(data + 1, size - 1);
+    OHOS::OnAttachStateChangeFuzzTest(data + 1, size - 1);
+    OHOS::OnDeviceConnectedFuzzTest(data + 1, size - 1);
+    OHOS::GetAttachedDevicesFuzzTest(data + 1, size - 1);
+    OHOS::SetTrackingEnabledFuzzTest(data + 1, size - 1);
+    OHOS::GetAppNameByTokenIdFuzzTest(data + 1, size - 1);
+    OHOS::JudgeDeviceEnableSwitchAndReportFocustrackingStartEventFuzzTest(data + 1, size - 1);
+    OHOS::JudgeAppEnableSwitchAndReportFocustrackingStartEventFuzzTest(data + 1, size - 1);
     return 0;
 }

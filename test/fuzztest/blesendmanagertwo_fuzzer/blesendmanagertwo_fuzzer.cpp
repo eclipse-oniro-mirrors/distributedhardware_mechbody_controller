@@ -20,6 +20,7 @@
 #include <cstring>
 #include <fuzzer/FuzzedDataProvider.h>
 #include <string>
+#include <vector>
 
 #define private public
 #include "ble_send_manager.h"
@@ -49,11 +50,11 @@ void OnReceiveFuzzTest(const uint8_t *data, size_t size)
 
     FuzzedDataProvider fdp(data, size);
     uint8_t dataLen = fdp.ConsumeIntegral<uint8_t>();
-    uint8_t dataInput[dataLen];
+    std::vector<uint8_t> dataInput(dataLen);
     for (uint8_t i = 0; i < dataLen; i++) {
         dataInput[i] = fdp.ConsumeIntegral<uint8_t>();
     }
-    uint8_t *dataInputPtr = dataInput;
+    uint8_t *dataInputPtr = dataInput.data();
 
     BleSendManager& bleSendManager = BleSendManager::GetInstance();
     bleSendManager.OnReceive(dataInputPtr, dataLen);

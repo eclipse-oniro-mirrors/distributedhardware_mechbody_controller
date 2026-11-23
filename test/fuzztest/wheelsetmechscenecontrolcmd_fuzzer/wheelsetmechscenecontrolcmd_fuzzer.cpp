@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include <securec.h>
 #include <fuzzer/FuzzedDataProvider.h>
 #include "wheelsetmechscenecontrolcmd_fuzzer.h"
 #include "mc_wheel_set_mech_scene_control_cmd.h"
@@ -40,7 +41,8 @@ enum class TestFunctionId {
     FUZZ_TRIGGER_RESPONSE_WITH_VALID_DATA = 10,
     FUZZ_GET_ACTION_TYPE = 11,
     FUZZ_GET_RESULT = 12,
-    FUZZ_FULL_WORKFLOW = 13
+    FUZZ_FULL_WORKFLOW = 13,
+    FUZZ_TRIGGER_RESPONSE_WITH_FUZZ_DATA = 14
 };
 
 void FuzzConstructorLandscapePortraitSwitch(FuzzedDataProvider &provider)
@@ -149,6 +151,26 @@ void FuzzGetResult(FuzzedDataProvider &provider)
     (void)result;
 }
 
+void FuzzTriggerResponseWithFuzzData(FuzzedDataProvider &provider)
+{
+    uint8_t actionValue = provider.ConsumeIntegral<uint8_t>();
+    ActionType actionType = static_cast<ActionType>(actionValue);
+    WheelSetMechSceneControlCmd cmd(actionType);
+
+    size_t dataSize = provider.ConsumeIntegralInRange<size_t>(1, 64);
+    std::shared_ptr<MechDataBuffer> dataBuffer = std::make_shared<MechDataBuffer>(dataSize);
+    if (dataBuffer != nullptr) {
+        dataBuffer->SetRange(0, dataSize);
+        if (dataBuffer->Data() != nullptr) {
+            for (size_t i = 0; i < dataSize; i++) {
+                uint8_t byte = provider.ConsumeIntegral<uint8_t>();
+                memcpy_s(dataBuffer->Data() + i, dataSize - i, &byte, sizeof(byte));
+            }
+        }
+    }
+    cmd.TriggerResponse(dataBuffer);
+}
+
 void FuzzFullWorkflow(FuzzedDataProvider &provider)
 {
     int32_t actionValue = provider.ConsumeIntegralInRange<int32_t>(0, 3000);
@@ -178,7 +200,7 @@ void FuzzFullWorkflow(FuzzedDataProvider &provider)
 
 void RunFuzzTest(FuzzedDataProvider &provider)
 {
-    int32_t testFunctionId = provider.ConsumeIntegralInRange<int32_t>(0, 13);
+    int32_t testFunctionId = provider.ConsumeIntegralInRange<int32_t>(0, 14);
 
     switch (static_cast<TestFunctionId>(testFunctionId)) {
         case TestFunctionId::FUZZ_CONSTRUCTOR_LANDSCAPE_PORTRAIT_SWITCH:
@@ -222,6 +244,9 @@ void RunFuzzTest(FuzzedDataProvider &provider)
             break;
         case TestFunctionId::FUZZ_FULL_WORKFLOW:
             FuzzFullWorkflow(provider);
+            break;
+        case TestFunctionId::FUZZ_TRIGGER_RESPONSE_WITH_FUZZ_DATA:
+            FuzzTriggerResponseWithFuzzData(provider);
             break;
         default:
             break;

@@ -13,9 +13,24 @@
  * limitations under the License.
  */
 
-#ifndef MECHMANAGERINNER_FUZZER_H
-#define MECHMANAGERINNER_FUZZER_H
+#ifndef OHOS_MCCAMERATRACKINGCONTROLLERSIX_FUZZER_H
+#define OHOS_MCCAMERATRACKINGCONTROLLERSIX_FUZZER_H
 
-#define FUZZ_PROJECT_NAME "mechmanagerinner_fuzzer"
+#include "mc_camera_tracking_controller.h"
+#include "mc_motion_manager.h"
+#include "mechbody_controller_types.h"
+#include "mechbody_controller_enums.h"
 
-#endif // MECHMANAGERINNER_FUZZER_H
+namespace OHOS {
+namespace MechBodyController {
+
+class MockTransportSendAdapter : public TransportSendAdapter {
+public:
+    MockTransportSendAdapter() = default;
+    ~MockTransportSendAdapter() override = default;
+};
+
+} // namespace MechBodyController
+} // namespace OHOS
+
+#endif // OHOS_MCCAMERATRACKINGCONTROLLERSIX_FUZZER_H
