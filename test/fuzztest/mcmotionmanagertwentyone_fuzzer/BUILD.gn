@@ -42,7 +42,7 @@ ohos_fuzztest("McMotionManagerTwentyOneFuzzTest") {
   ]
 
   deps = [
-    "//foundation/distributedhardware/mechbody_controller/services:mechbody_service",
+    "//foundation/distributedhardware/mechbody_controller/services:mechbody_service_sources",
   ]
 
   external_deps = [

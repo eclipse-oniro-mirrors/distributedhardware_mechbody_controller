@@ -48,7 +48,7 @@ ohos_fuzztest("MechBodyControllerServiceSevenFuzzTest") {
     "${mechbody_path}/test/fuzztest/mechbodycontrollerserviceseven_fuzzer/mechbodycontrollerserviceseven_fuzzer.cpp",
   ]
 
-  deps = [ "${mechbody_path}/services:mechbody_service" ]
+  deps = [ "${mechbody_path}/services:mechbody_service_sources" ]
 
   external_deps = [
     "access_token:libaccesstoken_sdk",

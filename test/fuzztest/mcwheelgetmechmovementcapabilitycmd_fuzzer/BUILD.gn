@@ -51,7 +51,7 @@ ohos_fuzztest("McWheelGetMechMovementCapabilityCmdFuzzTest") {
     "${mechbody_path}/test/fuzztest/mcwheelgetmechmovementcapabilitycmd_fuzzer/mcwheelgetmechmovementcapabilitycmd_fuzzer.cpp",
   ]
 
-  deps = [ "${mechbody_path}/services:mechbody_service" ]
+  deps = [ "${mechbody_path}/services:mechbody_service_sources" ]
 
   external_deps = [
     "access_token:libaccesstoken_sdk",
