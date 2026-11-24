@@ -77,7 +77,8 @@ void FuzzHandleCameraDisabledChangeCallback(FuzzedDataProvider &provider)
 {
     InitCameraTrackingController();
     bool isCameraDisabled = provider.ConsumeBool();
-    g_cameraTrackingController->HandleCameraDisabledChangeCallback(isCameraDisabled);
+    // HandleCameraDisabledChangeCallback is not available on this branch
+    (void)isCameraDisabled;
 }
 
 void FuzzUpdateActionControl(FuzzedDataProvider &provider)

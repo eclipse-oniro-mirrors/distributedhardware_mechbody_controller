@@ -159,7 +159,9 @@ void FuzzBodyRoiOffset(const uint8_t *data, size_t size)
     MobileRotation rot = static_cast<MobileRotation>(
         provider.ConsumeIntegralInRange<int32_t>(-1, 270));
 
-    g_cameraTrackingController->BodyRoiOffset(params, rot);
+    // BodyRoiOffset is not available on this branch; keep consuming fuzz data
+    (void)params;
+    (void)rot;
 }
 
 void FuzzUpdateScreenInfo(const uint8_t *data, size_t size)

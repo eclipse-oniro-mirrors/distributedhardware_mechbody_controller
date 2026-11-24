@@ -161,7 +161,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     FuzzedDataProvider provider(data, size);
     uint8_t choice = provider.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
     if (choice < FUZZ_FUNC_COUNT) {
-        FUZZ_FUNCS[choice](fdp);
+        FUZZ_FUNCS[choice](provider);
     }
     return 0;
 }

@@ -198,14 +198,6 @@ void FuzzFullWorkflow(FuzzedDataProvider &provider)
     }
 }
 
-void RunFuzzTest(FuzzedDataProvider &provider)
-{
-    int32_t testFunctionId = provider.ConsumeIntegralInRange<int32_t>(0, FUZZ_FUNC_COUNT - 1);
-    if (testFunctionId < static_cast<int32_t>(FUZZ_FUNC_COUNT)) {
-        FUZZ_FUNCS[testFunctionId](provider);
-    }
-}
-
 using FuzzFunc = void (*)(FuzzedDataProvider &);
 const FuzzFunc FUZZ_FUNCS[] = {
     FuzzConstructorLandscapePortraitSwitch,
@@ -225,6 +217,15 @@ const FuzzFunc FUZZ_FUNCS[] = {
     FuzzTriggerResponseWithFuzzData,
 };
 constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
+void RunFuzzTest(FuzzedDataProvider &provider)
+{
+    int32_t testFunctionId = provider.ConsumeIntegralInRange<int32_t>(0, FUZZ_FUNC_COUNT - 1);
+    if (testFunctionId < static_cast<int32_t>(FUZZ_FUNC_COUNT)) {
+        FUZZ_FUNCS[testFunctionId](provider);
+    }
+}
+
 } // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)

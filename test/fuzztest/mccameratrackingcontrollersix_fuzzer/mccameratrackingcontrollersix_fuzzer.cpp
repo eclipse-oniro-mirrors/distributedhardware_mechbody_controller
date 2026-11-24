@@ -288,7 +288,8 @@ void FuzzOnFocusTrackingSpecificTypes(const uint8_t *data, size_t size)
 
     CameraStandard::FocusTrackingMetaInfo info;
     info.SetTrackingObjectId(fdp.ConsumeIntegral<int32_t>());
-    info.SetTrackingRegion(GenerateRandomRect(fdp));
+    CameraStandard::Rect trackingRegion = GenerateRandomRect(fdp);
+    info.SetTrackingRegion(trackingRegion);
     info.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(
         fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE)));
 
@@ -637,7 +638,8 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
     CameraStandard::FocusTrackingMetaInfo info1;
     info1.SetTrackingObjectId(
         fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_OBJECT_ID, MAX_TRACKING_OBJECT_ID));
-    info1.SetTrackingRegion(GenerateRandomRect(fdp));
+    CameraStandard::Rect trackingRegion1 = GenerateRandomRect(fdp);
+    info1.SetTrackingRegion(trackingRegion1);
     info1.SetTrackingMode(CameraStandard::FocusTrackingMode::FOCUS_TRACKING_MODE_AUTO);
 
     std::vector<sptr<CameraStandard::MetadataObject>> objects1;
@@ -650,7 +652,8 @@ void FuzzCinematicVideoFilter(const uint8_t *data, size_t size)
     CameraStandard::FocusTrackingMetaInfo info2;
     info2.SetTrackingObjectId(
         fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_OBJECT_ID, MAX_TRACKING_OBJECT_ID));
-    info2.SetTrackingRegion(GenerateRandomRect(fdp));
+    CameraStandard::Rect trackingRegion2 = GenerateRandomRect(fdp);
+    info2.SetTrackingRegion(trackingRegion2);
     info2.SetTrackingMode(static_cast<CameraStandard::FocusTrackingMode>(
         fdp.ConsumeIntegralInRange<int32_t>(MIN_TRACKING_MODE, MAX_TRACKING_MODE)));
 
@@ -679,6 +682,23 @@ struct ControllerCleaner {
     }
 };
 const ControllerCleaner CONTROLLER_CLEANER;
+} // namespace
+
+namespace {
+using FuzzFunc = void (*)(const uint8_t *, size_t);
+const FuzzFunc FUZZ_FUNCS[] = {
+    FuzzOnFocusTrackingWithObjects,
+    FuzzOnFocusTrackingSpecificTypes,
+    FuzzBuildTrackingParamsFallback,
+    FuzzOnMetadataInfoWithFov,
+    FuzzOnZoomInfoChangeWithSession,
+    FuzzOnSessionStatusChangeWithSession,
+    FuzzUpdateCurrentCameraInfo,
+    FuzzComputeFovVariants,
+    FuzzCalculateIOUViaTracking,
+    FuzzCinematicVideoFilter,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
 } // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)

@@ -188,6 +188,20 @@ void RequestBatteryLevelFuzzTest(const uint8_t *data, size_t size)
 }
 
 /* Fuzzer entry point */
+using FuzzFunc = void (*)(const uint8_t *, size_t);
+const FuzzFunc FUZZ_FUNCS[] = {
+    OHOS::InitFuzzTest,
+    OHOS::InitTwiceFuzzTest,
+    OHOS::UnInitWithoutInitFuzzTest,
+    OHOS::SetIsChargingFuzzTest,
+    OHOS::GetCachedBatteryLevelFuzzTest,
+    OHOS::IsObserverRegisteredFuzzTest,
+    OHOS::NotifyBatteryLevelChangeViaStateTest,
+    OHOS::CacheBatteryLevelViaPublicTest,
+    OHOS::RequestBatteryLevelFuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     if ((data == nullptr) || (size == 0)) {
@@ -204,18 +218,5 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     }
     return 0;
 }
-using FuzzFunc = void (*)(const uint8_t *, size_t);
-const FuzzFunc FUZZ_FUNCS[] = {
-    OHOS::InitFuzzTest,
-    OHOS::InitTwiceFuzzTest,
-    OHOS::UnInitWithoutInitFuzzTest,
-    OHOS::SetIsChargingFuzzTest,
-    OHOS::GetCachedBatteryLevelFuzzTest,
-    OHOS::IsObserverRegisteredFuzzTest,
-    OHOS::NotifyBatteryLevelChangeViaStateTest,
-    OHOS::CacheBatteryLevelViaPublicTest,
-    OHOS::RequestBatteryLevelFuzzTest,
-};
-constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
 
 } // namespace OHOS
