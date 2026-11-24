@@ -44,10 +44,9 @@ ohos_fuzztest("McWheelGetMechMovementCapabilityCmdFuzzTest") {
     "-Wno-unused-variable",
     "-fno-omit-frame-pointer",
   ]
+  ldflags = [ "-Wl,--allow-multiple-definition" ]
+
   sources = [
-    "${mechbody_path}/services/src/transport/command/mc_command_base.cpp",
-    "${mechbody_path}/services/src/transport/mc_data_buffer.cpp",
-    "${mechbody_path}/services/src/transport/command/0x03/mc_wheel_get_mech_movement_capability_cmd.cpp",
     "${mechbody_path}/test/fuzztest/mcwheelgetmechmovementcapabilitycmd_fuzzer/mcwheelgetmechmovementcapabilitycmd_fuzzer.cpp",
   ]
 

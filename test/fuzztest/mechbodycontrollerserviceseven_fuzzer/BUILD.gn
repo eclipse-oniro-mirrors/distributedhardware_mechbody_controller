@@ -43,8 +43,9 @@ ohos_fuzztest("MechBodyControllerServiceSevenFuzzTest") {
     "-Wno-unused-variable",
     "-fno-omit-frame-pointer",
   ]
+  ldflags = [ "-Wl,--allow-multiple-definition" ]
+
   sources = [
-    "${mechbody_path}/services/src/mechbody_controller_service.cpp",
     "${mechbody_path}/test/fuzztest/mechbodycontrollerserviceseven_fuzzer/mechbodycontrollerserviceseven_fuzzer.cpp",
   ]
 
