@@ -106,10 +106,6 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
     HILOGI("called. status= %{public}d", status);
     if (status != OHOS::Bluetooth::GattStatus::GATT_SUCCESS) {
         HILOGE("OnServicesDiscovered state is not sucess");
-        bleSendManager.MarkGattAbort(mac, requestId_);
-        return;
-    }
-    if (bleSendManager.IsGattCallbackStale(requestId_)) {
         return;
     }
     std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
@@ -158,7 +154,6 @@ void BleGattClientCallback::OnSetNotifyCharacteristic(const GattCharacteristic &
     MechInfo mechInfo;
     if (MechConnectManager::GetInstance().GetMechInfo(mac, mechInfo) != ERR_OK) {
         HILOGI("MECHBODY_EXEC_CONNECT Can not found mech info for mac: %{public}s", GetAnonymStr(mac).c_str());
-        bleSendManager.MarkGattAbort(mac, requestId_);
         return;
     }
     HILOGI("called. status= %{public}d", status);
@@ -169,7 +164,6 @@ void BleGattClientCallback::OnSetNotifyCharacteristic(const GattCharacteristic &
     }
     if (status != OHOS::Bluetooth::GattStatus::GATT_SUCCESS) {
         HILOGE("MECHBODY_EXEC_CONNECT set notify failed, abort connect, status: %{public}d", status);
-        bleSendManager.MarkGattAbort(mac, requestId_);
         return;
     }
 
@@ -597,30 +591,17 @@ bool BleSendManager::CheckGattcIsReady()
 int32_t BleSendManager::OnGattReady(MechInfo &mechInfo, uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_CONNECT called, requestId: %{public}" PRIu64, requestId);
-    if (IsStale(requestId)) {
-        HILOGI("MECHBODY_EXEC_CONNECT drop stale gatt ready, requestId: %{public}" PRIu64, requestId);
-        return MECH_CONNECT_FAILED;
-    }
     std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
     {
         std::lock_guard<std::mutex> lock(handleMutex_);
-        if (requestId != 0 && gattClientRequestId_ != 0 && gattClientRequestId_ != requestId) {
-            HILOGI("MECHBODY_EXEC_CONNECT gatt client replaced, abort ready handling");
-            return MECH_CONNECT_FAILED;
-        }
         client = gattClient_;
     }
     if (client == nullptr) {
         HILOGE("MECHBODY_EXEC_CONNECT gattClient_ is nullptr");
-        MarkGattAbort(mechInfo.mac, requestId);
         return MECH_CONNECT_FAILED;
     }
-    if (WaitMtuUpdated(client, requestId) != ERR_OK) {
-        if (!IsStale(requestId)) {
-            HILOGE("MECHBODY_EXEC_CONNECT mtu negotiation failed, abort connect, requestId: %{public}" PRIu64,
-                requestId);
-            MarkGattAbort(mechInfo.mac, requestId);
-        }
+    if (WaitMtuUpdated(client) != ERR_OK) {
+        HILOGE("MECHBODY_EXEC_CONNECT mtu negotiation failed, requestId: %{public}" PRIu64, requestId);
         return MECH_CONNECT_FAILED;
     }
     {
@@ -639,8 +620,7 @@ int32_t BleSendManager::OnGattReady(MechInfo &mechInfo, uint64_t requestId)
     return ERR_OK;
 }
 
-int32_t BleSendManager::WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::GattClient> &client,
-    uint64_t requestId)
+int32_t BleSendManager::WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::GattClient> &client)
 {
     {
         std::unique_lock<std::mutex> lock(mtuMutex_);
@@ -650,12 +630,8 @@ int32_t BleSendManager::WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::Ga
     {
         std::unique_lock<std::mutex> lock(mtuMutex_);
         if (!mtuUpdateCv_.wait_for(lock, std::chrono::seconds(MTU_UPDATE_TIMEOUT_SECOND),
-                                   [this, requestId]() { return isMtuUpdated_ || IsStale(requestId); })) {
+                                   [this, requestId]() { return isMtuUpdated_; })) {
             HILOGE("MECHBODY_EXEC_CONNECT wait for mtu update timeout");
-            return MECH_CONNECT_FAILED;
-        }
-        if (IsStale(requestId)) {
-            HILOGI("MECHBODY_EXEC_CONNECT mtu wait aborted by newer request");
             return MECH_CONNECT_FAILED;
         }
     }
@@ -678,10 +654,6 @@ void BleSendManager::InitBatteryManager(MechInfo &mechInfo)
 void BleGattClientCallback::OnMtuUpdate(int mtu, int ret)
 {
     HILOGI("MECHBODY_EXEC_CONNECT OnMtuUpdate mtu: %{public}d, ret: %{public}d", mtu, ret);
-    if (bleSendManager.IsGattCallbackStale(requestId_)) {
-        HILOGI("MECHBODY_EXEC_CONNECT drop stale mtu update callback, requestId: %{public}" PRIu64, requestId_);
-        return;
-    }
     {
         std::lock_guard<std::mutex> lock(bleSendManager.mtuMutex_);
         bleSendManager.isMtuUpdated_ = true;
@@ -848,12 +820,6 @@ bool BleSendManager::IsStale(uint64_t requestId) const
     return requestId != 0 && activeRequestId_.load() != requestId;
 }
 
-bool BleSendManager::IsGattCallbackStale(uint64_t requestId)
-{
-    std::lock_guard<std::mutex> lock(handleMutex_);
-    return requestId != 0 && gattClientRequestId_ != 0 && gattClientRequestId_ != requestId;
-}
-
 std::shared_ptr<OHOS::Bluetooth::GattClient> BleSendManager::GetGattClient()
 {
     std::lock_guard<std::mutex> lock(handleMutex_);
@@ -904,14 +870,6 @@ void BleSendManager::ReleaseGattClientIfOwnedBy(const std::string &mac)
     if (client != nullptr && client->Close() != 0) {
         HILOGE("Close gattclient error");
     }
-}
-
-void BleSendManager::MarkGattAbort(const std::string &mac, uint64_t requestId)
-{
-    std::lock_guard<std::mutex> lock(gattMutex_);
-    gattAbortMac_ = mac;
-    gattAbortRequestId_ = requestId;
-    gattCv_.notify_all();
 }
 
 void BleSendManager::WakeAllWaiters()

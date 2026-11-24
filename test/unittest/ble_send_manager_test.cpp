@@ -1627,8 +1627,9 @@ HWTEST_F(BleSendManagerTest, MechbodyGattcConnect_002, testing::ext::TestSize.Le
     bleSendManager_->gattClientRequestId_ = 0;
 
     const uint64_t requestId = 42;
-    // 通过SUT公开打断入口预置本次请求的打断标记，模拟该请求已被标记打断
-    bleSendManager_->MarkGattAbort(mac, requestId);
+    // 直接预置打断标记字段，模拟该请求已被标记打断
+    bleSendManager_->gattAbortMac_ = mac;
+    bleSendManager_->gattAbortRequestId_ = requestId;
 
     // When: 真实调用被测函数MechbodyGattcConnect
     // UT环境GattClient::Connect因蓝牙未启用返回非0，SUT在StartGattConnect失败分支返回MECHBODY_GATT_CONNECT_FAIL

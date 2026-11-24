@@ -198,8 +198,6 @@ public:
 
     void SetBluetoothServiceStoped(bool status);
     bool HasBluetoothServiceStoped();
-    void MarkGattAbort(const std::string &mac, uint64_t requestId);
-    bool IsGattCallbackStale(uint64_t requestId);
 
     void GetRealName(MechInfo &mechInfo);
     void NotifyGetRealName();
@@ -254,7 +252,7 @@ private:
     bool ShouldSkipStaleDisconnect(MechInfo &mechInfo, bool abortIfSuperseded);
     void ExecuteDisconnectTask(MechInfo &mechInfo, bool abortIfSuperseded);
     void ReportDisconnectDfx(int32_t mechId);
-    int32_t WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::GattClient> &client, uint64_t requestId);
+    int32_t WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::GattClient> &client);
     void InitBatteryManager(MechInfo &mechInfo);
 
 private:
