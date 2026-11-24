@@ -157,19 +157,12 @@ void BleGattClientCallback::OnSetNotifyCharacteristic(const GattCharacteristic &
         return;
     }
     HILOGI("called. status= %{public}d", status);
-    {
-        std::lock_guard<std::mutex> lock(bleSendManager.isGattReadyMtx_);
-        bleSendManager.isGattReady_ = (status == OHOS::Bluetooth::GattStatus::GATT_SUCCESS);
-        HILOGI("end. IsGattReady= %{public}d", bleSendManager.isGattReady_);
-    }
-    if (status != OHOS::Bluetooth::GattStatus::GATT_SUCCESS) {
-        HILOGE("MECHBODY_EXEC_CONNECT set notify failed, status: %{public}d", status);
-        return;
-    }
+    std::lock_guard<std::mutex> lock(bleSendManager.isGattReadyMtx_);
+    bleSendManager.isGattReady_ = (status == 1);
+    HILOGI("end. IsGattReady= %{public}d", bleSendManager.isGattReady_);
 
-    uint64_t requestId = requestId_;
-    std::thread([mechInfo, requestId]() mutable {
-        BleSendManager::GetInstance().OnGattReady(mechInfo, requestId);
+    std::thread([mechInfo]() mutable {
+        BleSendManager::GetInstance().OnGattReady(mechInfo);
         }).detach();
 }
 
@@ -588,9 +581,9 @@ bool BleSendManager::CheckGattcIsReady()
     // LCOV_EXCL_STOP
 }
 
-int32_t BleSendManager::OnGattReady(MechInfo &mechInfo, uint64_t requestId)
+int32_t BleSendManager::OnGattReady(MechInfo &mechInfo)
 {
-    HILOGI("MECHBODY_EXEC_CONNECT called, requestId: %{public}" PRIu64, requestId);
+    HILOGI("MECHBODY_EXEC_CONNECT called");
     std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
     {
         std::lock_guard<std::mutex> lock(handleMutex_);
@@ -601,7 +594,7 @@ int32_t BleSendManager::OnGattReady(MechInfo &mechInfo, uint64_t requestId)
         return MECH_CONNECT_FAILED;
     }
     if (WaitMtuUpdated(client) != ERR_OK) {
-        HILOGE("MECHBODY_EXEC_CONNECT mtu negotiation failed, requestId: %{public}" PRIu64, requestId);
+        HILOGE("MECHBODY_EXEC_CONNECT mtu negotiation failed");
         return MECH_CONNECT_FAILED;
     }
     {
