@@ -163,7 +163,7 @@ void BleGattClientCallback::OnSetNotifyCharacteristic(const GattCharacteristic &
         HILOGI("end. IsGattReady= %{public}d", bleSendManager.isGattReady_);
     }
     if (status != OHOS::Bluetooth::GattStatus::GATT_SUCCESS) {
-        HILOGE("MECHBODY_EXEC_CONNECT set notify failed, abort connect, status: %{public}d", status);
+        HILOGE("MECHBODY_EXEC_CONNECT set notify failed, status: %{public}d", status);
         return;
     }
 
@@ -630,7 +630,7 @@ int32_t BleSendManager::WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::Ga
     {
         std::unique_lock<std::mutex> lock(mtuMutex_);
         if (!mtuUpdateCv_.wait_for(lock, std::chrono::seconds(MTU_UPDATE_TIMEOUT_SECOND),
-                                   [this, requestId]() { return isMtuUpdated_; })) {
+                                   [this]() { return isMtuUpdated_; })) {
             HILOGE("MECHBODY_EXEC_CONNECT wait for mtu update timeout");
             return MECH_CONNECT_FAILED;
         }
