@@ -20,6 +20,7 @@
 #include <thread>
 #include <unistd.h>
 #include <atomic>
+#include <cinttypes>
 
 #include <sstream>
 #include <sys/prctl.h>
@@ -63,6 +64,8 @@ constexpr int32_t MTU_UPDATE_SIZE = 247;
 constexpr uint32_t DOT_REPORT_GET_REAL_NAME_TIMEOUT_MS = 3000;
 constexpr int32_t MECHBODY_GATT_CONNECT_FAIL = 1;
 constexpr int32_t MECHBODY_GATT_CONNECT_TIMEOUT = 2;
+constexpr int32_t MECHBODY_CONNECT_ABORTED = 3;
+const std::string CONNECT_TASK_NAME = "connectTask";
 
 UUID SERVICE_UUID = UUID::FromString("15f1e600-a277-43fc-a484-dd39ef8a9100"); // GATT Service uuid
 UUID MECHBODY_CHARACTERISTIC_WRITE_UUID = UUID::FromString("15f1e602-a277-43fc-a484-dd39ef8a9100"); // write uuid
@@ -91,8 +94,10 @@ void BleGattClientCallback::OnConnectionStateChanged(int connectionState, int re
     HILOGI("MECHBODY_EXEC_CONNECT BleGattClientCallback start. connectionState= %{public}d, ret= %{public}d",
         connectionState, ret);
     MechInfo mechInfo;
-    MechConnectManager::GetInstance().GetMechInfo(mac, mechInfo);
-    bleSendManager.OnConnectionStateChanged(connectionState, ret, mechInfo);
+    if (MechConnectManager::GetInstance().GetMechInfo(mac, mechInfo) != ERR_OK) {
+        mechInfo.mac = mac;
+    }
+    bleSendManager.OnConnectionStateChanged(connectionState, ret, mechInfo, requestId_);
     HILOGI("MECHBODY_EXEC_CONNECT BleGattClientCallback end");
 }
 
@@ -103,21 +108,20 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
         HILOGE("OnServicesDiscovered state is not sucess");
         return;
     }
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
     {
-        std::lock_guard<std::mutex> lock(bleSendManager.gattClientMutex_);
-        gattClient = bleSendManager.gattClient_;
+        std::lock_guard<std::mutex> lock(bleSendManager.handleMutex_);
+        client = bleSendManager.gattClient_;
     }
-    if (gattClient == nullptr) {
+    if (client == nullptr) {
         HILOGE("gattClient_ is null");
         return;
     }
-    auto mService = gattClient->GetService(SERVICE_UUID);
+    auto mService = client->GetService(SERVICE_UUID);
     if (!mService.has_value()) {
         HILOGE("Failed to get service.");
         return;
     }
-    HILOGI("GetService success");
     auto notifyCharacteristic = mService->get().GetCharacteristic(MECHBODY_CHARACTERISTIC_NOTIFY_UUID);
     if (!notifyCharacteristic) {
         HILOGE("Failed to get notify characteristic.");
@@ -133,7 +137,7 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
     uint16_t handle = notifyCharacteristic->GetHandle();
     GattCharacteristic characteristic = GattCharacteristic(MECHBODY_CHARACTERISTIC_NOTIFY_UUID, handle, permissions,
         properties);
-    gattClient->SetNotifyCharacteristic(characteristic, true);
+    client->SetNotifyCharacteristic(characteristic, true);
     int wPermissions = writeCharacteristic->GetPermissions();
     int wProperties = writeCharacteristic->GetProperties();
     uint16_t wHandle = writeCharacteristic->GetHandle();
@@ -143,7 +147,6 @@ void BleGattClientCallback::OnServicesDiscovered(int status)
         bleSendManager.permissions_ = wPermissions;
         bleSendManager.properties_ = wProperties;
     }
-    HILOGI("end");
 }
 
 void BleGattClientCallback::OnSetNotifyCharacteristic(const GattCharacteristic &characteristic, int status)
@@ -199,6 +202,11 @@ const std::string &BleGattClientCallback::getMac() const
 void BleGattClientCallback::setMac(const std::string &mac)
 {
     BleGattClientCallback::mac = mac;
+}
+
+void BleGattClientCallback::setRequestId(uint64_t requestId)
+{
+    requestId_ = requestId;
 }
 
 void BleSendManager::Init()
@@ -277,7 +285,7 @@ void BleSendManager::CleanAllLocalInfo()
             HILOGW("MECH_CLEAN_LOCAL_INFO_MAIN bluetooth service has not stopped");
             return;
         }
-        std::set<MechInfo> mechinfos = MechConnectManager::GetInstance().GetMechInfos();
+        std::set<MechInfo> mechinfos = MechConnectManager::GetInstance().GetMechInfosSnapshot();
         HILOGI("MECH_CLEAN_LOCAL_INFO_MAIN start remove all pair, mechinfos size: %{public}zu",
                mechinfos.size());
         for (MechInfo item: mechinfos) {
@@ -305,17 +313,17 @@ void BleSendManager::CleanAllLocalInfo()
 void BleSendManager::UnInit()
 {
     HILOGI("UnInit start");
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
     {
-        std::lock_guard<std::mutex> lock(gattClientMutex_);
-        gattClient = gattClient_;
-        gattClient_.reset();
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        client = gattClient_;
         gattClient_ = nullptr;
+        bleGattClientCallBack_ = nullptr;
+        gattClientMac_.clear();
+        gattClientRequestId_ = 0;
     }
-    if (gattClient != nullptr) {
-        if (gattClient->Close() != 0) {
-            HILOGE("Close gattclient error");
-        }
+    if (client != nullptr && client->Close() != 0) {
+        HILOGE("Close gattclient error");
     }
 }
 
@@ -350,49 +358,72 @@ void BleSendManager::CancelDelayedUnload()
     HILOGI("end.");
 }
 
-void BleSendManager::OnConnectionStateChanged(int connectionState, int ret, MechInfo &mechInfo)
+void BleSendManager::OnConnectionStateChanged(int connectionState, int ret, MechInfo &mechInfo, uint64_t requestId)
 {
-    HILOGI("MECHBODY_EXEC_CONNECT start. connectionState= %{public}d, ret= %{public}d",
-        connectionState, ret);
+    HILOGI("MECHBODY_EXEC_CONNECT start. connectionState= %{public}d, ret= %{public}d, requestId: %{public}" PRIu64,
+        connectionState, ret, requestId);
     if (connectionState != (int)BTConnectState::CONNECTED && connectionState != (int)BTConnectState::DISCONNECTED) {
         HILOGE("MECHBODY_EXEC_CONNECT ignore, connectionState = %{public}d, connecting or disconnecting",
             connectionState);
         return;
     }
-    if (connectionState == (int)BTConnectState::CONNECTED) {
-        HILOGI("MECHBODY_EXEC_CONNECT connectionState is CONNECTED");
-        CancelDelayedUnload();
-        std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
-        {
-            std::lock_guard<std::mutex> lock(gattClientMutex_);
-            gattClient = gattClient_;
-        }
-        CHECK_POINTER_RETURN(gattClient, "gattClient_");
-        gattClient->DiscoverServices();
-        HILOGI("MECHBODY_EXEC_CONNECT called to discover service");
-        gattClient->RequestConnectionPriority(MECH_GATT_PRIORITY_HIGH);
+    if (connectionState == (int)BTConnectState::CONNECTED && IsStale(requestId)) {
+        HILOGI("MECHBODY_EXEC_CONNECT drop stale connected callback, requestId: %{public}" PRIu64, requestId);
         return;
-    } else if (connectionState == (int)BTConnectState::DISCONNECTED) {
-        HILOGI("MECHBODY_EXEC_CONNECT connectionState is DISCONNECTED");
-
-        // 设置失败标志，唤醒等待的线程
-        connectFailed_.store(true);
-        {
-            std::unique_lock<std::mutex> lock(gattDisconnMutex_);
-            MechConnectManager::GetInstance().SetMechanicGattState(mechInfo.mac, false);
-            gattDisconnCv_.notify_all();
-        }
-
-        // 唤醒等待 GATT 连接的线程，避免不必要的超时等待
-        {
-            std::unique_lock<std::mutex> lock(gattMutex_);
-            gattCv_.notify_all();
-        }
-        HILOGI("MECHBODY_EXEC_CONNECT Tracking uninit start.");
-        McCameraTrackingController::GetInstance().UnInit();
-        HILOGI("MECHBODY_EXEC_CONNECT Tracking uninit finish.");
-        MechbodyDisConnect(mechInfo);
     }
+    if (connectionState == (int)BTConnectState::DISCONNECTED) {
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        if (requestId != 0 && gattClientRequestId_ != 0 && requestId != gattClientRequestId_) {
+            HILOGI("MECHBODY_EXEC_CONNECT drop stale disconnected callback, requestId: %{public}" PRIu64,
+                requestId);
+            return;
+        }
+    }
+    if (connectionState == (int)BTConnectState::CONNECTED) {
+        HandleGattConnected(mechInfo);
+        return;
+    }
+    HandleGattDisconnected(mechInfo, requestId);
+}
+
+void BleSendManager::HandleGattConnected(MechInfo &mechInfo)
+{
+    HILOGI("MECHBODY_EXEC_CONNECT connectionState is CONNECTED");
+    CancelDelayedUnload();
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        if (!gattClientMac_.empty() && gattClientMac_ != mechInfo.mac) {
+            HILOGI("MECHBODY_EXEC_CONNECT drop connected of replaced client: %{public}s",
+                GetAnonymStr(mechInfo.mac).c_str());
+            return;
+        }
+        client = gattClient_;
+    }
+    CHECK_POINTER_RETURN(client, "gattClient_");
+    client->DiscoverServices();
+    HILOGI("MECHBODY_EXEC_CONNECT called to discover service");
+    client->RequestConnectionPriority(MECH_GATT_PRIORITY_HIGH);
+}
+
+void BleSendManager::HandleGattDisconnected(MechInfo &mechInfo, uint64_t requestId)
+{
+    HILOGI("MECHBODY_EXEC_CONNECT connectionState is DISCONNECTED");
+    {
+        std::unique_lock<std::mutex> lock(gattDisconnMutex_);
+        MechConnectManager::GetInstance().SetMechanicGattState(mechInfo.mac, false);
+        gattDisconnCv_.notify_all();
+    }
+    if (!mechInfo.mac.empty()) {
+        std::unique_lock<std::mutex> lock(gattMutex_);
+        gattAbortMac_ = mechInfo.mac;
+        gattAbortRequestId_ = requestId;
+        gattCv_.notify_all();
+    }
+    HILOGI("MECHBODY_EXEC_CONNECT Tracking uninit start.");
+    McCameraTrackingController::GetInstance().UnInit();
+    HILOGI("MECHBODY_EXEC_CONNECT Tracking uninit finish.");
+    MechbodyDisConnect(mechInfo, true);
     HILOGI("MECHBODY_EXEC_CONNECT end");
 }
 
@@ -464,7 +495,7 @@ void BleSendManager::OnHidStateChanged(int hidState, int cause, MechInfo &mechIn
         MechConnectManager::GetInstance().SetMechanicHidState(mechInfo.mac, false);
         hidDisconnCv_.notify_all();
 
-        MechbodyDisConnect(mechInfo);
+        MechbodyDisConnect(mechInfo, true);
     } else if (hidState == static_cast<int>(Bluetooth::BTConnectState::CONNECTED)) {
         std::unique_lock<std::mutex> lock(hidMutex_);
         MechConnectManager::GetInstance().SetMechanicHidState(mechInfo.mac, true);
@@ -553,25 +584,42 @@ bool BleSendManager::CheckGattcIsReady()
 int32_t BleSendManager::OnGattReady(MechInfo &mechInfo)
 {
     HILOGI("MECHBODY_EXEC_CONNECT called");
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        client = gattClient_;
+    }
+    if (client == nullptr) {
+        HILOGE("MECHBODY_EXEC_CONNECT gattClient_ is nullptr");
+        return MECH_CONNECT_FAILED;
+    }
+    if (WaitMtuUpdated(client) != ERR_OK) {
+        HILOGE("MECHBODY_EXEC_CONNECT mtu negotiation failed");
+        return MECH_CONNECT_FAILED;
+    }
     {
         std::unique_lock<std::mutex> lock(gattMutex_);
         MechConnectManager::GetInstance().SetMechanicGattState(mechInfo.mac, true);
         gattCv_.notify_all();
     }
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
-    {
-        std::lock_guard<std::mutex> lock(gattClientMutex_);
-        gattClient = gattClient_;
-    }
-    if (gattClient == nullptr) {
-        HILOGE("gattClient_ is null");
+    int32_t result = MechConnectManager::GetInstance().NotifyMechConnect(mechInfo);
+    if (result == MECH_CONNECT_FAILED) {
         return MECH_CONNECT_FAILED;
     }
+    InitBatteryManager(mechInfo);
+    HILOGI("MECHBODY_EXEC_CONNECT Tracking init start.");
+    McCameraTrackingController::GetInstance().Init();
+    HILOGI("MECHBODY_EXEC_CONNECT Tracking init finish.");
+    return ERR_OK;
+}
+
+int32_t BleSendManager::WaitMtuUpdated(const std::shared_ptr<OHOS::Bluetooth::GattClient> &client)
+{
     {
         std::unique_lock<std::mutex> lock(mtuMutex_);
         isMtuUpdated_ = false;
     }
-    gattClient->RequestBleMtuSize(MTU_UPDATE_SIZE);
+    client->RequestBleMtuSize(MTU_UPDATE_SIZE);
     {
         std::unique_lock<std::mutex> lock(mtuMutex_);
         if (!mtuUpdateCv_.wait_for(lock, std::chrono::seconds(MTU_UPDATE_TIMEOUT_SECOND),
@@ -580,10 +628,11 @@ int32_t BleSendManager::OnGattReady(MechInfo &mechInfo)
             return MECH_CONNECT_FAILED;
         }
     }
-    int32_t result = MechConnectManager::GetInstance().NotifyMechConnect(mechInfo);
-    if (result == MECH_CONNECT_FAILED) {
-        return MECH_CONNECT_FAILED;
-    }
+    return ERR_OK;
+}
+
+void BleSendManager::InitBatteryManager(MechInfo &mechInfo)
+{
     batteryManager_ = std::make_unique<McBatteryManager>();
     int32_t batteryRet = batteryManager_->Init(mechInfo.mac, mechInfo.mechId,
         [](int32_t mechId, int32_t batteryLevel, bool isCharging) {
@@ -593,10 +642,6 @@ int32_t BleSendManager::OnGattReady(MechInfo &mechInfo)
     if (batteryRet != ERR_OK) {
         batteryManager_.reset();
     }
-    HILOGI("MECHBODY_EXEC_CONNECT Tracking init start.");
-    McCameraTrackingController::GetInstance().Init();
-    HILOGI("MECHBODY_EXEC_CONNECT Tracking init finish.");
-    return ERR_OK;
 }
 
 void BleGattClientCallback::OnMtuUpdate(int mtu, int ret)
@@ -729,71 +774,259 @@ int32_t BleSendManager::MechbodyConnect(std::string mac, std::string deviceName,
             return MECH_CONNECT_FAILED;
         }
     }
-    connectFailed_.store(false);
-    auto connFunc = [this, mac, deviceName, deviceIdentifier]() {
-        ConnectMechbodyInternal(mac, deviceName, deviceIdentifier);
+    uint64_t requestId = 0;
+    {
+        std::lock_guard<std::mutex> lock(attemptMutex_);
+        if (inFlightRequestId_ != 0 && inFlightMac_ == mac) {
+            HILOGI("MECHBODY_EXEC_CONNECT attempt in flight for same mac, merge. mac: %{public}s",
+                GetAnonymStr(mac).c_str());
+            return ERR_OK;
+        }
+        if (inFlightRequestId_ != 0) {
+            HILOGI("MECHBODY_EXEC_CONNECT preempt attempt, old mac: %{public}s, new mac: %{public}s",
+                GetAnonymStr(inFlightMac_).c_str(), GetAnonymStr(mac).c_str());
+        }
+        requestId = ++activeRequestId_;
+        inFlightRequestId_ = requestId;
+        inFlightMac_ = mac;
+    }
+    {
+        std::lock_guard<std::mutex> lock(gattMutex_);
+        gattAbortMac_.clear();
+        gattAbortRequestId_ = 0;
+    }
+    WakeAllWaiters();
+    auto connFunc = [this, mac, deviceName, deviceIdentifier, requestId]() {
+        ConnectMechbodyInternal(mac, deviceName, deviceIdentifier, requestId);
     };
-    eventHandler_->PostTask(connFunc);
-    HILOGI("MECHBODY_EXEC_CONNECT end");
+    if (!eventHandler_->PostTask(connFunc, CONNECT_TASK_NAME)) {
+        HILOGE("MECHBODY_EXEC_CONNECT post connect task failed.");
+        FinishAttempt(requestId);
+        return MECH_CONNECT_FAILED;
+    }
+    HILOGI("MECHBODY_EXEC_CONNECT end, requestId: %{public}" PRIu64, requestId);
     return ERR_OK;
 }
 
-void BleSendManager::ConnectMechbodyInternal(std::string mac, std::string deviceName, uint32_t deviceIdentifier)
+bool BleSendManager::IsStale(uint64_t requestId) const
 {
-    bool isFirstConnect = (deviceIdentifier == 0) ? false : true;
-    if (MechConnectManager::GetInstance().IsConnect()) {
-        HILOGW("MECHBODY_EXEC_CONNECT mechInfos has connected.");
-        if (!isFirstConnect) {
+    return requestId != 0 && activeRequestId_.load() != requestId;
+}
+
+std::shared_ptr<OHOS::Bluetooth::GattClient> BleSendManager::GetGattClient()
+{
+    std::lock_guard<std::mutex> lock(handleMutex_);
+    return gattClient_;
+}
+
+void BleSendManager::CleanupStaleAttempt(MechInfo &mechInfo, uint64_t requestId)
+{
+    if (mechInfo.gattCoonectState) {
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(attemptMutex_);
+        if (inFlightRequestId_ != requestId || inFlightMac_ != mechInfo.mac) {
+            HILOGI("MECHBODY_EXEC_CONNECT skip stale cleanup, attempt replaced, mac: %{public}s",
+                GetAnonymStr(mechInfo.mac).c_str());
             return;
         }
-        HILOGI("MECHBODY_EXEC_CONNECT, new device first connect, disconnect old device");
-        int32_t ret = DisConnectOldDevice();
-        if (ret != ERR_OK) {
-            HILOGW("MECHBODY_EXEC_CONNECT, disconnect old device failed, ret: %{public}d", ret);
+    }
+    HILOGI("MECHBODY_EXEC_CONNECT cleanup stale attempt for mac: %{public}s",
+        GetAnonymStr(mechInfo.mac).c_str());
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(mechInfo.mac);
+}
+
+void BleSendManager::FinishAttempt(uint64_t requestId)
+{
+    std::lock_guard<std::mutex> lock(attemptMutex_);
+    if (inFlightRequestId_ == requestId) {
+        inFlightRequestId_ = 0;
+        inFlightMac_.clear();
+    }
+}
+
+void BleSendManager::ReleaseGattClientIfOwnedBy(const std::string &mac)
+{
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        if (gattClient_ == nullptr || (!gattClientMac_.empty() && gattClientMac_ != mac)) {
+            return;
         }
+        client = gattClient_;
+        gattClient_ = nullptr;
+        bleGattClientCallBack_ = nullptr;
+        gattClientMac_.clear();
+        gattClientRequestId_ = 0;
+    }
+    if (client != nullptr && client->Close() != 0) {
+        HILOGE("Close gattclient error");
+    }
+}
+
+void BleSendManager::WakeAllWaiters()
+{
+    { std::lock_guard<std::mutex> lock(gattMutex_); gattCv_.notify_all(); }
+    { std::lock_guard<std::mutex> lock(pairMutex_); pairCv_.notify_all(); }
+    { std::lock_guard<std::mutex> lock(hidMutex_); hidCv_.notify_all(); }
+    { std::lock_guard<std::mutex> lock(gattDisconnMutex_); gattDisconnCv_.notify_all(); }
+    { std::lock_guard<std::mutex> lock(hidDisconnMutex_); hidDisconnCv_.notify_all(); }
+    { std::lock_guard<std::mutex> lock(mtuMutex_); mtuUpdateCv_.notify_all(); }
+}
+
+void BleSendManager::ConnectMechbodyInternal(std::string mac, std::string deviceName,
+    uint32_t deviceIdentifier, uint64_t requestId)
+{
+    if (IsStale(requestId)) {
+        HILOGI("MECHBODY_EXEC_CONNECT stale task exit, requestId: %{public}" PRIu64, requestId);
+        FinishAttempt(requestId);
+        return;
     }
     MechInfo mechInfo;
+    if (!PrepareMechInfoForConnect(mac, deviceName, deviceIdentifier, requestId, mechInfo)) {
+        FinishAttempt(requestId);
+        return;
+    }
+    if (RunConnectAttempt(mechInfo, requestId)) {
+        FinishAttempt(requestId);
+        HILOGI("MECHBODY_EXEC_CONNECT async connect end, mech info for: %{public}s", mechInfo.ToString().c_str());
+    }
+}
+
+bool BleSendManager::PrepareMechInfoForConnect(const std::string &mac, const std::string &deviceName,
+    uint32_t deviceIdentifier, uint64_t requestId, MechInfo &mechInfo)
+{
+    bool isFirstConnect = (deviceIdentifier == 0) ? false : true;
     mechInfo.mac = mac;
     mechInfo.mechName = deviceName;
     mechInfo.isFirstConnect = isFirstConnect;
     mechInfo.deviceIdentifier = deviceIdentifier;
+    if (!HandleExistingConnectionBeforeConnect(mechInfo.mac, deviceIdentifier, requestId)) {
+        return false;
+    }
     if (MechConnectManager::GetInstance().GetMechInfo(mechInfo.mac, mechInfo) != ERR_OK) {
         if (MechConnectManager::GetInstance().AddMechInfo(mechInfo) != ERR_OK) {
             HILOGE("MECHBODY_EXEC_CONNECT save machInfo for mac: %{public}s", mechInfo.ToString().c_str());
-            return;
+            return false;
         }
     }
-
-    if (mechInfo.gattCoonectState) {
+    if (IsMechFullyConnected(mechInfo)) {
         HILOGE("MECHBODY_EXEC_CONNECT mech has connected: %{public}s", GetAnonymStr(mechInfo.mac).c_str());
-        return;
+        return false;
     }
+    if (mechInfo.gattCoonectState) {
+        bool gattAlive = false;
+        {
+            std::lock_guard<std::mutex> lock(handleMutex_);
+            gattAlive = (gattClient_ != nullptr) && (gattClientMac_ == mechInfo.mac);
+        }
+        if (!gattAlive) {
+            HILOGW("MECHBODY_EXEC_CONNECT gatt state stale without client, reconnect: %{public}s",
+                GetAnonymStr(mechInfo.mac).c_str());
+            MechConnectManager::GetInstance().SetMechanicGattState(mechInfo.mac, false);
+            mechInfo.gattCoonectState = false;
+        } else {
+            HILOGW("MECHBODY_EXEC_CONNECT half-connected device, retry pair/hid: %{public}s",
+                GetAnonymStr(mechInfo.mac).c_str());
+        }
+    }
+    return true;
+}
 
-    do {
-        int32_t gattRet = MechbodyGattcConnect(mechInfo.mac, mechInfo.mechName);
-        HILOGE("MECHBODY_EXEC_CONNECT gatt connect result: %{public}d", gattRet);
+bool BleSendManager::HandleExistingConnectionBeforeConnect(std::string &mac, uint32_t deviceIdentifier,
+    uint64_t requestId)
+{
+    bool isFirstConnect = (deviceIdentifier == 0) ? false : true;
+    if (!MechConnectManager::GetInstance().IsConnect()) {
+        return true;
+    }
+    HILOGW("MECHBODY_EXEC_CONNECT mechInfos has connected.");
+    MechInfo existInfo;
+    bool sameDevice = (MechConnectManager::GetInstance().GetMechInfo(mac, existInfo) == ERR_OK);
+    if (!isFirstConnect && !sameDevice) {
+        return false;
+    }
+    if (!sameDevice) {
+        HILOGI("MECHBODY_EXEC_CONNECT, new device first connect, disconnect old device");
+        int32_t ret = DisConnectOldDevice(requestId);
+        if (ret != ERR_OK) {
+            HILOGW("MECHBODY_EXEC_CONNECT, disconnect old device failed, ret: %{public}d", ret);
+        }
+    }
+    return true;
+}
+
+bool BleSendManager::IsMechFullyConnected(MechInfo &mechInfo)
+{
+    return mechInfo.gattCoonectState && mechInfo.pairState && mechInfo.hidState;
+}
+
+bool BleSendManager::RunConnectAttempt(MechInfo &mechInfo, uint64_t requestId)
+{
+    int32_t gattRet = ERR_OK;
+    if (!mechInfo.gattCoonectState) {
+        gattRet = MechbodyGattcConnect(mechInfo.mac, mechInfo.mechName, requestId);
         MechkitControlInfo controlInfo = {0};
+        HILOGE("MECHBODY_EXEC_CONNECT gatt connect result: %{public}d", gattRet);
         if (gattRet != ERR_OK) {
-            MechbodyDisConnectSync(mechInfo);
+            if (gattRet == MECHBODY_CONNECT_ABORTED) {
+                HILOGI("MECHBODY_EXEC_CONNECT attempt aborted by newer request");
+                CleanupStaleAttempt(mechInfo, requestId);
+                FinishAttempt(requestId);
+                return false;
+            }
+            MechbodyDisConnectSync(mechInfo, requestId);
             DotReportMechKitStartGattConnectFail(mechInfo);
             controlInfo.connectCode = static_cast<uint32_t>(gattRet);
             HisyseventUtils::DoReportMechkitControlStatisticEvent(controlInfo);
-            break;
+            return true;
         }
-        if (connectFailed_.load()) {
-            HILOGE("MECHBODY_EXEC_CONNECT gatt connect failed");
-            return;
+    }
+    if (IsStale(requestId)) {
+        HILOGI("MECHBODY_EXEC_CONNECT stale task exit before pair, requestId: %{public}" PRIu64, requestId);
+        CleanupStaleAttempt(mechInfo, requestId);
+        FinishAttempt(requestId);
+        return false;
+    }
+    return ConnectPairAndHid(mechInfo, requestId);
+}
+
+bool BleSendManager::ConnectPairAndHid(MechInfo &mechInfo, uint64_t requestId)
+{
+    int32_t pairRet = MechbodyPair(mechInfo.mac, mechInfo.mechName, requestId);
+    if (pairRet == MECHBODY_CONNECT_ABORTED) {
+        HILOGI("MECHBODY_EXEC_CONNECT pair aborted by newer request");
+        FinishAttempt(requestId);
+        return false;
+    }
+    int32_t hidRet = MechbodyHidConnect(mechInfo.mac, mechInfo.mechName, requestId);
+    if (hidRet == MECHBODY_CONNECT_ABORTED) {
+        HILOGI("MECHBODY_EXEC_CONNECT hid aborted by newer request");
+        FinishAttempt(requestId);
+        return false;
+    }
+    if (!IsStale(requestId) && (pairRet == MECH_CONNECT_FAILED || hidRet == MECH_CONNECT_FAILED)) {
+        HILOGW("MECHBODY_EXEC_CONNECT pair/hid failed immediately, retry once. pair: %{public}d, "
+            "hid: %{public}d", pairRet, hidRet);
+        if (pairRet == MECH_CONNECT_FAILED) {
+            pairRet = MechbodyPair(mechInfo.mac, mechInfo.mechName, requestId);
         }
-        // connect success
-        int32_t pairRet = MechbodyPair(mechInfo.mac, mechInfo.mechName);
-        int32_t hidRet = MechbodyHidConnect(mechInfo.mac, mechInfo.mechName);
-        HILOGE("MECHBODY_EXEC_CONNECT pair result: %{public}d; hid result: %{public}d", pairRet, hidRet);
-        DotReportMechKitStartGattSuccess(mechInfo);
-    } while (false);
-    HILOGI("MECHBODY_EXEC_CONNECT async connect end, mech info for: %{public}s", mechInfo.ToString().c_str());
+        if (pairRet == ERR_OK && hidRet == MECH_CONNECT_FAILED) {
+            hidRet = MechbodyHidConnect(mechInfo.mac, mechInfo.mechName, requestId);
+        }
+        if (pairRet == MECHBODY_CONNECT_ABORTED || hidRet == MECHBODY_CONNECT_ABORTED) {
+            HILOGI("MECHBODY_EXEC_CONNECT retry aborted by newer request");
+            FinishAttempt(requestId);
+            return false;
+        }
+    }
+    HILOGE("MECHBODY_EXEC_CONNECT pair result: %{public}d; hid result: %{public}d", pairRet, hidRet);
+    DotReportMechKitStartGattSuccess(mechInfo);
+    return true;
 }
  
-int32_t BleSendManager::DisConnectOldDevice()
+int32_t BleSendManager::DisConnectOldDevice(uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_CONNECT, new device first connect, disconnect old device");
     std::set<MechInfo> mechInfos;
@@ -803,54 +1036,111 @@ int32_t BleSendManager::DisConnectOldDevice()
     }
     int32_t ret = ERR_OK;
     for (auto mechInfo :mechInfos) {
+        if (IsStale(requestId)) {
+            HILOGI("MECHBODY_EXEC_CONNECT stop disconnecting old device, attempt superseded");
+            break;
+        }
         if (mechInfo.gattCoonectState) {
-            ret = MechbodyDisConnectSync(mechInfo);
+            ret = MechbodyDisConnectSync(mechInfo, requestId);
             HILOGI("MECHBODY_EXEC_CONNECT, mechId %{public}d, ret %{public}d", mechInfo.mechId, ret);
         }
     }
     return ret;
 }
 
-int32_t BleSendManager::MechbodyGattcConnect(std::string mac, std::string deviceName)
+int32_t BleSendManager::MechbodyGattcConnect(std::string mac, std::string deviceName, uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_CONNECT connect begin, mac: %{public}s", GetAnonymStr(mac).c_str());
     address_ = mac;
     deviceName_ = deviceName;
-    BluetoothRemoteDevice device(mac, 1);
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient =
-        std::make_shared<OHOS::Bluetooth::GattClient>(device);
-    std::shared_ptr<BleGattClientCallback> gattClientCallBack = std::make_shared<BleGattClientCallback>();
-    gattClientCallBack->setMac(mac);
-    gattClient->Init();
-    {
-        std::lock_guard<std::mutex> lock(gattClientMutex_);
-        gattClient_ = gattClient;
-        bleGattClientCallBack_ = gattClientCallBack;
+    int32_t ret = StartGattConnect(mac, requestId);
+    if (ret != ERR_OK) {
+        return ret;
     }
-    int result = gattClient->Connect(gattClientCallBack, false, BT_TRANSPORT_BLE);
+    return WaitGattConnected(mac, requestId);
+}
+
+int32_t BleSendManager::StartGattConnect(const std::string &mac, uint64_t requestId)
+{
+    BluetoothRemoteDevice device(mac, 1);
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = std::make_shared<OHOS::Bluetooth::GattClient>(device);
+    std::shared_ptr<BleGattClientCallback> callback = std::make_shared<BleGattClientCallback>();
+    callback->setMac(mac);
+    callback->setRequestId(requestId);
+    client->Init();
+    std::shared_ptr<OHOS::Bluetooth::GattClient> oldClient = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        oldClient = gattClient_;
+        gattClient_ = client;
+        bleGattClientCallBack_ = callback;
+        gattClientMac_ = mac;
+        gattClientRequestId_ = requestId;
+        handle_ = 0;
+        permissions_ = 0;
+        properties_ = 0;
+    }
+    {
+        std::lock_guard<std::mutex> lock(isGattReadyMtx_);
+        isGattReady_ = false;
+    }
+    if (oldClient != nullptr) {
+        HILOGI("MECHBODY_EXEC_CONNECT close previous gatt client");
+        oldClient->Close();
+    }
+    int result = client->Connect(callback, false, BT_TRANSPORT_BLE);
     if (result != 0) {
         HILOGE("MECHBODY_EXEC_CONNECT Failed to connect, result: %{public}d", result);
         return MECHBODY_GATT_CONNECT_FAIL;
     }
+    return ERR_OK;
+}
 
+int32_t BleSendManager::WaitGattConnected(std::string &mac, uint64_t requestId)
+{
     std::unique_lock<std::mutex> lock(gattMutex_);
-    if (!gattCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
-                          [this, mac]() mutable {
-                              bool gattState = false;
-                              MechConnectManager::GetInstance().GetMechanicGattState(mac, gattState);
-                              return gattState || connectFailed_.load();
-                          })) {
+    bool connected = gattCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
+        [this, mac, requestId]() mutable {
+            if (IsStale(requestId)) {
+                return true;
+            }
+            bool gattState = false;
+            MechConnectManager::GetInstance().GetMechanicGattState(mac, gattState);
+            bool aborted = (requestId != 0) ? (gattAbortRequestId_ == requestId) :
+                (gattAbortMac_ == mac);
+            return gattState || aborted;
+        });
+    bool gattState = false;
+    MechConnectManager::GetInstance().GetMechanicGattState(mac, gattState);
+    if (IsStale(requestId)) {
+        HILOGI("MECHBODY_EXEC_CONNECT gatt connect aborted by newer request");
+        return MECHBODY_CONNECT_ABORTED;
+    }
+    if (!connected) {
         HILOGE("MECHBODY_EXEC_CONNECT wait for gatt connect timeout");
         return MECHBODY_GATT_CONNECT_TIMEOUT;
+    }
+    if (!gattState) {
+        HILOGE("MECHBODY_EXEC_CONNECT gatt connect failed");
+        return MECHBODY_GATT_CONNECT_FAIL;
     }
     HILOGI("MECHBODY_EXEC_CONNECT connect end mac: %{public}s", GetAnonymStr(mac).c_str());
     return ERR_OK;
 }
 
-int32_t BleSendManager::MechbodyPair(std::string &mac, std::string &deviceName)
+int32_t BleSendManager::MechbodyPair(std::string &mac, std::string &deviceName, uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_CONNECT start, mac: %{public}s, device name: %{public}s;",
         GetAnonymStr(mac).c_str(), GetAnonymStr(deviceName).c_str());
+    int32_t ret = StartPairProcess(mac, requestId);
+    if (ret != ERR_OK) {
+        return ret;
+    }
+    return WaitPairResult(mac, deviceName, requestId);
+}
+
+int32_t BleSendManager::StartPairProcess(std::string &mac, uint64_t requestId)
+{
     Bluetooth::BluetoothRemoteDevice device =
             Bluetooth::BluetoothRemoteDevice(mac, Bluetooth::BT_TRANSPORT_BLE);
     int32_t res = device.StartCrediblePair();
@@ -858,13 +1148,26 @@ int32_t BleSendManager::MechbodyPair(std::string &mac, std::string &deviceName)
     if (res != OHOS_BT_STATUS_SUCCESS) {
         return MECH_CONNECT_FAILED;
     }
+    return ERR_OK;
+}
+
+int32_t BleSendManager::WaitPairResult(std::string &mac, std::string &deviceName, uint64_t requestId)
+{
     std::unique_lock<std::mutex> lock(pairMutex_);
-    if (!pairCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
-        [this, mac]()mutable {
+    bool paired = pairCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
+        [this, mac, requestId]()mutable {
+            if (IsStale(requestId)) {
+                return true;
+            }
             bool pairState = false;
             MechConnectManager::GetInstance().GetMechanicPairState(mac, pairState);
             return pairState;
-        })) {
+        });
+    if (IsStale(requestId)) {
+        HILOGI("MECHBODY_EXEC_CONNECT pair aborted by newer request");
+        return MECHBODY_CONNECT_ABORTED;
+    }
+    if (!paired) {
         HILOGE("MECHBODY_EXEC_CONNECT wait for pair timeout");
         return MECHBODY_GATT_CONNECT_FAILED;
     }
@@ -873,7 +1176,7 @@ int32_t BleSendManager::MechbodyPair(std::string &mac, std::string &deviceName)
     return ERR_OK;
 }
 
-int32_t BleSendManager::MechbodyHidConnect(std::string &mac, std::string &deviceName)
+int32_t BleSendManager::MechbodyHidConnect(std::string &mac, std::string &deviceName, uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_CONNECT start, mac: %{public}s, device name: %{public}s;",
         GetAnonymStr(mac).c_str(), GetAnonymStr(deviceName).c_str());
@@ -884,43 +1187,93 @@ int32_t BleSendManager::MechbodyHidConnect(std::string &mac, std::string &device
         return MECH_CONNECT_FAILED;
     }
     std::unique_lock<std::mutex> lock(hidMutex_);
-    if (!hidCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
-        [this, mac]()mutable {
+    bool hidConnected = hidCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
+        [this, mac, requestId]()mutable {
+            if (IsStale(requestId)) {
+                return true;
+            }
             bool hidState = false;
             MechConnectManager::GetInstance().GetMechanicHidState(mac, hidState);
             return hidState;
-        })) {
+        });
+    if (IsStale(requestId)) {
+        HILOGI("MECHBODY_EXEC_CONNECT hid aborted by newer request");
+        return MECHBODY_CONNECT_ABORTED;
+    }
+    if (!hidConnected) {
         HILOGE("MECHBODY_EXEC_CONNECT wait for hid timeout");
-        return MECHBODY_GATT_CONNECT_FAILED;
+        return MECH_CONNECT_FAILED;
     }
     HILOGI("MECHBODY_EXEC_CONNECT end, mac: %{public}s, device name: %{public}s;",
         GetAnonymStr(mac).c_str(), GetAnonymStr(deviceName).c_str());
     return res;
 }
 
-int32_t BleSendManager::MechbodyDisConnect(MechInfo &mechInfo)
+int32_t BleSendManager::MechbodyDisConnect(MechInfo &mechInfo, bool abortIfSuperseded)
 {
     HILOGI("MECHBODY_EXEC_DISCONNECT start, mech info for: %{public}s", mechInfo.ToString().c_str());
-    auto connFunc = [this, mechInfo]() mutable {
-        if (MechConnectManager::GetInstance().GetMechanicGattState(
-            mechInfo.mac, mechInfo.gattCoonectState) != ERR_OK) {
-            HILOGE("MECHBODY_EXEC_DISCONNECT Can not find mech info for amc: %{public}s",
-                GetAnonymStr(mechInfo.mac).c_str());
-            return;
-        }
-        HILOGI("MECHBODY_EXEC_DISCONNECT async disconnect start, mech info for: %{public}s",
-            mechInfo.ToString().c_str());
-        if (!mechInfo.gattCoonectState) {
-            OnGattDisconnect(mechInfo);
-            HILOGE("MECHBODY_EXEC_DISCONNECT Device has already disconnected for mechInfo: %{public}s",
-                mechInfo.ToString().c_str());
-            return;
-        }
-        MechbodyDisConnectSync(mechInfo);
-        HILOGI("MECHBODY_EXEC_DISCONNECT async disconnect end, mech info for: %{public}s", mechInfo.ToString().c_str());
+    auto connFunc = [this, mechInfo, abortIfSuperseded]() mutable {
+        ExecuteDisconnectTask(mechInfo, abortIfSuperseded);
     };
+    ReportDisconnectDfx(mechInfo.mechId);
+    if (eventHandler_ != nullptr) {
+        eventHandler_->PostTask(connFunc);
+    }
+    HILOGI("MECHBODY_EXEC_DISCONNECT end, mech info for: %{public}s", mechInfo.ToString().c_str());
+    return ERR_OK;
+}
+
+bool BleSendManager::ShouldSkipStaleDisconnect(MechInfo &mechInfo, bool abortIfSuperseded)
+{
+    if (!abortIfSuperseded) {
+        return false;
+    }
+    MechInfo latest;
+    bool fullyConnected = false;
+    if (MechConnectManager::GetInstance().GetMechInfo(mechInfo.mac, latest) == ERR_OK) {
+        fullyConnected = latest.gattCoonectState && latest.pairState && latest.hidState;
+    }
+    bool attemptInFlight = false;
+    {
+        std::lock_guard<std::mutex> lock(attemptMutex_);
+        attemptInFlight = (inFlightRequestId_ != 0 && inFlightMac_ == mechInfo.mac);
+    }
+    if (fullyConnected || attemptInFlight) {
+        HILOGI("MECHBODY_EXEC_DISCONNECT skip stale disconnect task, link re-established or "
+            "reconnecting, mac: %{public}s", GetAnonymStr(mechInfo.mac).c_str());
+        return true;
+    }
+    return false;
+}
+
+void BleSendManager::ExecuteDisconnectTask(MechInfo &mechInfo, bool abortIfSuperseded)
+{
+    if (ShouldSkipStaleDisconnect(mechInfo, abortIfSuperseded)) {
+        return;
+    }
+    if (MechConnectManager::GetInstance().GetMechanicGattState(
+        mechInfo.mac, mechInfo.gattCoonectState) != ERR_OK) {
+        HILOGE("MECHBODY_EXEC_DISCONNECT Can not find mech info for amc: %{public}s",
+            GetAnonymStr(mechInfo.mac).c_str());
+        ReleaseGattClientIfOwnedBy(mechInfo.mac);
+        return;
+    }
+    HILOGI("MECHBODY_EXEC_DISCONNECT async disconnect start, mech info for: %{public}s",
+        mechInfo.ToString().c_str());
+    if (!mechInfo.gattCoonectState) {
+        OnGattDisconnect(mechInfo);
+        HILOGE("MECHBODY_EXEC_DISCONNECT Device has already disconnected for mechInfo: %{public}s",
+            mechInfo.ToString().c_str());
+        return;
+    }
+    MechbodyDisConnectSync(mechInfo);
+    HILOGI("MECHBODY_EXEC_DISCONNECT async disconnect end, mech info for: %{public}s", mechInfo.ToString().c_str());
+}
+
+void BleSendManager::ReportDisconnectDfx(int32_t mechId)
+{
     std::thread dotReportThread(
-        [mechIdParam = mechInfo.mechId] () mutable {
+        [mechIdParam = mechId] () mutable {
         MechkitControlInfo controlInfo = {0};
         {
             auto &instance = MechBodyControllerService::GetInstance();
@@ -936,18 +1289,13 @@ int32_t BleSendManager::MechbodyDisConnect(MechInfo &mechInfo)
         }
     });
     dotReportThread.detach();
-    if (eventHandler_ != nullptr) {
-        eventHandler_->PostTask(connFunc);
-    }
-    HILOGI("MECHBODY_EXEC_DISCONNECT end, mech info for: %{public}s", mechInfo.ToString().c_str());
-    return ERR_OK;
 }
 
-int32_t BleSendManager::MechbodyDisConnectSync(MechInfo &mechInfo)
+int32_t BleSendManager::MechbodyDisConnectSync(MechInfo &mechInfo, uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_DISCONNECT start, mech info for: %{public}s", mechInfo.ToString().c_str());
     int32_t ret = ERR_OK;
-    ret = MechbodyHidDisconnect(mechInfo);
+    ret = MechbodyHidDisconnect(mechInfo, requestId);
     if (ret != ERR_OK) {
         HILOGE("MECHBODY_EXEC_DISCONNECT hid disconnect failed for mechInfo: %{public}s",
             mechInfo.ToString().c_str());
@@ -957,7 +1305,7 @@ int32_t BleSendManager::MechbodyDisConnectSync(MechInfo &mechInfo)
             Bluetooth::BluetoothRemoteDevice(mechInfo.mac, Bluetooth::BT_TRANSPORT_BLE);
     int32_t res = Bluetooth::BluetoothHost::GetDefaultHost().RemovePair(remoteDevice);
     HILOGI("MECHBODY_EXEC_CONNECT RemovePair end, result: %{public}d", res);
-    ret = MechbodyGattcDisconnect(mechInfo);
+    ret = MechbodyGattcDisconnect(mechInfo, requestId);
     if (ret != ERR_OK) {
         HILOGE("MECHBODY_EXEC_DISCONNECT gatt disconnect failed for mechInfo: %{public}s",
             mechInfo.ToString().c_str());
@@ -970,39 +1318,48 @@ int32_t BleSendManager::MechbodyDisConnectSync(MechInfo &mechInfo)
 void BleSendManager::OnGattDisconnect(MechInfo &mechInfo)
 {
     MechConnectManager::GetInstance().NotifyMechDisconnect(mechInfo);
-    batteryManager_.reset();
-    DelayedUnloadSystemAbility();
     HILOGI("destruct bleGattClientCallBack_ start");
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
     {
-        std::lock_guard<std::mutex> lock(gattClientMutex_);
-        gattClient = gattClient_;
-        gattClient_.reset();
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        if (!gattClientMac_.empty() && gattClientMac_ != mechInfo.mac) {
+            HILOGI("MECHBODY_EXEC_DISCONNECT keep client owned by another mac: %{public}s",
+                GetAnonymStr(gattClientMac_).c_str());
+            return;
+        }
+        client = gattClient_;
         gattClient_ = nullptr;
-        bleGattClientCallBack_.reset();
         bleGattClientCallBack_ = nullptr;
+        gattClientMac_.clear();
+        gattClientRequestId_ = 0;
     }
-    if (gattClient != nullptr) {
-        if (gattClient->Close() != 0) {
+    batteryManager_.reset();
+    if (client != nullptr) {
+        if (client->Close() != 0) {
             HILOGE("Close gattclient error");
         }
     }
+    DelayedUnloadSystemAbility();
     HILOGI("end and destruct bleGattClientCallBack_ end");
 }
 
-int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo)
+int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo, uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_DISCONNECT begin");
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
     {
-        std::lock_guard<std::mutex> lock(gattClientMutex_);
-        gattClient = gattClient_;
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        if (!gattClientMac_.empty() && gattClientMac_ != mechInfo.mac) {
+            HILOGI("MECHBODY_EXEC_DISCONNECT gatt client owned by another mac, skip disconnect");
+            return ERR_OK;
+        }
+        client = gattClient_;
     }
-    if (gattClient == nullptr) {
+    if (client == nullptr) {
         HILOGE("gattClient_ is nullptr");
         return MECHBODY_GATT_INVALID_PARAM;
     }
-    int status = gattClient->Disconnect();
+    int status = client->Disconnect();
     HILOGI("MECHBODY_EXEC_DISCONNECT BleGattcDisconnect info, status: %{public}d", status);
     if (status != OHOS_BT_STATUS_SUCCESS) {
         HILOGE("MECHBODY_EXEC_DISCONNECT BleGattcDisconnect error, status: %{public}d", status);
@@ -1011,10 +1368,10 @@ int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo)
 
     std::unique_lock<std::mutex> lock(gattDisconnMutex_);
     if (!gattDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
-        [this, mechInfo]() mutable {
+        [this, mechInfo, requestId]() mutable {
             bool gattState = true;
             MechConnectManager::GetInstance().GetMechanicGattState(mechInfo.mac, gattState);
-            return !gattState;
+            return IsStale(requestId) || !gattState;
         })) {
         HILOGE("MECHBODY_EXEC_DISCONNECT wait for gatt connect timeout");
         return MECHBODY_GATT_CONNECT_FAILED;
@@ -1023,7 +1380,7 @@ int32_t BleSendManager::MechbodyGattcDisconnect(MechInfo mechInfo)
     return status;
 }
 
-int32_t BleSendManager::MechbodyHidDisconnect(MechInfo &mechInfo)
+int32_t BleSendManager::MechbodyHidDisconnect(MechInfo &mechInfo, uint64_t requestId)
 {
     HILOGI("MECHBODY_EXEC_DISCONNECT start");
     Bluetooth::BluetoothRemoteDevice remoteDevice =
@@ -1035,10 +1392,10 @@ int32_t BleSendManager::MechbodyHidDisconnect(MechInfo &mechInfo)
     }
     std::unique_lock<std::mutex> lock(hidDisconnMutex_);
     if (!hidDisconnCv_.wait_for(lock, std::chrono::seconds(CONNECT_TIMEOUT_SECOND),
-        [this, mechInfo]() mutable {
+        [this, mechInfo, requestId]() mutable {
             bool hidState = true;
             MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState);
-            return !hidState;
+            return IsStale(requestId) || !hidState;
         })) {
         HILOGE("MECHBODY_EXEC_DISCONNECT wait for hid disconnect timeout");
         return ERR_OK;
@@ -1095,16 +1452,12 @@ int32_t BleSendManager::MechbodyGattcDisconnectForMechbotyStart(MechInfo mechInf
                GetAnonymStr(mechInfo.mac).c_str(), GetAnonymStr(mechInfo.mechName).c_str());
         return MECH_INFO_NOT_FOUND;
     }
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
-    {
-        std::lock_guard<std::mutex> lock(gattClientMutex_);
-        gattClient = gattClient_;
-    }
-    if (gattClient == nullptr) {
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = GetGattClient();
+    if (client == nullptr) {
         HILOGE("MECH_CLEAN_CONN_GATT gattClient is nullptr for mech info: %{public}s;", mechInfo.ToString().c_str());
         return MECH_HAS_DISCONNECTED;
     }
-    int result = gattClient->Disconnect();
+    int result = client->Disconnect();
     HILOGI("MECH_CLEAN_CONN_GATT Gatt Disconnect exec result: %{public}d; mech info: %{public}s",
            result, mechInfo.ToString().c_str());
     if (result != OHOS_BT_STATUS_SUCCESS) {
@@ -1184,23 +1537,24 @@ int32_t BleSendManager::MechbodyGattcWriteCharacteristic(uint8_t *data, uint32_t
         HILOGE("data is nullptr or len is not enough");
         return MECHBODY_GATT_INVALID_PARAM;
     }
-    std::shared_ptr<OHOS::Bluetooth::GattClient> gattClient;
-    {
-        std::lock_guard<std::mutex> lock(gattClientMutex_);
-        gattClient = gattClient_;
-    }
-    if (gattClient == nullptr) {
-        HILOGE("gattClient_ is nullptr");
-        return MECHBODY_GATT_INVALID_PARAM;
-    }
+    std::shared_ptr<OHOS::Bluetooth::GattClient> client = nullptr;
     uint16_t handle;
     int32_t permissions;
     int32_t properties;
     {
         std::lock_guard<std::mutex> lock(handleMutex_);
+        client = gattClient_;
         handle = handle_;
         permissions = permissions_;
         properties = properties_;
+    }
+    if (client == nullptr) {
+        HILOGE("gattClient_ is nullptr");
+        return MECHBODY_GATT_INVALID_PARAM;
+    }
+    if (handle == 0) {
+        HILOGE("write characteristic handle is invalid, service not discovered yet");
+        return MECHBODY_GATT_INVALID_PARAM;
     }
     GattCharacteristic wrCharacteristic = GattCharacteristic(MECHBODY_CHARACTERISTIC_WRITE_UUID,
         handle, permissions, properties);
@@ -1208,7 +1562,7 @@ int32_t BleSendManager::MechbodyGattcWriteCharacteristic(uint8_t *data, uint32_t
     wrCharacteristic.SetWriteType(GattCharacteristic::WriteType::NO_RESPONSE);
     HILOGI("Mech writeC");
     uint64_t beginTime = GetTimeStampMs();
-    result = gattClient->WriteCharacteristic(wrCharacteristic);
+    result = client->WriteCharacteristic(wrCharacteristic);
     uint64_t endTime = GetTimeStampMs();
     HILOGI("Mech writeC, result = %{public}d handle: %{public}d dataLen: %{public}d, castTime:%{public}s \n", \
         result, handle, dataLen, std::to_string(endTime - beginTime).c_str());
