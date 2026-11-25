@@ -126,7 +126,11 @@ void FuzzAllFunctions(FuzzedDataProvider &provider)
     SubscribeEventUtils::GetInstance().Init();
 
     static MockBaseService service;
-    SubscribeEventUtils::GetInstance().AddEventService(&service);
+    static bool serviceAdded = false;
+    if (!serviceAdded) {
+        SubscribeEventUtils::GetInstance().AddEventService(&service);
+        serviceAdded = true;
+    }
 
     std::string action = provider.ConsumeRandomLengthString();
     EventFwk::Want want;

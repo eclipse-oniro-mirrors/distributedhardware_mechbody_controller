@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include <cstdint>
 #include <fuzzer/FuzzedDataProvider.h>
 #include "mccameratrackingcontrollerfour_fuzzer.h"
 #include "mc_camera_tracking_controller.h"
@@ -31,6 +32,10 @@ McCameraTrackingController* g_cameraTrackingController = nullptr;
 
 constexpr uint32_t MIN_GET_COUNT = 1;
 constexpr uint32_t MAX_GET_COUNT = 5;
+constexpr uint8_t MIN_CAMERA_TYPE = static_cast<uint8_t>(CameraType::FRONT);
+constexpr uint8_t MAX_CAMERA_TYPE = static_cast<uint8_t>(CameraType::OTHER);
+constexpr uint8_t MIN_CONFIDENCE_LEVEL = static_cast<uint8_t>(ConfidenceLevel::LOST);
+constexpr uint8_t MAX_CONFIDENCE_LEVEL = static_cast<uint8_t>(ConfidenceLevel::LOW);
 
 void InitCameraTrackingController()
 {
@@ -56,7 +61,7 @@ void FuzzSearchTargetStop(const uint8_t *data, size_t size)
     if (cameraInfo != nullptr) {
         cameraInfo->searchingTarget = true;
         cameraInfo->tokenId = provider.ConsumeIntegral<uint32_t>();
-        cameraInfo->trackingTargetNum = provider.ConsumeIntegral<int32_t>();
+        cameraInfo->trackingTargetNum = provider.ConsumeIntegral<uint64_t>();
     }
     // 清空 motionManagers
     {
@@ -76,11 +81,109 @@ void FuzzGetTokenIdOfCurrentCameraInfo(const uint8_t *data, size_t size)
     }
 }
 
+void FuzzHandleTrackingFrame(const uint8_t *data, size_t size)
+{
+    FuzzedDataProvider provider(data, size);
+    InitCameraTrackingController();
+
+    TrackingFrameParams params;
+    params.targetId = provider.ConsumeIntegral<uint16_t>();
+    params.timeStamp = provider.ConsumeIntegral<uint64_t>();
+    params.cameraType = static_cast<CameraType>(
+        provider.ConsumeIntegralInRange<uint8_t>(MIN_CAMERA_TYPE, MAX_CAMERA_TYPE));
+    params.confidence = static_cast<ConfidenceLevel>(
+        provider.ConsumeIntegralInRange<uint8_t>(MIN_CONFIDENCE_LEVEL, MAX_CONFIDENCE_LEVEL));
+    params.objectType = provider.ConsumeIntegral<uint8_t>();
+    params.roi.x = provider.ConsumeFloatingPoint<float>();
+    params.roi.y = provider.ConsumeFloatingPoint<float>();
+    params.roi.width = provider.ConsumeFloatingPoint<float>();
+    params.roi.height = provider.ConsumeFloatingPoint<float>();
+    params.fovV = provider.ConsumeFloatingPoint<float>();
+    params.fovH = provider.ConsumeFloatingPoint<float>();
+    params.isRecording = provider.ConsumeBool();
+    params.timeDelay = provider.ConsumeIntegral<uint32_t>();
+
+    g_cameraTrackingController->HandleTrackingFrame(params);
+}
+
+void FuzzCalcRoiRotate(const uint8_t *data, size_t size)
+{
+    FuzzedDataProvider provider(data, size);
+    InitCameraTrackingController();
+
+    auto params = std::make_shared<TrackingFrameParams>();
+    params->targetId = provider.ConsumeIntegral<uint16_t>();
+    params->timeStamp = provider.ConsumeIntegral<uint64_t>();
+    params->cameraType = static_cast<CameraType>(
+        provider.ConsumeIntegralInRange<uint8_t>(MIN_CAMERA_TYPE, MAX_CAMERA_TYPE));
+    params->confidence = static_cast<ConfidenceLevel>(
+        provider.ConsumeIntegralInRange<uint8_t>(MIN_CONFIDENCE_LEVEL, MAX_CONFIDENCE_LEVEL));
+    params->objectType = provider.ConsumeIntegral<uint8_t>();
+    params->roi.x = provider.ConsumeFloatingPoint<float>();
+    params->roi.y = provider.ConsumeFloatingPoint<float>();
+    params->roi.width = provider.ConsumeFloatingPoint<float>();
+    params->roi.height = provider.ConsumeFloatingPoint<float>();
+    params->fovV = provider.ConsumeFloatingPoint<float>();
+    params->fovH = provider.ConsumeFloatingPoint<float>();
+    params->isRecording = provider.ConsumeBool();
+    params->timeDelay = provider.ConsumeIntegral<uint32_t>();
+
+    MobileRotation rot = static_cast<MobileRotation>(
+        provider.ConsumeIntegralInRange<int32_t>(-1, 270));
+
+    g_cameraTrackingController->CalcRoiRotate(params, rot);
+}
+
+void FuzzBodyRoiOffset(const uint8_t *data, size_t size)
+{
+    FuzzedDataProvider provider(data, size);
+    InitCameraTrackingController();
+
+    auto params = std::make_shared<TrackingFrameParams>();
+    params->targetId = provider.ConsumeIntegral<uint16_t>();
+    params->timeStamp = provider.ConsumeIntegral<uint64_t>();
+    params->cameraType = static_cast<CameraType>(
+        provider.ConsumeIntegralInRange<uint8_t>(MIN_CAMERA_TYPE, MAX_CAMERA_TYPE));
+    params->confidence = static_cast<ConfidenceLevel>(
+        provider.ConsumeIntegralInRange<uint8_t>(MIN_CONFIDENCE_LEVEL, MAX_CONFIDENCE_LEVEL));
+    params->objectType = provider.ConsumeIntegral<uint8_t>();
+    params->roi.x = provider.ConsumeFloatingPoint<float>();
+    params->roi.y = provider.ConsumeFloatingPoint<float>();
+    params->roi.width = provider.ConsumeFloatingPoint<float>();
+    params->roi.height = provider.ConsumeFloatingPoint<float>();
+    params->fovV = provider.ConsumeFloatingPoint<float>();
+    params->fovH = provider.ConsumeFloatingPoint<float>();
+    params->isRecording = provider.ConsumeBool();
+    params->timeDelay = provider.ConsumeIntegral<uint32_t>();
+
+    MobileRotation rot = static_cast<MobileRotation>(
+        provider.ConsumeIntegralInRange<int32_t>(-1, 270));
+
+    // BodyRoiOffset is not available on this branch; keep consuming fuzz data
+    (void)params;
+    (void)rot;
+}
+
+void FuzzUpdateScreenInfo(const uint8_t *data, size_t size)
+{
+    FuzzedDataProvider provider(data, size);
+    InitCameraTrackingController();
+
+    MobileRotation sensorRotation = static_cast<MobileRotation>(
+        provider.ConsumeIntegralInRange<int32_t>(-1, 270));
+
+    g_cameraTrackingController->UpdateScreenInfo(sensorRotation);
+}
+
 } // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     FuzzSearchTargetStop(data, size);
     FuzzGetTokenIdOfCurrentCameraInfo(data, size);
+    FuzzHandleTrackingFrame(data, size);
+    FuzzCalcRoiRotate(data, size);
+    FuzzBodyRoiOffset(data, size);
+    FuzzUpdateScreenInfo(data, size);
     return 0;
 }

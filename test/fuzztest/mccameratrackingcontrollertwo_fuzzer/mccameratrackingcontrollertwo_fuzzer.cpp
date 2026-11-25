@@ -116,8 +116,8 @@ void FuzzOnFocusTrackingTypeHumanHead(const uint8_t *data, size_t size)
     int64_t timestampHumanHead = provider.ConsumeIntegral<uint64_t>();
     int32_t objectIdHumanHead = provider.ConsumeIntegral<int32_t>();
     int32_t confidenceHumanHead = provider.ConsumeIntegralInRange<int32_t>(MIN_CONFIDENCE, MAX_CONFIDENCE);
-    auto objHumanHead = new CameraStandard::MetadataObject(objectTypeHumanHead, timestampHumanHead, bboxHumanHead,
-                                                           objectIdHumanHead, confidenceHumanHead);
+    auto objHumanHead = sptr<CameraStandard::MetadataObject>(new CameraStandard::MetadataObject(objectTypeHumanHead,
+        timestampHumanHead, bboxHumanHead, objectIdHumanHead, confidenceHumanHead));
     detectedObjects.push_back(objHumanHead);
     info.SetDetectedObjects(detectedObjects);
     g_cameraTrackingController->OnFocusTracking(info);
@@ -140,8 +140,8 @@ void FuzzOnFocusTrackingTypeHumanBody(const uint8_t *data, size_t size)
     int64_t timestampHumanBody = provider.ConsumeIntegral<uint64_t>();
     int32_t objectIdHumanBody = provider.ConsumeIntegral<int32_t>();
     int32_t confidenceHumanBody = provider.ConsumeIntegralInRange<int32_t>(MIN_CONFIDENCE, MAX_CONFIDENCE);
-    auto objHumanBody = new CameraStandard::MetadataObject(objectTypeHumanBody, timestampHumanBody, bboxHumanBody,
-                                                           objectIdHumanBody, confidenceHumanBody);
+    auto objHumanBody = sptr<CameraStandard::MetadataObject>(new CameraStandard::MetadataObject(objectTypeHumanBody,
+        timestampHumanBody, bboxHumanBody, objectIdHumanBody, confidenceHumanBody));
     detectedObjects.push_back(objHumanBody);
     info.SetDetectedObjects(detectedObjects);
     g_cameraTrackingController->OnFocusTracking(info);
@@ -164,7 +164,8 @@ void FuzzOnFocusTrackingTypeFace(const uint8_t *data, size_t size)
     int64_t timestamp = provider.ConsumeIntegral<uint64_t>();
     int32_t objectId = provider.ConsumeIntegral<int32_t>();
     int32_t confidence = provider.ConsumeIntegralInRange<int32_t>(MIN_CONFIDENCE, MAX_CONFIDENCE);
-    auto obj = new CameraStandard::MetadataObject(objectType, timestamp, bbox, objectId, confidence);
+    auto obj = sptr<CameraStandard::MetadataObject>(new CameraStandard::MetadataObject(objectType, timestamp, bbox,
+        objectId, confidence));
     detectedObjects.push_back(obj);
     info.SetDetectedObjects(detectedObjects);
     g_cameraTrackingController->OnFocusTracking(info);

@@ -21,6 +21,8 @@ using namespace OHOS;
 using namespace OHOS::MechBodyController;
 
 namespace {
+constexpr int32_t MIN_ITERATIONS = 1;
+constexpr int32_t MAX_ITERATIONS = 3;
 
 enum class TestFunctionId {
     FUZZ_INIT_TRACKING_CORE = 0,
@@ -39,7 +41,9 @@ enum class TestFunctionId {
     FUZZ_CLEAR_MULTIPLE_TIMES = 13,
     FUZZ_RESET_MULTIPLE_TIMES = 14,
     FUZZ_RUN_WITH_VARYING_CALLBACKS = 15,
-    TEST_FUNCTION_ID_MAX = 15,
+    FUZZ_REGISTER_BACKGROUND_TRACKING = 16,
+    FUZZ_REGISTER_BACKGROUND_TRACKING_NULL_CALLBACK = 17,
+    TEST_FUNCTION_ID_MAX = 17,
 };
 
 void FuzzInitTrackingCore(FuzzedDataProvider &provider)
@@ -103,7 +107,7 @@ void FuzzInitResetAndClear(FuzzedDataProvider &provider)
 
 void FuzzMultipleInit(FuzzedDataProvider &provider)
 {
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 3);
+    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(MIN_ITERATIONS, MAX_ITERATIONS);
     for (int32_t i = 0; i < iterations; i++) {
         MechbodyAdapterUtils::InitTrackingCore();
     }
@@ -166,7 +170,7 @@ void FuzzSequenceOperations(FuzzedDataProvider &provider)
 {
     MechbodyAdapterUtils::InitTrackingCore();
 
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 3);
+    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(MIN_ITERATIONS, MAX_ITERATIONS);
 
     for (int32_t i = 0; i < iterations; i++) {
         float x = provider.ConsumeFloatingPoint<float>();
@@ -249,7 +253,7 @@ void FuzzClearMultipleTimes(FuzzedDataProvider &provider)
 {
     MechbodyAdapterUtils::InitTrackingCore();
 
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 3);
+    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(MIN_ITERATIONS, MAX_ITERATIONS);
 
     for (int32_t i = 0; i < iterations; i++) {
         MechbodyAdapterUtils::Clear();
@@ -260,7 +264,7 @@ void FuzzResetMultipleTimes(FuzzedDataProvider &provider)
 {
     MechbodyAdapterUtils::InitTrackingCore();
 
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 3);
+    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(MIN_ITERATIONS, MAX_ITERATIONS);
 
     for (int32_t i = 0; i < iterations; i++) {
         MechbodyAdapterUtils::ResetTrackingCore();
@@ -273,7 +277,7 @@ void FuzzRunWithVaryingCallbacks(FuzzedDataProvider &provider)
 {
     MechbodyAdapterUtils::InitTrackingCore();
 
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 3);
+    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(MIN_ITERATIONS, MAX_ITERATIONS);
 
     for (int32_t i = 0; i < iterations; i++) {
         float x = provider.ConsumeFloatingPoint<float>();
@@ -291,6 +295,22 @@ void FuzzRunWithVaryingCallbacks(FuzzedDataProvider &provider)
 
     MechbodyAdapterUtils::ResetTrackingCore();
     MechbodyAdapterUtils::Clear();
+}
+
+void FuzzRegisterBackgroundTracking(FuzzedDataProvider &provider)
+{
+    int8_t deviceType = provider.ConsumeIntegral<int8_t>();
+    GetBackgroundXYFn callback = [](TrackingFrameParams params) {
+        (void)params;
+    };
+    MechbodyAdapterUtils::RegisterBackgroundTracking(callback, deviceType);
+}
+
+void FuzzRegisterBackgroundTrackingNullCallback(FuzzedDataProvider &provider)
+{
+    int8_t deviceType = provider.ConsumeIntegral<int8_t>();
+    GetBackgroundXYFn callback = nullptr;
+    MechbodyAdapterUtils::RegisterBackgroundTracking(callback, deviceType);
 }
 
 void RunFuzzTest(FuzzedDataProvider &provider, int32_t testFunctionId)
@@ -319,6 +339,12 @@ void RunFuzzTest(FuzzedDataProvider &provider, int32_t testFunctionId)
             break;
         case TestFunctionId::FUZZ_RUN_WITH_VARYING_CALLBACKS:
             FuzzRunWithVaryingCallbacks(provider);
+            break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING:
+            FuzzRegisterBackgroundTracking(provider);
+            break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING_NULL_CALLBACK:
+            FuzzRegisterBackgroundTrackingNullCallback(provider);
             break;
         default:
             break;
@@ -357,9 +383,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         case TestFunctionId::FUZZ_RUN_WITH_CALLBACK:
             FuzzRunWithCallback(provider);
             break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING:
+            FuzzRegisterBackgroundTracking(provider);
+            break;
+        case TestFunctionId::FUZZ_REGISTER_BACKGROUND_TRACKING_NULL_CALLBACK:
+            FuzzRegisterBackgroundTrackingNullCallback(provider);
+            break;
         default:
             RunFuzzTest(provider, testFunctionId);
             break;
     }
+    MechbodyAdapterUtils::UnRegisterBackgroundTracking();
+    MechbodyAdapterUtils::Clear();
     return 0;
 }

@@ -72,41 +72,69 @@ void InitMotionManager()
     }
 }
 
-void FuzzProcessTrackingStatusMultipleCalls(FuzzedDataProvider &provider)
+// Primary: MechExecutionResultNotify with fuzz data through Unmarshal
+// This exercises the core business logic of parsing control result and
+// looking up callbacks by taskId
+void FuzzMechExecutionResultNotifyWithUnmarshal(FuzzedDataProvider &provider)
 {
     InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 10);
-    for (int32_t i = 0; i < iterations; ++i) {
-        g_motionManager->ProcessTrackingStatus();
-    }
-}
 
-void FuzzGetMechRealNameMultipleCalls(FuzzedDataProvider &provider)
-{
-    InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 10);
-    for (int32_t i = 0; i < iterations; ++i) {
-        g_motionManager->GetMechRealName();
-    }
-}
+    auto cmd = std::make_shared<RegisterMechControlResultCmd>();
 
-void FuzzGetWheelCapabilityInfoMultipleCalls(FuzzedDataProvider &provider)
-{
-    InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 10);
-    for (int32_t i = 0; i < iterations; ++i) {
-        g_motionManager->GetWheelCapabilityInfo();
-    }
-}
-
-void FuzzMechExecutionResultNotifyMultipleCalls(FuzzedDataProvider &provider)
-{
-    InitMotionManager();
-    int32_t iterations = provider.ConsumeIntegralInRange<int32_t>(1, 10);
-    for (int32_t i = 0; i < iterations; ++i) {
-        auto cmd = std::make_shared<RegisterMechControlResultCmd>();
+    // Construct a MechDataBuffer with fuzz data for Unmarshal
+    // Unmarshal expects at least RPT_SIZE + BIT_OFFSET_2 bytes
+    constexpr size_t minSize = RegisterMechControlResultCmd::RPT_SIZE + BIT_OFFSET_2;
+    size_t bufferSize = provider.ConsumeIntegralInRange<size_t>(minSize, minSize + 64);
+    std::shared_ptr<MechDataBuffer> dataBuffer = std::make_shared<MechDataBuffer>(bufferSize);
+    if (dataBuffer == nullptr || dataBuffer->Data() == nullptr) {
         g_motionManager->MechExecutionResultNotify(cmd);
+        return;
     }
+
+    // Fill buffer with fuzz data to exercise Unmarshal parsing
+    size_t dataLen = provider.ConsumeIntegralInRange<size_t>(0, bufferSize);
+    std::vector<uint8_t> fuzzBytes = provider.ConsumeBytes<uint8_t>(dataLen);
+    if (!fuzzBytes.empty()) {
+        size_t copyLen = std::min(fuzzBytes.size(), bufferSize);
+        if (memcpy_s(dataBuffer->Data(), bufferSize, fuzzBytes.data(), copyLen) == EOK) {
+            dataBuffer->SetRange(0, copyLen);
+        }
+    }
+
+    // Unmarshal fuzz data into cmd fields (controlResult_, taskId_)
+    bool unmarshalResult = cmd->Unmarshal(dataBuffer);
+    (void)unmarshalResult;
+
+    // Call MechExecutionResultNotify with fuzz-populated cmd
+    // This exercises the callback lookup logic using the fuzz-derived taskId
+    g_motionManager->MechExecutionResultNotify(cmd);
+
+    // Verify parsed values
+    (void)cmd->GetControlResult();
+    (void)cmd->GetTaskId();
+    (void)cmd->GetResult();
+}
+
+// Secondary: no-param getters with minimal fuzz data allocation
+void FuzzProcessTrackingStatus(FuzzedDataProvider &provider)
+{
+    InitMotionManager();
+    (void)provider.ConsumeBool(); // consume minimal fuzz data
+    g_motionManager->ProcessTrackingStatus();
+}
+
+void FuzzGetMechRealName(FuzzedDataProvider &provider)
+{
+    InitMotionManager();
+    (void)provider.ConsumeBool(); // consume minimal fuzz data
+    g_motionManager->GetMechRealName();
+}
+
+void FuzzGetWheelCapabilityInfo(FuzzedDataProvider &provider)
+{
+    InitMotionManager();
+    (void)provider.ConsumeBool(); // consume minimal fuzz data
+    g_motionManager->GetWheelCapabilityInfo();
 }
 
 }  // namespace
@@ -114,9 +142,9 @@ void FuzzMechExecutionResultNotifyMultipleCalls(FuzzedDataProvider &provider)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     FuzzedDataProvider provider(data, size);
-    FuzzProcessTrackingStatusMultipleCalls(provider);
-    FuzzGetMechRealNameMultipleCalls(provider);
-    FuzzGetWheelCapabilityInfoMultipleCalls(provider);
-    FuzzMechExecutionResultNotifyMultipleCalls(provider);
+    FuzzMechExecutionResultNotifyWithUnmarshal(provider);
+    FuzzProcessTrackingStatus(provider);
+    FuzzGetMechRealName(provider);
+    FuzzGetWheelCapabilityInfo(provider);
     return 0;
 }

@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include <securec.h>
 #include <fuzzer/FuzzedDataProvider.h>
 #include "wheelsetmechscenecontrolcmd_fuzzer.h"
 #include "mc_wheel_set_mech_scene_control_cmd.h"
@@ -40,7 +41,8 @@ enum class TestFunctionId {
     FUZZ_TRIGGER_RESPONSE_WITH_VALID_DATA = 10,
     FUZZ_GET_ACTION_TYPE = 11,
     FUZZ_GET_RESULT = 12,
-    FUZZ_FULL_WORKFLOW = 13
+    FUZZ_FULL_WORKFLOW = 13,
+    FUZZ_TRIGGER_RESPONSE_WITH_FUZZ_DATA = 14
 };
 
 void FuzzConstructorLandscapePortraitSwitch(FuzzedDataProvider &provider)
@@ -149,6 +151,26 @@ void FuzzGetResult(FuzzedDataProvider &provider)
     (void)result;
 }
 
+void FuzzTriggerResponseWithFuzzData(FuzzedDataProvider &provider)
+{
+    uint8_t actionValue = provider.ConsumeIntegral<uint8_t>();
+    ActionType actionType = static_cast<ActionType>(actionValue);
+    WheelSetMechSceneControlCmd cmd(actionType);
+
+    size_t dataSize = provider.ConsumeIntegralInRange<size_t>(1, 64);
+    std::shared_ptr<MechDataBuffer> dataBuffer = std::make_shared<MechDataBuffer>(dataSize);
+    if (dataBuffer != nullptr) {
+        dataBuffer->SetRange(0, dataSize);
+        if (dataBuffer->Data() != nullptr) {
+            for (size_t i = 0; i < dataSize; i++) {
+                uint8_t byte = provider.ConsumeIntegral<uint8_t>();
+                memcpy_s(dataBuffer->Data() + i, dataSize - i, &byte, sizeof(byte));
+            }
+        }
+    }
+    cmd.TriggerResponse(dataBuffer);
+}
+
 void FuzzFullWorkflow(FuzzedDataProvider &provider)
 {
     int32_t actionValue = provider.ConsumeIntegralInRange<int32_t>(0, 3000);
@@ -176,55 +198,31 @@ void FuzzFullWorkflow(FuzzedDataProvider &provider)
     }
 }
 
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    FuzzConstructorLandscapePortraitSwitch,
+    FuzzConstructorPatrolMode,
+    FuzzConstructorGreetMode,
+    FuzzConstructorHeadUp,
+    FuzzConstructorHappy,
+    FuzzConstructorDance,
+    FuzzConstructorRandom,
+    FuzzMarshal,
+    FuzzTriggerResponseWithNull,
+    FuzzTriggerResponseWithSmallBuffer,
+    FuzzTriggerResponseWithValidData,
+    FuzzGetActionType,
+    FuzzGetResult,
+    FuzzFullWorkflow,
+    FuzzTriggerResponseWithFuzzData,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 void RunFuzzTest(FuzzedDataProvider &provider)
 {
-    int32_t testFunctionId = provider.ConsumeIntegralInRange<int32_t>(0, 13);
-
-    switch (static_cast<TestFunctionId>(testFunctionId)) {
-        case TestFunctionId::FUZZ_CONSTRUCTOR_LANDSCAPE_PORTRAIT_SWITCH:
-            FuzzConstructorLandscapePortraitSwitch(provider);
-            break;
-        case TestFunctionId::FUZZ_CONSTRUCTOR_PATROL_MODE:
-            FuzzConstructorPatrolMode(provider);
-            break;
-        case TestFunctionId::FUZZ_CONSTRUCTOR_GREET_MODE:
-            FuzzConstructorGreetMode(provider);
-            break;
-        case TestFunctionId::FUZZ_CONSTRUCTOR_HEAD_UP:
-            FuzzConstructorHeadUp(provider);
-            break;
-        case TestFunctionId::FUZZ_CONSTRUCTOR_HAPPY:
-            FuzzConstructorHappy(provider);
-            break;
-        case TestFunctionId::FUZZ_CONSTRUCTOR_DANCE:
-            FuzzConstructorDance(provider);
-            break;
-        case TestFunctionId::FUZZ_CONSTRUCTOR_RANDOM:
-            FuzzConstructorRandom(provider);
-            break;
-        case TestFunctionId::FUZZ_MARSHAL:
-            FuzzMarshal(provider);
-            break;
-        case TestFunctionId::FUZZ_TRIGGER_RESPONSE_WITH_NULL:
-            FuzzTriggerResponseWithNull(provider);
-            break;
-        case TestFunctionId::FUZZ_TRIGGER_RESPONSE_WITH_SMALL_BUFFER:
-            FuzzTriggerResponseWithSmallBuffer(provider);
-            break;
-        case TestFunctionId::FUZZ_TRIGGER_RESPONSE_WITH_VALID_DATA:
-            FuzzTriggerResponseWithValidData(provider);
-            break;
-        case TestFunctionId::FUZZ_GET_ACTION_TYPE:
-            FuzzGetActionType(provider);
-            break;
-        case TestFunctionId::FUZZ_GET_RESULT:
-            FuzzGetResult(provider);
-            break;
-        case TestFunctionId::FUZZ_FULL_WORKFLOW:
-            FuzzFullWorkflow(provider);
-            break;
-        default:
-            break;
+    int32_t testFunctionId = provider.ConsumeIntegralInRange<int32_t>(0, FUZZ_FUNC_COUNT - 1);
+    if (testFunctionId < static_cast<int32_t>(FUZZ_FUNC_COUNT)) {
+        FUZZ_FUNCS[testFunctionId](provider);
     }
 }
 

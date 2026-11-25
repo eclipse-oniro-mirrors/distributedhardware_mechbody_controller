@@ -89,120 +89,118 @@ void FuzzMechTrackingStatusNotifyWithDisabled(const std::shared_ptr<MechEventLis
     }
 }
 
-void FuzzAttitudeNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzAttitudeNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto attitudeCmd = std::make_shared<RegisterMechPositionInfoCmd>();
     auto attitudeData = std::make_shared<MechDataBuffer>(12);
     if (attitudeData != nullptr) {
-        attitudeData->AppendFloat(0.0f);
-        attitudeData->AppendFloat(0.0f);
-        attitudeData->AppendFloat(0.0f);
+        attitudeData->AppendFloat(provider.ConsumeFloatingPoint<float>());
+        attitudeData->AppendFloat(provider.ConsumeFloatingPoint<float>());
+        attitudeData->AppendFloat(provider.ConsumeFloatingPoint<float>());
         attitudeCmd->Unmarshal(attitudeData);
         listener->MechAttitudeNotify(attitudeCmd);
     }
 }
 
-void FuzzButtonEventNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzButtonEventNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto buttonCmd = std::make_shared<RegisterMechCameraKeyEventCmd>();
     auto buttonData = std::make_shared<MechDataBuffer>(8);
     if (buttonData != nullptr) {
-        buttonData->AppendUint8(0x01);
-        buttonData->AppendUint8(0x00);
-        buttonData->AppendInt16(0);
-        buttonData->AppendInt16(0);
+        buttonData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        buttonData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        buttonData->AppendInt16(provider.ConsumeIntegral<int16_t>());
+        buttonData->AppendInt16(provider.ConsumeIntegral<int16_t>());
         buttonCmd->Unmarshal(buttonData);
         listener->MechButtonEventNotify(buttonCmd);
     }
 }
 
-void FuzzParamNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzParamNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto paramCmd = std::make_shared<RegisterMechStateInfoCmd>();
     auto paramData = std::make_shared<MechDataBuffer>(5);
     if (paramData != nullptr) {
-        paramData->AppendUint8(0x01);
-        paramData->AppendUint8(0x01);
-        paramData->AppendUint8(0x00);
-        paramData->AppendUint8(0x00);
-        paramData->AppendUint8(0x00);
+        paramData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        paramData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        paramData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        paramData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        paramData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         paramCmd->Unmarshal(paramData);
         listener->MechParamNotify(paramCmd);
     }
 }
 
-void FuzzGenericEventNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzGenericEventNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto genericCmd = std::make_shared<NormalRegisterMechGenericEventCmd>();
     auto genericData = std::make_shared<MechDataBuffer>(5);
     if (genericData != nullptr) {
-        genericData->AppendUint8(0x00);
-        genericData->AppendUint8(0x01);
-        genericData->AppendUint8(0x00);
-        genericData->AppendUint8(0x00);
-        genericData->AppendUint8(0x00);
+        genericData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        genericData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        genericData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        genericData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        genericData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         genericCmd->Unmarshal(genericData);
         listener->MechGenericEventNotify(genericCmd);
     }
 }
 
-void FuzzCliffInfoNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzCliffInfoNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto cliffCmd = std::make_shared<RegisterMechCliffInfoCmd>();
     auto cliffData = std::make_shared<MechDataBuffer>(1);
     if (cliffData != nullptr) {
-        cliffData->AppendUint8(0x00);
+        cliffData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         cliffCmd->Unmarshal(cliffData);
         listener->MechCliffInfoNotify(cliffCmd);
     }
 }
 
-void FuzzObstacleInfoNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzObstacleInfoNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto obstacleCmd = std::make_shared<RegisterMechObstacleInfoCmd>();
     auto obstacleData = std::make_shared<MechDataBuffer>(1);
     if (obstacleData != nullptr) {
-        obstacleData->AppendUint8(0x00);
+        obstacleData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         obstacleCmd->Unmarshal(obstacleData);
         listener->MechObstacleInfoNotify(obstacleCmd);
     }
 }
 
-void FuzzExecutionResultNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzExecutionResultNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto resultCmd = std::make_shared<RegisterMechControlResultCmd>();
     auto resultData = std::make_shared<MechDataBuffer>(3);
     if (resultData != nullptr) {
-        resultData->AppendUint8(0x02);
-        resultData->AppendUint8(0x01);
-        resultData->AppendUint8(0x00);
+        resultData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        resultData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        resultData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         resultCmd->Unmarshal(resultData);
         listener->MechExecutionResultNotify(resultCmd);
     }
 }
 
-void FuzzWheelZoomNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzWheelZoomNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto wheelCmd = std::make_shared<RegisterMechWheelDataCmd>();
     auto wheelData = std::make_shared<MechDataBuffer>(5);
-    int32_t wheelDataValue1 = 100;
-    int32_t wheelDataValue2 = 10;
     if (wheelData != nullptr) {
-        wheelData->AppendUint32(wheelDataValue1);
-        wheelData->AppendInt16(wheelDataValue2);
-        wheelData->AppendUint8(1);
+        wheelData->AppendUint32(provider.ConsumeIntegral<uint32_t>());
+        wheelData->AppendInt16(provider.ConsumeIntegral<int16_t>());
+        wheelData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         wheelCmd->Unmarshal(wheelData);
         listener->MechWheelZoomNotify(wheelCmd);
     }
 }
 
-void FuzzTrackingStatusNotify(const std::shared_ptr<MechEventListenerImpl> &listener)
+void FuzzTrackingStatusNotify(const std::shared_ptr<MechEventListenerImpl> &listener, FuzzedDataProvider &provider)
 {
     auto trackingCmd = std::make_shared<RegisterMechTrackingEnableCmd>();
     auto trackingData = std::make_shared<MechDataBuffer>(2);
     if (trackingData != nullptr) {
-        trackingData->AppendUint8(0x01);
-        trackingData->AppendUint8(0x00);
+        trackingData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
+        trackingData->AppendUint8(provider.ConsumeIntegral<uint8_t>());
         trackingCmd->Unmarshal(trackingData);
         listener->MechTrackingStatusNotify(trackingCmd);
     }
@@ -214,15 +212,15 @@ void FuzzAllNotifyMethods(const uint8_t *data, size_t size)
     InitMotionManager();
     auto listener = std::make_shared<MechEventListenerImpl>(g_motionManager);
     FuzzMechTrackingStatusNotifyWithDisabled(listener, provider);
-    FuzzAttitudeNotify(listener);
-    FuzzButtonEventNotify(listener);
-    FuzzParamNotify(listener);
-    FuzzGenericEventNotify(listener);
-    FuzzCliffInfoNotify(listener);
-    FuzzObstacleInfoNotify(listener);
-    FuzzExecutionResultNotify(listener);
-    FuzzWheelZoomNotify(listener);
-    FuzzTrackingStatusNotify(listener);
+    FuzzAttitudeNotify(listener, provider);
+    FuzzButtonEventNotify(listener, provider);
+    FuzzParamNotify(listener, provider);
+    FuzzGenericEventNotify(listener, provider);
+    FuzzCliffInfoNotify(listener, provider);
+    FuzzObstacleInfoNotify(listener, provider);
+    FuzzExecutionResultNotify(listener, provider);
+    FuzzWheelZoomNotify(listener, provider);
+    FuzzTrackingStatusNotify(listener, provider);
 }
 
 }  // namespace

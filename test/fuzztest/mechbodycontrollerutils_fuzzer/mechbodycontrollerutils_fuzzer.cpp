@@ -25,49 +25,43 @@
 
 namespace OHOS {
 using namespace OHOS::MechBodyController;
-void GetAnonymStrFuzzTest(const uint8_t *data, size_t size)
+void GetAnonymStrFuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
-    std::string value = fdp.ConsumeRandomLengthString();
-
+    std::string value = fdp.ConsumeRandomLengthString(256);
     GetAnonymStr(value);
 }
 
-void GetAnonymInt32FuzzTest(const uint8_t *data, size_t size)
+void GetAnonymInt32FuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     int32_t value = fdp.ConsumeIntegral<int32_t>();
-
     GetAnonymInt32(value);
 }
 
-void GetAnonymUint32FuzzTest(const uint8_t *data, size_t size)
+void GetAnonymUint32FuzzTest(FuzzedDataProvider &fdp)
 {
-    if ((data == nullptr) || (size == 0)) {
-        return;
-    }
-
-    FuzzedDataProvider fdp(data, size);
     uint32_t value = fdp.ConsumeIntegral<uint32_t>();
-
     GetAnonymUint32(value);
 }
 }
 
 /* Fuzzer entry point */
+using FuzzFunc = void (*)(FuzzedDataProvider &);
+const FuzzFunc FUZZ_FUNCS[] = {
+    OHOS::GetAnonymStrFuzzTest,
+    OHOS::GetAnonymInt32FuzzTest,
+    OHOS::GetAnonymUint32FuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    /* Run your code on data */
-    OHOS::GetAnonymStrFuzzTest(data, size);
-    OHOS::GetAnonymInt32FuzzTest(data, size);
-    OHOS::GetAnonymUint32FuzzTest(data, size);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+    FuzzedDataProvider fdp(data, size);
+    uint8_t funcIndex = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    if (funcIndex < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[funcIndex](fdp);
+    }
     return 0;
 }

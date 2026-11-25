@@ -23,6 +23,7 @@
 #include "mc_connect_manager.h"
 #include "mock_transport_send_adapter.h"
 #include <memory>
+#include <cstdlib>
 #include <iremote_object.h>
 
 using namespace OHOS;
@@ -37,6 +38,14 @@ constexpr int32_t TEST_MECH_ID = 1;
 McCameraTrackingController* g_cameraTrackingController = nullptr;
 std::shared_ptr<MotionManager> g_motionManager = nullptr;
 std::shared_ptr<MockTransportSendAdapter> g_mockAdapter = nullptr;
+
+void CleanupCameraTrackingController()
+{
+    if (g_cameraTrackingController != nullptr) {
+        g_cameraTrackingController->UnInit();
+        g_cameraTrackingController = nullptr;
+    }
+}
 
 void InitCameraTrackingController()
 {
@@ -151,6 +160,16 @@ void FuzzUpdateCurrentCameraInfo(const uint8_t *data, size_t size)
     g_cameraTrackingController->UpdateCurrentCameraInfoByCaptureSessionInfo(captureSessionInfo);
 }
 
+} // namespace
+
+namespace {
+struct ControllerCleaner {
+    ~ControllerCleaner()
+    {
+        CleanupCameraTrackingController();
+    }
+};
+const ControllerCleaner CONTROLLER_CLEANER;
 } // namespace
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)

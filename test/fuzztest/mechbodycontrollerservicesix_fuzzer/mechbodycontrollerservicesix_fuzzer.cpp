@@ -94,7 +94,7 @@ void TurnBySpeedFuzzTest(const uint8_t *data, size_t size)
     FuzzedDataProvider fdp(data, size);
     int32_t mechId = fdp.ConsumeIntegralInRange<int32_t>(0, 3);
     std::string cmdId = fdp.ConsumeRandomLengthString();
-    float angleSpeed = fdp.ConsumeIntegral<uint32_t>();
+    float angleSpeed = fdp.ConsumeFloatingPoint<float>();
     uint16_t duration = fdp.ConsumeIntegral<uint16_t>();
 
     MechBodyControllerService& mechBodyControllerService = MechBodyControllerService::GetInstance();

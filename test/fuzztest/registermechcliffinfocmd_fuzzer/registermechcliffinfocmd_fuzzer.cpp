@@ -122,7 +122,7 @@ void FuzzUnmarshalWithCliffAndDetails(FuzzedDataProvider &provider)
     RegisterMechCliffInfoCmd cmd;
     uint8_t cliffNums = provider.ConsumeIntegralInRange<uint8_t>(1, 3);
     uint8_t detailLen = provider.ConsumeIntegralInRange<uint8_t>(1, 4);
-    size_t dataSize = BIT_OFFSET_2 + sizeof(cliffNums) + cliffNums * (BIT_OFFSET_3 + detailLen);
+    size_t dataSize = BIT_OFFSET_2 + sizeof(cliffNums) + cliffNums * (BIT_OFFSET_3 + detailLen * 4);
     std::shared_ptr<MechDataBuffer> dataBuffer = std::make_shared<MechDataBuffer>(dataSize);
     if (dataBuffer == nullptr) {
         bool result = cmd.Unmarshal(dataBuffer);

@@ -130,13 +130,30 @@ void MechbodyGattcConnectFuzzTest(const uint8_t *data, size_t size)
 }
 
 /* Fuzzer entry point */
+using FuzzFunc = void (*)(const uint8_t *, size_t);
+const FuzzFunc FUZZ_FUNCS[] = {
+    OHOS::MechbodyGattcWriteCharacteristicFuzzTest,
+    OHOS::SendDataFuzzTest,
+    OHOS::OnScanCallbackBleCentralManagerCallbackImplFuzzTest,
+    OHOS::OnGattDisconnectFuzzTest,
+    OHOS::MechbodyGattcConnectFuzzTest,
+};
+constexpr size_t FUZZ_FUNC_COUNT = sizeof(FUZZ_FUNCS) / sizeof(FUZZ_FUNCS[0]);
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    /* Run your code on data */
-    OHOS::MechbodyGattcWriteCharacteristicFuzzTest(data, size);
-    OHOS::SendDataFuzzTest(data, size);
-    OHOS::OnScanCallbackBleCentralManagerCallbackImplFuzzTest(data, size);
-    OHOS::OnGattDisconnectFuzzTest(data, size);
-    OHOS::MechbodyGattcConnectFuzzTest(data, size);
+    if ((data == nullptr) || (size == 0)) {
+        return 0;
+    }
+
+    FuzzedDataProvider fdp(data, size);
+    uint8_t choice = fdp.ConsumeIntegral<uint8_t>() % FUZZ_FUNC_COUNT;
+    auto remaining = fdp.ConsumeRemainingBytes<uint8_t>();
+    const uint8_t *actionData = remaining.data();
+    size_t actionSize = remaining.size();
+
+    if (choice < FUZZ_FUNC_COUNT) {
+        FUZZ_FUNCS[choice](actionData, actionSize);
+    }
     return 0;
 }
