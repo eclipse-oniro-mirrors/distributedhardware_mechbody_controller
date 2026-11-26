@@ -100,7 +100,7 @@
     },
     {
       "name": "gimbal_connected",
-      "value": "Połączono z gimbalem.",
+      "value": "Gimbal połączony.",
       "attr": {
         "priority": "translate"
       }

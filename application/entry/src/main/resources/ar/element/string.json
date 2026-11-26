@@ -2,7 +2,7 @@
   "string": [
     {
       "name": "pause",
-      "value": "الإيقاف مؤقتًا",
+      "value": "إيقاف مؤقت",
       "attr": {
         "priority": "translate"
       }

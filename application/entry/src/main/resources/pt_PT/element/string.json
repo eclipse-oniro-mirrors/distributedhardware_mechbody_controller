@@ -128,7 +128,7 @@
     },
     {
       "name": "mech_first_connect_text2",
-      "value": "Este serviço não recolhe nem armazena informações faciais. Pode desativá-lo a partir do Painel de controlo ou do visor.",
+      "value": "Este serviço não recolhe nem armazena informações faciais. Pode desativá-lo a partir do Painel de controlo ou da vista em direto.",
       "attr": {
         "priority": "translate"
       }

@@ -79,7 +79,7 @@
     },
     {
       "name": "smart_focus_paused",
-      "value": "Умное отслеживание приостановлено",
+      "value": "Пауза умного отслеживания",
       "attr": {
         "priority": "translate"
       }

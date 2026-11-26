@@ -23,7 +23,7 @@
     },
     {
       "name": "mech_enable",
-      "value": "켜기",
+      "value": "켜짐",
       "attr": {
         "priority": "translate"
       }
@@ -121,7 +121,7 @@
     },
     {
       "name": "mech_first_connect_text1",
-      "value": "내 얼굴을 정면 가운데로 맞추세요.",
+      "value": "얼굴을 정면 가운데로 맞추세요.",
       "attr": {
         "priority": "translate"
       }

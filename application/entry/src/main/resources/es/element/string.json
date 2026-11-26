@@ -16,7 +16,7 @@
     },
     {
       "name": "mech_tracking_layout",
-      "value": "Modo de Encuadre",
+      "value": "Modo de encuadre",
       "attr": {
         "priority": "translate"
       }
@@ -72,14 +72,14 @@
     },
     {
       "name": "smart_focus_tracking",
-      "value": "Seguimiento inteligente habilitado",
+      "value": "Seg. inteligente habilitado",
       "attr": {
         "priority": "translate"
       }
     },
     {
       "name": "smart_focus_paused",
-      "value": "Seguimiento inteligente pausado",
+      "value": "Seg. inteligente pausado",
       "attr": {
         "priority": "translate"
       }

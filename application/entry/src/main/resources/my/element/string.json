@@ -23,7 +23,7 @@
     },
     {
       "name": "mech_enable",
-      "value": "ဖွင့်",
+      "value": "ဖွင့်ထားသည်",
       "attr": {
         "priority": "translate"
       }
