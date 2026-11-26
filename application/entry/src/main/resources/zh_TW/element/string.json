@@ -23,7 +23,7 @@
     },
     {
       "name": "mech_enable",
-      "value": "開啟",
+      "value": "啟用",
       "attr": {
         "priority": "translate"
       }

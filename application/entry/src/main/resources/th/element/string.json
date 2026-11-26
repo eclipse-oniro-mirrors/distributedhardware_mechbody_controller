@@ -72,28 +72,28 @@
     },
     {
       "name": "smart_focus_tracking",
-      "value": "การติดตามอัจฉริยะเปิดอยู่",
+      "value": "เปิดการติดตามอัจฉริยะ",
       "attr": {
         "priority": "translate"
       }
     },
     {
       "name": "smart_focus_paused",
-      "value": "หยุดการติดตามอัจฉริยะชั่วคราวแล้ว",
+      "value": "หยุดติดตามอัจฉริยะชั่วคราวแล้ว",
       "attr": {
         "priority": "translate"
       }
     },
     {
       "name": "focus_tracking",
-      "value": "การติดตาม",
+      "value": "กำลังติดตาม",
       "attr": {
         "priority": "translate"
       }
     },
     {
       "name": "focus_paused",
-      "value": "หยุดการติดตามชั่วคราวแล้ว",
+      "value": "หยุดติดตามชั่วคราวแล้ว",
       "attr": {
         "priority": "translate"
       }
