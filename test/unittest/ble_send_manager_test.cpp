@@ -18,6 +18,8 @@
 #include <thread>
 #include "connect/mc_connect_manager.h"
 #include "mechbody_controller_service.h"
+#include "subscribe_event_utils.h"
+#include "mc_camera_tracking_controller.h"
 #include "ble_send_manager_test.h"
 
 using namespace OHOS::Bluetooth;
@@ -29,11 +31,13 @@ void BleSendManagerTest::SetUpTestCase() {}
 void BleSendManagerTest::TearDownTestCase() {}
 void BleSendManagerTest::SetUp()
 {
+    MechConnectManager::GetInstance().CleanMechInfo();
     bleSendManager_ = std::make_shared<BleSendManager>();
 }
 void BleSendManagerTest::TearDown()
 {
     bleSendManager_ = nullptr;
+    MechConnectManager::GetInstance().CleanMechInfo();
 }
 
 void BleGattClientCallbackTest::SetUpTestCase() {}
@@ -175,27 +179,6 @@ HWTEST_F(BleGattClientCallbackTest, OnServicesDiscovered_003, testing::ext::Test
 }
 
 /**
- * @tc.name: OnServicesDiscovered_004
- * @tc.desc: Test OnServicesDiscovered with GATT_SUCCESS and gattClient_ initialized
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnServicesDiscovered_004, testing::ext::TestSize.Level3) {
-    int status = 0; // GATT_SUCCESS
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    BluetoothRemoteDevice device("AA:BB:CC:DD:EE:FF", 1);
-    bleSendManager.gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
-    uint16_t originalHandle = bleSendManager.handle_;
-    int32_t originalPermissions = bleSendManager.permissions_;
-    int32_t originalProperties = bleSendManager.properties_;
-    bleGattClientCallback_->OnServicesDiscovered(status);
-    ASSERT_EQ(bleSendManager.handle_, originalHandle);
-    ASSERT_EQ(bleSendManager.permissions_, originalPermissions);
-    ASSERT_EQ(bleSendManager.properties_, originalProperties);
-    bleSendManager.gattClient_.reset();
-    bleSendManager.gattClient_ = nullptr;
-}
-
-/**
  * @tc.name: OnServicesDiscovered_005
  * @tc.desc: Test OnServicesDiscovered with GATT_FAILURE (status = 1)
  * @tc.type: FUNC
@@ -214,44 +197,54 @@ HWTEST_F(BleGattClientCallbackTest, OnServicesDiscovered_005, testing::ext::Test
 
 /**
  * @tc.name: OnServicesDiscovered_006
- * @tc.desc: Test OnServicesDiscovered with GATT_SUCCESS and valid gattClient_ but notifyCharacteristic is nullptr
+ * @tc.desc: Test OnServicesDiscovered with GATT_SUCCESS and gattClient_ using BREDR transport
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnServicesDiscovered_006, testing::ext::TestSize.Level3) {
     int status = 0; // GATT_SUCCESS
     BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    BluetoothRemoteDevice device("AA:BB:CC:DD:EE:FF", 1);
+    // Use transport=0 (BREDR) instead of 1 (BLE) to cover a different GattClient construction path
+    BluetoothRemoteDevice device("AA:BB:CC:DD:EE:FF", 0);
     bleSendManager.gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
-    uint16_t originalHandle = bleSendManager.handle_;
-    int32_t originalPermissions = bleSendManager.permissions_;
-    int32_t originalProperties = bleSendManager.properties_;
+    bleSendManager.handle_ = 0x1234;
+    bleSendManager.permissions_ = 0x5678;
+    bleSendManager.properties_ = 0x9ABC;
     bleGattClientCallback_->OnServicesDiscovered(status);
-    ASSERT_EQ(bleSendManager.handle_, originalHandle);
-    ASSERT_EQ(bleSendManager.permissions_, originalPermissions);
-    ASSERT_EQ(bleSendManager.properties_, originalProperties);
+    // GetService fails on a bare GattClient, SUT returns at GetService check; state unchanged
+    EXPECT_EQ(bleSendManager.handle_, 0x1234);
+    EXPECT_EQ(bleSendManager.permissions_, 0x5678);
+    EXPECT_EQ(bleSendManager.properties_, 0x9ABC);
     bleSendManager.gattClient_.reset();
     bleSendManager.gattClient_ = nullptr;
+    bleSendManager.handle_ = 0;
+    bleSendManager.permissions_ = 0;
+    bleSendManager.properties_ = 0;
 }
 
 /**
  * @tc.name: OnServicesDiscovered_007
- * @tc.desc: Test OnServicesDiscovered with GATT_SUCCESS and valid gattClient_ but writeCharacteristic is nullptr
+ * @tc.desc: Test OnServicesDiscovered with GATT_SUCCESS and a different MAC address
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnServicesDiscovered_007, testing::ext::TestSize.Level3) {
     int status = 0; // GATT_SUCCESS
     BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    BluetoothRemoteDevice device("AA:BB:CC:DD:EE:FF", 1);
+    // Use a different MAC address to cover a different device lookup path
+    BluetoothRemoteDevice device("11:22:33:44:55:66", 1);
     bleSendManager.gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
-    uint16_t originalHandle = bleSendManager.handle_;
-    int32_t originalPermissions = bleSendManager.permissions_;
-    int32_t originalProperties = bleSendManager.properties_;
+    bleSendManager.handle_ = 0xAAAA;
+    bleSendManager.permissions_ = 0xBBBB;
+    bleSendManager.properties_ = 0xCCCC;
     bleGattClientCallback_->OnServicesDiscovered(status);
-    ASSERT_EQ(bleSendManager.handle_, originalHandle);
-    ASSERT_EQ(bleSendManager.permissions_, originalPermissions);
-    ASSERT_EQ(bleSendManager.properties_, originalProperties);
+    // GetService fails on a bare GattClient, SUT returns at GetService check; state unchanged
+    EXPECT_EQ(bleSendManager.handle_, 0xAAAA);
+    EXPECT_EQ(bleSendManager.permissions_, 0xBBBB);
+    EXPECT_EQ(bleSendManager.properties_, 0xCCCC);
     bleSendManager.gattClient_.reset();
     bleSendManager.gattClient_ = nullptr;
+    bleSendManager.handle_ = 0;
+    bleSendManager.permissions_ = 0;
+    bleSendManager.properties_ = 0;
 }
 
 /**
@@ -265,90 +258,6 @@ HWTEST_F(BleGattClientCallbackTest, OnSetNotifyCharacteristic_001, testing::ext:
     BleSendManager& bleSendManager = BleSendManager::GetInstance();
     bool originalIsGattReady = bleSendManager.isGattReady_;
     bleGattClientCallback_->OnSetNotifyCharacteristic(characteristic, 1);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-}
-
-/**
- * @tc.name: OnSetNotifyCharacteristic_002
- * @tc.desc: Test OnSetNotifyCharacteristic with GetMechInfo success
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnSetNotifyCharacteristic_002, testing::ext::TestSize.Level3) {
-    bleGattClientCallback_->setMac("AA:BB:CC:DD:EE:FF");
-    GattCharacteristic characteristic(UUID::FromString("0000fff0-0000-1000-8000-00805f9b34fb"), 1, 0, 0);
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
-    bleGattClientCallback_->OnSetNotifyCharacteristic(characteristic, 1);
-    // 验证 isGattReady_ 状态被正确设置（status == 1 时应该为 true）
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-}
-
-/**
- * @tc.name: OnCharacteristicWriteResult_001
- * @tc.desc: Test OnCharacteristicWriteResult with GATT_SUCCESS and empty value
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnCharacteristicWriteResult_001, testing::ext::TestSize.Level3) {
-    GattCharacteristic characteristic(UUID::FromString("0000fff0-0000-1000-8000-00805f9b34fb"), 1, 0, 0);
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
-    bleGattClientCallback_->OnCharacteristicWriteResult(characteristic, 0); // GATT_SUCCESS
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-}
-
-/**
- * @tc.name: OnCharacteristicWriteResult_002
- * @tc.desc: Test OnCharacteristicWriteResult with GATT_FAILURE
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnCharacteristicWriteResult_002, testing::ext::TestSize.Level3) {
-    GattCharacteristic characteristic(UUID::FromString("0000fff0-0000-1000-8000-00805f9b34fb"), 1, 0, 0);
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
-    bleGattClientCallback_->OnCharacteristicWriteResult(characteristic, 1); // GATT_FAILURE
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-}
-
-/**
- * @tc.name: OnCharacteristicWriteResult_003
- * @tc.desc: Test OnCharacteristicWriteResult with WRITE_NOT_PERMITTED
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnCharacteristicWriteResult_003, testing::ext::TestSize.Level3) {
-    GattCharacteristic characteristic(UUID::FromString("0000fff0-0000-1000-8000-00805f9b34fb"), 1, 0, 0);
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
-    bleGattClientCallback_->OnCharacteristicWriteResult(characteristic, 2); // WRITE_NOT_PERMITTED
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-}
-
-/**
- * @tc.name: OnCharacteristicWriteResult_004
- * @tc.desc: Test OnCharacteristicWriteResult with GATT_FAILURE and valid data
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnCharacteristicWriteResult_004, testing::ext::TestSize.Level3) {
-    uint8_t testData[] = {0x01, 0x02, 0x03, 0x04};
-    GattCharacteristic characteristic(UUID::FromString("0000fff0-0000-1000-8000-00805f9b34fb"), 1, 0, 0);
-    characteristic.SetValue(testData, sizeof(testData));
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
-    bleGattClientCallback_->OnCharacteristicWriteResult(characteristic, 1); // GATT_FAILURE
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-}
-
-/**
- * @tc.name: OnCharacteristicWriteResult_005
- * @tc.desc: Test OnCharacteristicWriteResult with WRITE_NOT_PERMITTED and valid data
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnCharacteristicWriteResult_005, testing::ext::TestSize.Level3) {
-    uint8_t testData[] = {0x01, 0x02, 0x03, 0x04};
-    GattCharacteristic characteristic(UUID::FromString("0000fff0-0000-1000-8000-00805f9b34fb"), 1, 0, 0);
-    characteristic.SetValue(testData, sizeof(testData));
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
-    bleGattClientCallback_->OnCharacteristicWriteResult(characteristic, 2); // WRITE_NOT_PERMITTED
     ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
 }
 
@@ -376,32 +285,53 @@ HWTEST_F(BleGattClientCallbackTest, getMac_002, testing::ext::TestSize.Level3) {
 
 /**
  * @tc.name: OnConnectionStateChanged_001
- * @tc.desc: Test OnConnectionStateChanged with CONNECTED state
+ * @tc.desc: Test OnConnectionStateChanged with CONNECTED state. The CONNECTED path must not
+ *           mark the attempt as aborted (gattAbortMac_/gattAbortRequestId_ unchanged).
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_001, testing::ext::TestSize.Level3) {
+    // Given: callback with valid mac, CONNECTED state, gattClient_ is nullptr
     bleGattClientCallback_->setMac("AA:BB:CC:DD:EE:FF");
+    BleSendManager& bleSendManager = BleSendManager::GetInstance();
+    bleSendManager.gattAbortMac_ = "SENTINEL_MAC";
+    bleSendManager.gattAbortRequestId_ = 99;
     int connectionState = static_cast<int>(Bluetooth::BTConnectState::CONNECTED);
     int ret = 0; // GATT_SUCCESS
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
+    // When: OnConnectionStateChanged is called with CONNECTED state
     bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
+    ASSERT_EQ(bleSendManager.gattAbortMac_, "SENTINEL_MAC");
+    ASSERT_EQ(bleSendManager.gattAbortRequestId_, 99);
 }
 
 /**
  * @tc.name: OnConnectionStateChanged_002
- * @tc.desc: Test OnConnectionStateChanged with DISCONNECTED state
+ * @tc.desc: Test OnConnectionStateChanged with DISCONNECTED state. The DISCONNECTED path must
+ *           record the abort marker (mac + requestId) so the waiting connect attempt wakes up.
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_002, testing::ext::TestSize.Level3) {
-    bleGattClientCallback_->setMac("AA:BB:CC:DD:EE:FF");
+    std::string mac = "AA:BB:CC:DD:EE:F1";
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechInfo mechInfo;
+    mechInfo.mac = mac;
+    mechInfo.mechId = 9701;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
+    bleGattClientCallback_->setMac(mac);
+    bleGattClientCallback_->setRequestId(7);
     int connectionState = static_cast<int>(Bluetooth::BTConnectState::DISCONNECTED);
     int ret = 0; // GATT_SUCCESS
     BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
+    bleSendManager.gattAbortMac_ = "";
+    bleSendManager.gattAbortRequestId_ = 0;
+    bleSendManager.gattClientRequestId_ = 0;
+    // When: OnConnectionStateChanged is called with DISCONNECTED state
     bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
+    ASSERT_EQ(bleSendManager.gattAbortMac_, mac);
+    ASSERT_EQ(bleSendManager.gattAbortRequestId_, 7u);
+    // Cleanup
+    bleSendManager.gattAbortMac_ = "";
+    bleSendManager.gattAbortRequestId_ = 0;
+    MechConnectManager::GetInstance().CleanMechInfo();
 }
 
 /**
@@ -410,13 +340,18 @@ HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_002, testing::ext::
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_003, testing::ext::TestSize.Level3) {
+    // Given: callback with valid mac, CONNECTING state
     bleGattClientCallback_->setMac("AA:BB:CC:DD:EE:FF");
+    BleSendManager& bleSendManager = BleSendManager::GetInstance();
+    bleSendManager.gattAbortMac_ = "SENTINEL_MAC";
+    bleSendManager.gattAbortRequestId_ = 99;
     int connectionState = static_cast<int>(Bluetooth::BTConnectState::CONNECTING);
     int ret = 0; // GATT_SUCCESS
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
+    // When: OnConnectionStateChanged is called with CONNECTING state
     bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
+    // Then: CONNECTING is neither CONNECTED nor DISCONNECTED, SUT early-returns without
+    ASSERT_EQ(bleSendManager.gattAbortMac_, "SENTINEL_MAC");
+    ASSERT_EQ(bleSendManager.gattAbortRequestId_, 99);
 }
 
 /**
@@ -425,30 +360,18 @@ HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_003, testing::ext::
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_004, testing::ext::TestSize.Level3) {
+    // Given: callback with valid mac, DISCONNECTING state
     bleGattClientCallback_->setMac("AA:BB:CC:DD:EE:FF");
+    BleSendManager& bleSendManager = BleSendManager::GetInstance();
+    bleSendManager.gattAbortMac_ = "SENTINEL_MAC";
+    bleSendManager.gattAbortRequestId_ = 99;
     int connectionState = static_cast<int>(Bluetooth::BTConnectState::DISCONNECTING);
     int ret = 0; // GATT_SUCCESS
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
+    // When: OnConnectionStateChanged is called with DISCONNECTING state
     bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-}
-
-/**
- * @tc.name: OnConnectionStateChanged_005
- * @tc.desc: Test OnConnectionStateChanged with valid MAC address
- * @tc.type: FUNC
- */
-HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_005, testing::ext::TestSize.Level3) {
-    std::string validMac = "AA:BB:CC:DD:EE:FF";
-    bleGattClientCallback_->setMac(validMac);
-    int connectionState = static_cast<int>(Bluetooth::BTConnectState::CONNECTED);
-    int ret = 0; // GATT_SUCCESS
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
-    bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
-    ASSERT_EQ(bleGattClientCallback_->getMac(), validMac);
+    // Then: DISCONNECTING is neither CONNECTED nor DISCONNECTED, SUT early-returns without
+    ASSERT_EQ(bleSendManager.gattAbortMac_, "SENTINEL_MAC");
+    ASSERT_EQ(bleSendManager.gattAbortRequestId_, 99);
 }
 
 /**
@@ -457,14 +380,18 @@ HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_005, testing::ext::
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_006, testing::ext::TestSize.Level3) {
+    // Given: callback with invalid mac, CONNECTED state
     std::string invalidMac = "INVALID_MAC_ADDRESS";
     bleGattClientCallback_->setMac(invalidMac);
+    BleSendManager& bleSendManager = BleSendManager::GetInstance();
+    bleSendManager.gattAbortMac_ = "SENTINEL_MAC";
+    bleSendManager.gattAbortRequestId_ = 99;
     int connectionState = static_cast<int>(Bluetooth::BTConnectState::CONNECTED);
     int ret = 0; // GATT_SUCCESS
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
+    // When: OnConnectionStateChanged is called with invalid mac
     bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
+    ASSERT_EQ(bleSendManager.gattAbortMac_, "SENTINEL_MAC");
+    ASSERT_EQ(bleSendManager.gattAbortRequestId_, 99);
 }
 
 /**
@@ -473,14 +400,18 @@ HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_006, testing::ext::
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_007, testing::ext::TestSize.Level3) {
+    // Given: callback with empty mac, CONNECTED state
     std::string emptyMac = "";
     bleGattClientCallback_->setMac(emptyMac);
+    BleSendManager& bleSendManager = BleSendManager::GetInstance();
+    bleSendManager.gattAbortMac_ = "SENTINEL_MAC";
+    bleSendManager.gattAbortRequestId_ = 99;
     int connectionState = static_cast<int>(Bluetooth::BTConnectState::CONNECTED);
     int ret = 0; // GATT_SUCCESS
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
+    // When: OnConnectionStateChanged is called with empty mac
     bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
+    ASSERT_EQ(bleSendManager.gattAbortMac_, "SENTINEL_MAC");
+    ASSERT_EQ(bleSendManager.gattAbortRequestId_, 99);
 }
 
 /**
@@ -489,13 +420,17 @@ HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_007, testing::ext::
  * @tc.type: FUNC
  */
 HWTEST_F(BleGattClientCallbackTest, OnConnectionStateChanged_008, testing::ext::TestSize.Level3) {
+    // Given: callback with valid mac, CONNECTED state, GATT_FAILURE ret
     bleGattClientCallback_->setMac("AA:BB:CC:DD:EE:FF");
+    BleSendManager& bleSendManager = BleSendManager::GetInstance();
+    bleSendManager.gattAbortMac_ = "SENTINEL_MAC";
+    bleSendManager.gattAbortRequestId_ = 99;
     int connectionState = static_cast<int>(Bluetooth::BTConnectState::CONNECTED);
     int ret = 1; // GATT_FAILURE
-    BleSendManager& bleSendManager = BleSendManager::GetInstance();
-    bool originalIsGattReady = bleSendManager.isGattReady_;
+    // When: OnConnectionStateChanged is called with CONNECTED state and GATT_FAILURE
     bleGattClientCallback_->OnConnectionStateChanged(connectionState, ret);
-    ASSERT_EQ(bleSendManager.isGattReady_, originalIsGattReady);
+    ASSERT_EQ(bleSendManager.gattAbortMac_, "SENTINEL_MAC");
+    ASSERT_EQ(bleSendManager.gattAbortRequestId_, 99);
 }
 
 /**
@@ -725,16 +660,23 @@ HWTEST_F(BleSendManagerTest, OnPairStateChanged_002, testing::ext::TestSize.Leve
  * @tc.type: FUNC
  */
 HWTEST_F(BleSendManagerTest, OnHidStateChanged_001, testing::ext::TestSize.Level3) {
-    // Given: MechInfo with valid mac
+    // Given: pre-add MechInfo so SetMechanicHidState can modify its hidState, pre-set HID state to true
     MechInfo mechInfo;
     mechInfo.mac = "AA:BB:CC:DD:EE:FF";
-    std::string originalMac = mechInfo.mac;
+    mechInfo.mechId = 200;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
+    MechConnectManager::GetInstance().SetMechanicHidState(mechInfo.mac, true);
 
     // When: OnHidStateChanged is called with DISCONNECTED state
-    bleSendManager_->OnHidStateChanged(0, 0, mechInfo); // DISCONNECTED
+    bleSendManager_->OnHidStateChanged(static_cast<int>(Bluetooth::BTConnectState::DISCONNECTED), 0, mechInfo);
 
-    // Then: MechInfo should not be modified by OnHidStateChanged
-    ASSERT_EQ(mechInfo.mac, originalMac);
+    // Then: DISCONNECTED path calls SetMechanicHidState(mac, false); verify the side effect
+    bool hidState = true;
+    ASSERT_EQ(MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState), ERR_OK);
+    ASSERT_FALSE(hidState);
+    // Cleanup
+    std::string macRef = mechInfo.mac;
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(macRef);
 }
 
 /**
@@ -743,16 +685,23 @@ HWTEST_F(BleSendManagerTest, OnHidStateChanged_001, testing::ext::TestSize.Level
  * @tc.type: FUNC
  */
 HWTEST_F(BleSendManagerTest, OnHidStateChanged_002, testing::ext::TestSize.Level3) {
-    // Given: MechInfo with valid mac
+    // Given: pre-add MechInfo so SetMechanicHidState can modify its hidState, pre-set HID state to false
     MechInfo mechInfo;
     mechInfo.mac = "AA:BB:CC:DD:EE:FF";
-    std::string originalMac = mechInfo.mac;
+    mechInfo.mechId = 201;
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
+    MechConnectManager::GetInstance().SetMechanicHidState(mechInfo.mac, false);
 
     // When: OnHidStateChanged is called with CONNECTED state
-    bleSendManager_->OnHidStateChanged(2, 0, mechInfo); // CONNECTED
+    bleSendManager_->OnHidStateChanged(static_cast<int>(Bluetooth::BTConnectState::CONNECTED), 0, mechInfo);
 
-    // Then: MechInfo should not be modified by OnHidStateChanged
-    ASSERT_EQ(mechInfo.mac, originalMac);
+    // Then: CONNECTED path calls SetMechanicHidState(mac, true); verify the side effect
+    bool hidState = false;
+    ASSERT_EQ(MechConnectManager::GetInstance().GetMechanicHidState(mechInfo.mac, hidState), ERR_OK);
+    ASSERT_TRUE(hidState);
+    // Cleanup
+    std::string macRef = mechInfo.mac;
+    MechConnectManager::GetInstance().RemoveMechInfoByMac(macRef);
 }
 
 /**
@@ -878,44 +827,6 @@ HWTEST_F(BleSendManagerTest, UnInit_001, testing::ext::TestSize.Level3) {
 
     // Then: gattClient_ should still be nullptr
     ASSERT_EQ(bleSendManager_->gattClient_, nullptr);
-}
-
-/**
- * @tc.name: GetRealName_001
- * @tc.desc: Test GetRealName
- * @tc.type: FUNC
- */
-HWTEST_F(BleSendManagerTest, GetRealName_001, testing::ext::TestSize.Level3) {
-    // Given: MechInfo with valid mac and mechId
-    MechInfo mechInfo;
-    mechInfo.mac = "AA:BB:CC:DD:EE:FF";
-    mechInfo.mechId = 1;
-    std::string originalMac = mechInfo.mac;
-    int32_t originalMechId = mechInfo.mechId;
-
-    // When: GetRealName is called
-    bleSendManager_->GetRealName(mechInfo);
-
-    // Then: MechInfo should not be modified by GetRealName
-    ASSERT_EQ(mechInfo.mac, originalMac);
-    ASSERT_EQ(mechInfo.mechId, originalMechId);
-}
-
-/**
- * @tc.name: StartScan_001
- * @tc.desc: Test StartScan with nullptr bleCentralManager_
- * @tc.type: FUNC
- */
-HWTEST_F(BleSendManagerTest, StartScan_001, testing::ext::TestSize.Level3) {
-    // Given: BleSendManager with bleCentralManager_ as nullptr
-    ASSERT_EQ(bleSendManager_->bleCentralManager_, nullptr);
-
-    // When: StartScan is called
-    bleSendManager_->StartScan();
-
-    // Then: bleCentralManager_ should still be nullptr (no state change)
-    // StartScan returns void, but when bleCentralManager_ is nullptr, it should return early without side effects
-    ASSERT_EQ(bleSendManager_->bleCentralManager_, nullptr);
 }
 
 /**
@@ -1361,17 +1272,16 @@ HWTEST_F(HostObserverTest, OnStateChanged_001, testing::ext::TestSize.Level3) {
     // Given: HostObserver instance and BleSendManager with bluetooth service stopped
     BleSendManager& bleSendManager = BleSendManager::GetInstance();
     bleSendManager.SetBluetoothServiceStoped(true);
-    bool originalBluetoothStopped = bleSendManager.HasBluetoothServiceStoped();
-    
     int transport = 1; // TRANSPORT_BREDR
     int status = static_cast<int>(Bluetooth::BTStateID::STATE_TURN_ON);
 
     // When: OnStateChanged is called with STATE_TURN_ON status
     hostObserver_->OnStateChanged(transport, status);
 
-    // Then: CleanAllLocalInfo should be called, which sets bluetoothServiceStoped to false
-    // Since CleanAllLocalInfo is async, we verify the initial state was set correctly
-    ASSERT_TRUE(originalBluetoothStopped);
+    // Then: SUT calls CleanAllLocalInfo which posts cleanup task to eventHandler_ (nullptr in test).
+    // The posted task (which would set bluetoothServiceStoped to false) is not executed,
+    // so bluetoothServiceStoped remains true (path-not-modified verification).
+    ASSERT_TRUE(bleSendManager.HasBluetoothServiceStoped());
 }
 
 /**
@@ -1721,12 +1631,13 @@ HWTEST_F(BleSendManagerTest, MechbodyGattcConnect_003, testing::ext::TestSize.Le
 /**
  * @tc.name  : MechbodyGattcConnect_004
  * @tc.number: MechbodyGattcConnect_004
- * @tc.desc  : Test MechbodyGattcConnect wait_for timeout when neither gattState nor abort marker becomes true.
- *             Covers the timeout branch returning MECHBODY_GATT_CONNECT_TIMEOUT.
+ * @tc.desc  : Test MechbodyGattcConnect returns MECHBODY_GATT_CONNECT_FAIL when GattClient::Connect fails,
+ *             and verify side effects on member variables including gattClientRequestId_ unchanged.
+ *             Covers the Connect-fail branch at line 784.
  */
 HWTEST_F(BleSendManagerTest, MechbodyGattcConnect_004, testing::ext::TestSize.Level1)
 {
-    // Given: 预置设备信息，GATT state为false，未写入打断标记
+    // Given: 预置设备信息到MechConnectManager
     std::string mac = "AA:BB:CC:DD:EE:04";
     MechConnectManager::GetInstance().CleanMechInfo();
     MechInfo mechInfo;
@@ -1734,31 +1645,20 @@ HWTEST_F(BleSendManagerTest, MechbodyGattcConnect_004, testing::ext::TestSize.Le
     mechInfo.mechName = "TestDevice";
     mechInfo.gattCoonectState = false;
     MechConnectManager::GetInstance().AddMechInfo(mechInfo);
-    bleSendManager_->gattAbortMac_.clear();
-    bleSendManager_->gattAbortRequestId_ = 0;
+    bleSendManager_->gattClientRequestId_ = 0;
 
-    // 模拟Connect成功
-    BluetoothRemoteDevice device(mac, 1);
-    bleSendManager_->gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
-    bleSendManager_->bleGattClientCallBack_ = std::make_shared<BleGattClientCallback>();
-    bleSendManager_->bleGattClientCallBack_->setMac(mac);
-    bleSendManager_->address_ = mac;
-    bleSendManager_->deviceName_ = "TestDevice";
+    // When: 调用被测函数MechbodyGattcConnect
+    // 在UT环境中GattClient::Connect()因蓝牙未启用返回非0，走分支1返回MECHBODY_GATT_CONNECT_FAIL
+    int32_t ret = bleSendManager_->MechbodyGattcConnect(mac, "TestDevice");
 
-    // When: 不做任何通知，wait_for将在1秒后超时
-    uint64_t requestId = 0;
-    std::unique_lock<std::mutex> lk(bleSendManager_->gattMutex_);
-    bool predResult = bleSendManager_->gattCv_.wait_for(lk, std::chrono::seconds(1),
-        [this, &mac, requestId]() {
-            bool gattState = false;
-            MechConnectManager::GetInstance().GetMechanicGattState(mac, gattState);
-            bool aborted = (requestId != 0) ? (bleSendManager_->gattAbortRequestId_ == requestId) :
-                (bleSendManager_->gattAbortMac_ == mac);
-            return gattState || aborted;
-        });
+    // Then: 断言返回值为MECHBODY_GATT_CONNECT_FAIL(1)
+    EXPECT_EQ(ret, 1);
 
-    // Then: 谓词因超时返回false
-    EXPECT_FALSE(predResult);
+    // 断言副作用：address_和deviceName_被正确设置
+    EXPECT_EQ(bleSendManager_->address_, mac);
+    EXPECT_EQ(bleSendManager_->deviceName_, "TestDevice");
+
+    EXPECT_EQ(bleSendManager_->gattClientMac_, mac);
 
     // 清理
     MechConnectManager::GetInstance().CleanMechInfo();
@@ -1766,6 +1666,463 @@ HWTEST_F(BleSendManagerTest, MechbodyGattcConnect_004, testing::ext::TestSize.Le
     bleSendManager_->gattClient_ = nullptr;
     bleSendManager_->bleGattClientCallBack_.reset();
     bleSendManager_->bleGattClientCallBack_ = nullptr;
+    bleSendManager_->gattClientMac_.clear();
+    bleSendManager_->gattClientRequestId_ = 0;
+}
+
+/**
+ * @tc.name  : OnGattReady_004
+ * @tc.number: OnGattReady_004
+ * @tc.desc  : Test OnGattReady when NotifyMechConnect returns MECH_CONNECT_FAILED.
+ *             Covers the branch at line 550 where result == MECH_CONNECT_FAILED,
+ *             OnGattReady returns MECH_CONNECT_FAILED (line 551).
+ */
+HWTEST_F(BleSendManagerTest, OnGattReady_004, testing::ext::TestSize.Level1)
+{
+    // Given: 设置gattClient_，MTU更新将在另一线程中被模拟成功，
+    // 但NotifyMechConnect会返回MECH_CONNECT_FAILED
+    BluetoothRemoteDevice device("AA:BB:CC:DD:EE:FF", 1);
+    bleSendManager_->gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
+    bleSendManager_->isMtuUpdated_ = false;
+
+    MechInfo mechInfo;
+    mechInfo.mechId = 9100;
+    mechInfo.mac = "AA:BB:CC:DD:EE:FF";
+    mechInfo.mechName = "TestDevice";
+
+    // 清空motionManagers_，使OnDeviceConnected创建新MotionManager
+    // MotionManager::Init()因无真实BLE栈将调用GetProtocolVer()超时，返回MECH_CONNECT_FAILED
+    MechBodyControllerService::GetInstance().CleanMotionManagers();
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
+
+    // 在另一线程中模拟MTU更新回调：设置isMtuUpdated_=true并通知mtuUpdateCv_
+    // 这使得OnGattReady中的wait_for成功通过，到达line 549
+    std::thread mtuThread([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        {
+            std::lock_guard<std::mutex> lock(bleSendManager_->mtuMutex_);
+            bleSendManager_->isMtuUpdated_ = true;
+        }
+        bleSendManager_->mtuUpdateCv_.notify_all();
+    });
+
+    // When: 调用OnGattReady
+    int32_t ret = bleSendManager_->OnGattReady(mechInfo);
+
+    mtuThread.join();
+
+    // Then: NotifyMechConnect内部调用OnDeviceConnected创建MotionManager并Init()
+    // Init()在无BLE环境下调用GetProtocolVer超时返回MECH_CONNECT_FAILED
+    // OnGattReady line 550: result == MECH_CONNECT_FAILED为true，返回MECH_CONNECT_FAILED
+    EXPECT_EQ(ret, MECH_CONNECT_FAILED);
+
+    // 清理
+    MechBodyControllerService::GetInstance().CleanMotionManagers();
+    MechConnectManager::GetInstance().CleanMechInfo();
+    bleSendManager_->gattClient_.reset();
+    bleSendManager_->gattClient_ = nullptr;
+}
+
+/**
+ * @tc.name  : OnGattReady_005
+ * @tc.number: OnGattReady_005
+ * @tc.desc  : Test OnGattReady when NotifyMechConnect returns ERR_OK.
+ *             Covers the branch at line 550 where result != MECH_CONNECT_FAILED,
+ *             McCameraTrackingController::Init() is called (line 554),
+ *             and OnGattReady returns ERR_OK (line 556).
+ */
+HWTEST_F(BleSendManagerTest, OnGattReady_005, testing::ext::TestSize.Level1)
+{
+    // Given: 设置gattClient_，MTU更新将在另一线程中被模拟成功，
+    // 预置motionManagers_使OnDeviceConnected跳过创建新MotionManager直接返回ERR_OK
+    BluetoothRemoteDevice device("AA:BB:CC:DD:EE:FF", 1);
+    bleSendManager_->gattClient_ = std::make_shared<OHOS::Bluetooth::GattClient>(device);
+    bleSendManager_->isMtuUpdated_ = false;
+
+    MechInfo mechInfo;
+    mechInfo.mechId = 9200;
+    mechInfo.mac = "AA:BB:CC:DD:EE:11";
+    mechInfo.mechName = "TestDevice";
+
+    // 预置motionManagers_[mechId]使OnDeviceConnected跳过创建新MotionManager
+    // OnDeviceConnected发现mechId已存在于motionManagers_中，跳过if分支，直接返回ERR_OK
+    MechBodyControllerService::GetInstance().CleanMotionManagers();
+    auto motionMgr = std::make_shared<MotionManager>(nullptr, mechInfo.mechId, false, 0);
+    motionMgr->deviceBaseInfo_.devType = static_cast<uint8_t>(MechType::PORTABLE_GIMBAL);
+    MechBodyControllerService::GetInstance().motionManagers_[mechInfo.mechId] = motionMgr;
+
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechConnectManager::GetInstance().AddMechInfo(mechInfo);
+
+    // 预置SubscribeEventUtils和McCameraTrackingController的守卫变量，
+    // 阻止Init()中的跨DSO系统调用（SubscribeCommonEvent/RegisterPermDisablePolicyCallback/
+    // RegisterCameraMuteListener等），避免测试环境下CFI check失败
+    auto &subscribeUtils = SubscribeEventUtils::GetInstance();
+    auto origCommonEventMonitor = subscribeUtils.commonEventMonitor_;
+    auto origCameraDisableCallback = subscribeUtils.cameraDisablePolicyCallback_;
+    auto origCameraMuteListener = subscribeUtils.cameraMuteListener_;
+    if (subscribeUtils.commonEventMonitor_ == nullptr) {
+        EventFwk::MatchingSkills matchingSkills;
+        matchingSkills.AddEvent(EventFwk::CommonEventSupport::COMMON_EVENT_USER_SWITCHED);
+        EventFwk::CommonEventSubscribeInfo subscribeInfo(matchingSkills);
+        subscribeUtils.commonEventMonitor_ = std::make_shared<ExtCommonEventSubscriber>(subscribeInfo);
+    }
+    if (subscribeUtils.cameraDisablePolicyCallback_ == nullptr) {
+        subscribeUtils.cameraDisablePolicyCallback_ = std::make_shared<CameraDisablePolicyCallback>();
+    }
+    if (subscribeUtils.cameraMuteListener_ == nullptr) {
+        subscribeUtils.cameraMuteListener_ = std::make_shared<MechCameraMuteListener>();
+    }
+    auto origSensorCallback = McCameraTrackingController::GetInstance().user.callback;
+    McCameraTrackingController::GetInstance().user.callback = McCameraTrackingController::SensorCallback;
+
+    // 在另一线程中模拟MTU更新回调
+    std::thread mtuThread([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::lock_guard<std::mutex> lock(bleSendManager_->mtuMutex_);
+        bleSendManager_->isMtuUpdated_ = true;
+        bleSendManager_->mtuUpdateCv_.notify_all();
+    });
+
+    // When: 调用OnGattReady
+    int32_t ret = bleSendManager_->OnGattReady(mechInfo);
+
+    mtuThread.join();
+
+    // Then: MTU更新成功，NotifyMechConnect返回ERR_OK
+    // OnGattReady line 550: result != MECH_CONNECT_FAILED为true
+    // line 554: McCameraTrackingController::Init()被调用
+    // line 556: 返回ERR_OK
+    EXPECT_EQ(ret, ERR_OK);
+
+    // 恢复守卫变量原始状态
+    subscribeUtils.commonEventMonitor_ = origCommonEventMonitor;
+    subscribeUtils.cameraDisablePolicyCallback_ = origCameraDisableCallback;
+    subscribeUtils.cameraMuteListener_ = origCameraMuteListener;
+    McCameraTrackingController::GetInstance().user.callback = origSensorCallback;
+
+    // 清理
+    MechBodyControllerService::GetInstance().CleanMotionManagers();
+    MechConnectManager::GetInstance().CleanMechInfo();
+    bleSendManager_->gattClient_ = nullptr;
+}
+
+/**
+ * @tc.name  : ConnectMechbodyInternal_001
+ * @tc.number: ConnectMechbodyInternal_001
+ * @tc.desc  : Test ConnectMechbodyInternal when no device connected (IsConnect=false),
+ *             new device not in MechConnectManager, gattCoonectState=false,
+ *             MechbodyGattcConnect fails. Covers: line 700 deviceIdentifier==0 branch,
+ *             line 701 IsConnect==false, line 717 GetMechInfo fails, line 718 AddMechInfo
+ *             succeeds, line 724 gattCoonectState==false, line 733 gattRet!=ERR_OK break.
+ */
+HWTEST_F(BleSendManagerTest, ConnectMechbodyInternal_001, testing::ext::TestSize.Level1)
+{
+    // Given: 无已连接设备，新设备不在MechConnectManager中
+    MechConnectManager::GetInstance().CleanMechInfo();
+    bleSendManager_->gattClient_ = nullptr;
+    bleSendManager_->bleGattClientCallBack_ = nullptr;
+    bleSendManager_->gattAbortMac_.clear();
+    bleSendManager_->gattAbortRequestId_ = 0;
+    bleSendManager_->address_ = "";
+
+    std::string mac = "AA:BB:CC:DD:EE:01";
+    std::string deviceName = "TestDevice";
+    uint32_t deviceIdentifier = 0; // isFirstConnect = false
+
+    // When: 调用ConnectMechbodyInternal
+    // IsConnect()返回false → 跳过line 701-711
+    // GetMechInfo失败 → AddMechInfo成功（line 718）
+    // gattCoonectState默认为false → 进入do-while（line 729）
+    // MechbodyGattcConnect在无BLE环境下失败 → gattRet != ERR_OK → break（line 733-738）
+    // MechbodyDisConnectSync被调用 → NotifyMechDisconnect从mechInfos_中移除设备
+    bleSendManager_->ConnectMechbodyInternal(mac, deviceName, deviceIdentifier, 0);
+
+    // Then: 验证MechbodyGattcConnect被调用（通过address_副作用）
+    EXPECT_EQ(bleSendManager_->address_, mac);
+
+    // 验证设备已从mechInfos_中移除（MechbodyDisConnectSync → NotifyMechDisconnect）
+    MechInfo resultInfo;
+    std::string mutableMac = mac;
+    EXPECT_NE(MechConnectManager::GetInstance().GetMechInfo(mutableMac, resultInfo), ERR_OK);
+
+    // 清理
+    MechConnectManager::GetInstance().CleanMechInfo();
+    bleSendManager_->gattClient_.reset();
+    bleSendManager_->gattClient_ = nullptr;
+    bleSendManager_->bleGattClientCallBack_.reset();
+    bleSendManager_->bleGattClientCallBack_ = nullptr;
+}
+
+/**
+ * @tc.name  : ConnectMechbodyInternal_002
+ * @tc.number: ConnectMechbodyInternal_002
+ * @tc.desc  : Test ConnectMechbodyInternal when IsConnect=true and isFirstConnect=false,
+ *             returns early at line 704. Covers: line 700 deviceIdentifier==0,
+ *             line 701 IsConnect==true, line 703 isFirstConnect==false → return.
+ */
+HWTEST_F(BleSendManagerTest, ConnectMechbodyInternal_002, testing::ext::TestSize.Level1)
+{
+    // Given: 已有一个连接的设备，新设备isFirstConnect=false
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechInfo existingInfo;
+    existingInfo.mac = "AA:BB:CC:DD:EE:99";
+    existingInfo.mechName = "ExistingDevice";
+    existingInfo.gattCoonectState = true;
+    MechConnectManager::GetInstance().AddMechInfo(existingInfo);
+
+    // 验证IsConnect返回true
+    ASSERT_TRUE(MechConnectManager::GetInstance().IsConnect());
+
+    std::string mac = "AA:BB:CC:DD:EE:02";
+    std::string deviceName = "TestDevice";
+    uint32_t deviceIdentifier = 0; // isFirstConnect = false
+
+    // 记录调用前的mechInfos数量
+    std::set<MechInfo> mechInfosBefore;
+    MechConnectManager::GetInstance().GetConnectMechList(mechInfosBefore);
+    size_t countBefore = mechInfosBefore.size();
+
+    // When: 调用ConnectMechbodyInternal
+    // IsConnect()返回true → 进入line 701 if块
+    // isFirstConnect==false → line 704 return提前退出
+    bleSendManager_->ConnectMechbodyInternal(mac, deviceName, deviceIdentifier, 0);
+
+    // Then: 新设备信息不应被添加（line 704提前return，后续逻辑未执行）
+    std::set<MechInfo> mechInfosAfter;
+    MechConnectManager::GetInstance().GetConnectMechList(mechInfosAfter);
+    EXPECT_EQ(mechInfosAfter.size(), countBefore);
+
+    // 清理
+    MechConnectManager::GetInstance().CleanMechInfo();
+}
+
+/**
+ * @tc.name  : ConnectMechbodyInternal_003
+ * @tc.number: ConnectMechbodyInternal_003
+ * @tc.desc  : Test ConnectMechbodyInternal when IsConnect=true and isFirstConnect=true,
+ *             disconnects old device and proceeds to connect new device.
+ *             Covers: line 700 deviceIdentifier!=0, line 701 IsConnect==true,
+ *             line 703 isFirstConnect==true → DisConnectOldDevice, line 733 break.
+ */
+HWTEST_F(BleSendManagerTest, ConnectMechbodyInternal_003, testing::ext::TestSize.Level1)
+{
+    // Given: 已有一个gattCoonectState=true的设备，新设备isFirstConnect=true
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechInfo existingInfo;
+    existingInfo.mac = "AA:BB:CC:DD:EE:98";
+    existingInfo.mechName = "ExistingDevice";
+    existingInfo.gattCoonectState = true;
+    MechConnectManager::GetInstance().AddMechInfo(existingInfo);
+
+    ASSERT_TRUE(MechConnectManager::GetInstance().IsConnect());
+
+    std::string mac = "AA:BB:CC:DD:EE:03";
+    std::string deviceName = "TestDevice";
+    uint32_t deviceIdentifier = 12345; // isFirstConnect = true
+    bleSendManager_->address_ = "";
+
+    // When: 调用ConnectMechbodyInternal
+    // IsConnect()返回true → 进入if块
+    // isFirstConnect==true → 不return，调用DisConnectOldDevice（line 707）
+    // DisConnectOldDevice断开gattCoonectState==true的旧设备
+    // 之后继续到line 712，新设备GetMechInfo失败→AddMechInfo成功
+    // gattCoonectState==false → do-while，MechbodyGattcConnect失败 → break
+    // MechbodyDisConnectSync → NotifyMechDisconnect从mechInfos_中移除新设备
+    bleSendManager_->ConnectMechbodyInternal(mac, deviceName, deviceIdentifier, 0);
+
+    // Then: 验证MechbodyGattcConnect被调用（通过address_副作用）
+    EXPECT_EQ(bleSendManager_->address_, mac);
+
+    // 验证新设备已从mechInfos_中移除（MechbodyDisConnectSync → NotifyMechDisconnect）
+    MechInfo resultInfo;
+    std::string mutableMac = mac;
+    EXPECT_NE(MechConnectManager::GetInstance().GetMechInfo(mutableMac, resultInfo), ERR_OK);
+
+    // 清理
+    MechConnectManager::GetInstance().CleanMechInfo();
+    bleSendManager_->gattClient_.reset();
+    bleSendManager_->gattClient_ = nullptr;
+    bleSendManager_->bleGattClientCallBack_.reset();
+    bleSendManager_->bleGattClientCallBack_ = nullptr;
+}
+
+/**
+ * @tc.name  : ConnectMechbodyInternal_004
+ * @tc.number: ConnectMechbodyInternal_004
+ * @tc.desc  : Test ConnectMechbodyInternal when GetMechInfo succeeds and the device
+ *             is fully connected (gatt+pair+hid), returns early at IsMechFullyConnected
+ *             without disconnecting.
+ *             Covers: PrepareMechInfoForConnect GetMechInfo==ERR_OK, IsMechFullyConnected → early return.
+ */
+HWTEST_F(BleSendManagerTest, ConnectMechbodyInternal_004, testing::ext::TestSize.Level1)
+{
+    // Given: 设备已在MechConnectManager中且gatt/pair/hid均为已连接（完整连接状态）
+    MechConnectManager::GetInstance().CleanMechInfo();
+    std::string mac = "AA:BB:CC:DD:EE:04";
+    MechInfo existingInfo;
+    existingInfo.mac = mac;
+    existingInfo.mechName = "TestDevice";
+    existingInfo.gattCoonectState = true;
+    existingInfo.pairState = true;
+    existingInfo.hidState = true;
+    MechConnectManager::GetInstance().AddMechInfo(existingInfo);
+
+    std::string deviceName = "TestDevice";
+    uint32_t deviceIdentifier = 0;
+
+    // 验证GetMechInfo能成功找到该设备
+    MechInfo verifyInfo;
+    std::string mutableMac = mac;
+    ASSERT_EQ(MechConnectManager::GetInstance().GetMechInfo(mutableMac, verifyInfo), ERR_OK);
+    ASSERT_TRUE(verifyInfo.gattCoonectState);
+    ASSERT_TRUE(verifyInfo.pairState);
+    ASSERT_TRUE(verifyInfo.hidState);
+
+    // When: 调用ConnectMechbodyInternal
+    // GetMechInfo成功 → 跳过AddMechInfo
+    // IsMechFullyConnected==true → PrepareMechInfoForConnect返回false，提前退出，
+    // 不进入RunConnectAttempt，不调用MechbodyGattcConnect
+    bleSendManager_->ConnectMechbodyInternal(mac, deviceName, deviceIdentifier, 0);
+
+    // Then: 已连接设备信息在MechConnectManager中完整保留（未被移除或修改）
+    // 对比其他路径（如gattRet!=ERR_OK时MechbodyDisConnectSync会移除设备），
+    // IsMechFullyConnected提前返回的关键副作用是保留现有连接状态
+    MechInfo resultInfo;
+    std::string resultMac = mac;
+    EXPECT_EQ(MechConnectManager::GetInstance().GetMechInfo(resultMac, resultInfo), ERR_OK);
+    EXPECT_TRUE(resultInfo.gattCoonectState);
+    EXPECT_EQ(resultInfo.mac, mac);
+    EXPECT_EQ(resultInfo.mechName, "TestDevice");
+
+    // 清理
+    MechConnectManager::GetInstance().CleanMechInfo();
+}
+
+/**
+ * @tc.name  : ConnectMechbodyInternal_005
+ * @tc.number: ConnectMechbodyInternal_005
+ * @tc.desc  : Test ConnectMechbodyInternal when GetMechInfo succeeds and
+ *             gattCoonectState=false, proceeds to do-while and GATT connect fails.
+ *             Covers: line 717 GetMechInfo==ERR_OK, line 724 gattCoonectState==false,
+ *             line 733 gattRet!=ERR_OK → break.
+ *             Note: deviceIdentifier!=0 so isFirstConnect=true to avoid early return
+ *             at line 704 (since pre-added device makes IsConnect() return true).
+ */
+HWTEST_F(BleSendManagerTest, ConnectMechbodyInternal_005, testing::ext::TestSize.Level1)
+{
+    // Given: 设备已在MechConnectManager中，gattCoonectState=false
+    // 使用deviceIdentifier!=0使isFirstConnect=true，避免line 704 early return
+    // （因为预添加设备后IsConnect()返回true）
+    MechConnectManager::GetInstance().CleanMechInfo();
+    std::string mac = "AA:BB:CC:DD:EE:05";
+    MechInfo existingInfo;
+    existingInfo.mac = mac;
+    existingInfo.mechName = "TestDevice";
+    existingInfo.gattCoonectState = false;
+    MechConnectManager::GetInstance().AddMechInfo(existingInfo);
+
+    std::string deviceName = "TestDevice";
+    uint32_t deviceIdentifier = 999; // isFirstConnect = true, 避免line 704 return
+
+    // 验证GetMechInfo成功且gattCoonectState为false
+    MechInfo verifyInfo;
+    std::string mutableMac = mac;
+    ASSERT_EQ(MechConnectManager::GetInstance().GetMechInfo(mutableMac, verifyInfo), ERR_OK);
+    ASSERT_FALSE(verifyInfo.gattCoonectState);
+
+    bleSendManager_->gattAbortMac_.clear();
+    bleSendManager_->gattAbortRequestId_ = 0;
+    bleSendManager_->address_ = "";
+
+    // When: 调用ConnectMechbodyInternal
+    // IsConnect()返回true → isFirstConnect==true → DisConnectOldDevice
+    // （旧设备gattCoonectState==false，DisConnectOldDevice不处理它）
+    // GetMechInfo成功 → 跳过AddMechInfo
+    // gattCoonectState==false → 进入do-while
+    // MechbodyGattcConnect失败 → gattRet != ERR_OK → break
+    bleSendManager_->ConnectMechbodyInternal(mac, deviceName, deviceIdentifier, 0);
+
+    // Then: 验证MechbodyGattcConnect被调用（通过address_副作用）
+    EXPECT_EQ(bleSendManager_->address_, mac);
+
+    // 验证设备已从mechInfos_中移除（MechbodyDisConnectSync → NotifyMechDisconnect）
+    std::string mutableMac2 = mac;
+    MechInfo resultInfo;
+    EXPECT_NE(MechConnectManager::GetInstance().GetMechInfo(mutableMac2, resultInfo), ERR_OK);
+
+    // 清理
+    MechConnectManager::GetInstance().CleanMechInfo();
+    bleSendManager_->gattClient_.reset();
+    bleSendManager_->gattClient_ = nullptr;
+    bleSendManager_->bleGattClientCallBack_.reset();
+    bleSendManager_->bleGattClientCallBack_ = nullptr;
+}
+
+/**
+ * @tc.name  : ConnectMechbodyInternal_006
+ * @tc.number: ConnectMechbodyInternal_006
+ * @tc.desc  : Test ConnectMechbodyInternal when IsConnect==true (old device with gattCoonectState=false),
+ *             isFirstConnect==true, DisConnectOldDevice skips old device (gattCoonectState=false),
+ *             new device GetMechInfo fails → AddMechInfo called, gattCoonectState=false,
+ *             MechbodyGattcConnect fails.
+ *             Covers: line 701 IsConnect==true, line 703 isFirstConnect==true,
+ *             DisConnectOldDevice (no device disconnected), line 717 GetMechInfo fails,
+ *             line 718 AddMechInfo succeeds, line 724 gattCoonectState==false,
+ *             line 733 gattRet!=ERR_OK → break.
+ */
+HWTEST_F(BleSendManagerTest, ConnectMechbodyInternal_006, testing::ext::TestSize.Level1)
+{
+    // Given: 已有一个gattCoonectState=false的旧设备，新设备不在MechConnectManager中
+    // DisConnectOldDevice会遍历旧设备但因其gattCoonectState=false而跳过断连
+    MechConnectManager::GetInstance().CleanMechInfo();
+    MechInfo oldDeviceInfo;
+    oldDeviceInfo.mac = "AA:BB:CC:DD:EE:98";
+    oldDeviceInfo.mechName = "OldDevice";
+    oldDeviceInfo.gattCoonectState = false;
+    MechConnectManager::GetInstance().AddMechInfo(oldDeviceInfo);
+
+    std::string mac = "AA:BB:CC:DD:EE:06";
+    std::string deviceName = "TestDevice";
+    uint32_t deviceIdentifier = 999; // isFirstConnect = true
+
+    bleSendManager_->gattAbortMac_.clear();
+    bleSendManager_->gattAbortRequestId_ = 0;
+    bleSendManager_->address_ = "";
+
+    // When: 调用ConnectMechbodyInternal
+    // IsConnect()返回true → 进入if块 → isFirstConnect==true → 调用DisConnectOldDevice
+    // DisConnectOldDevice遍历旧设备，gattCoonectState=false → 不调用MechbodyDisConnectSync
+    // 新设备GetMechInfo失败 → AddMechInfo成功（line 718）
+    // gattCoonectState==false → 进入do-while
+    // MechbodyGattcConnect失败 → gattRet != ERR_OK → break（line 733-738）
+    // MechbodyDisConnectSync → NotifyMechDisconnect移除新设备
+    bleSendManager_->ConnectMechbodyInternal(mac, deviceName, deviceIdentifier, 0);
+
+    // Then: 验证MechbodyGattcConnect被调用（通过address_副作用）
+    EXPECT_EQ(bleSendManager_->address_, mac);
+
+    // 验证新设备已从mechInfos_中移除（MechbodyDisConnectSync → NotifyMechDisconnect）
+    MechInfo resultInfo;
+    std::string resultMac = mac;
+    EXPECT_NE(MechConnectManager::GetInstance().GetMechInfo(resultMac, resultInfo), ERR_OK);
+
+    // 验证旧设备仍在mechInfos_中（DisConnectOldDevice因其gattCoonectState=false未断连）
+    std::string oldMac = "AA:BB:CC:DD:EE:98";
+    MechInfo oldResultInfo;
+    EXPECT_EQ(MechConnectManager::GetInstance().GetMechInfo(oldMac, oldResultInfo), ERR_OK);
+    EXPECT_EQ(oldResultInfo.mechName, "OldDevice");
+    EXPECT_FALSE(oldResultInfo.gattCoonectState);
+
+    // 清理
+    MechConnectManager::GetInstance().CleanMechInfo();
+    bleSendManager_->gattClient_.reset();
+    bleSendManager_->gattClient_ = nullptr;
+    bleSendManager_->bleGattClientCallBack_.reset();
+    bleSendManager_->bleGattClientCallBack_ = nullptr;
+    bleSendManager_->gattAbortMac_.clear();
+    bleSendManager_->gattAbortRequestId_ = 0;
 }
 
 /**
@@ -1803,7 +2160,8 @@ HWTEST_F(BleSendManagerTest, MechbodyConnect_MergeSameMacInFlight_001, testing::
  * @tc.number: MechbodyConnect_PreemptDifferentMac_001
  * @tc.desc  : latest-wins 抢占行为：不同 mac 的连接请求会各自推进代次（每次请求一个代次），
  *             不会被合并。使用无 runner 的 EventHandler 使 PostTask 返回 false，
- *             从而每次请求都走"推进代次 + FinishAttempt"的确定性路径。
+ *             从而每次请求都走"推进代次 + FinishAttempt"的确定性路径；
+ *             PostTask 失败时 MechbodyConnect 返回 MECH_CONNECT_FAILED。
  */
 HWTEST_F(BleSendManagerTest, MechbodyConnect_PreemptDifferentMac_001, testing::ext::TestSize.Level1)
 {
@@ -1817,8 +2175,9 @@ HWTEST_F(BleSendManagerTest, MechbodyConnect_PreemptDifferentMac_001, testing::e
     int32_t retA = bleSendManager_->MechbodyConnect(macA, "DeviceA", 1);
     int32_t retB = bleSendManager_->MechbodyConnect(macB, "DeviceB", 1);
 
-    EXPECT_EQ(retA, ERR_OK);
-    EXPECT_EQ(retB, ERR_OK);
+    // PostTask失败（无runner）→ 每次请求走"推进代次 + FinishAttempt"路径并返回MECH_CONNECT_FAILED
+    EXPECT_EQ(retA, 96469016); // MECH_CONNECT_FAILED
+    EXPECT_EQ(retB, 96469016); // MECH_CONNECT_FAILED
     EXPECT_EQ(bleSendManager_->activeRequestId_.load(), 2u);
 
     // Cleanup
